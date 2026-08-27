@@ -1,0 +1,117 @@
+### BridgeIQ API Test Suite (.http)
+### Use with VS Code REST Client extension, IntelliJ HTTP Client, or curl
+
+@baseUrl = http://localhost:4000
+@projectId = 9c874acd-e66d-4775-908c-5f5768f19dab
+@pendingMatchId = 8ab0b13d-7138-4234-b6ac-ed8ff1e5f31e
+
+###############################################################################
+# 1. Health Check
+###############################################################################
+### Verify Server Health
+GET {{baseUrl}}/health
+Content-Type: application/json
+
+###############################################################################
+# 2. Reports
+###############################################################################
+### Upload Daily Report (Raw Free-Text Payload)
+POST {{baseUrl}}/reports
+Content-Type: application/json
+
+{
+  "uploaded_by": "Field Supervisor (Tank Farm)",
+  "file_type": "free-text",
+  "text_content": "Three spools for Line 24 were erected near Tank Farm Area A today. Welding underway."
+}
+
+### Upload Daily Report (Multipart Form with File)
+POST {{baseUrl}}/reports
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="uploaded_by"
+
+Amit Gohain (Piping Supervisor)
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="daily-log.txt"
+Content-Type: text/plain
+
+Line 24 spool hydrotest completed successfully. Pressure held at 45 bar for 4 hours.
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### List All Reports
+GET {{baseUrl}}/reports
+
+### List Reports Filtered by Status (pending)
+GET {{baseUrl}}/reports?status=pending
+
+### List Reports Filtered by Status (processed)
+GET {{baseUrl}}/reports?status=processed
+
+
+###############################################################################
+# 3. Schedule Activities
+###############################################################################
+### List All Activities
+GET {{baseUrl}}/activities
+
+### List Activities Filtered by Discipline (piping)
+GET {{baseUrl}}/activities?discipline=piping
+
+### List Activities Filtered by Discipline (civil)
+GET {{baseUrl}}/activities?discipline=civil
+
+### Seed Activities from CSV File (reads server-side ./seed-data/schedule.csv)
+POST {{baseUrl}}/activities/seed
+Content-Type: application/json
+
+{}
+
+
+###############################################################################
+# 4. Semantic Matches & Confidence Tiering
+###############################################################################
+### List All Matches (Joined with Activity Code and Extracted Event)
+GET {{baseUrl}}/matches
+
+### List Matches Awaiting Planner Review (70-95% confidence)
+GET {{baseUrl}}/matches?status=pending
+
+### List Auto-Approved Matches (>= 95% confidence)
+GET {{baseUrl}}/matches?status=auto_approved
+
+### List Matches Requiring Manual Resolution (< 70% confidence)
+GET {{baseUrl}}/matches?status=manual_resolution
+
+### Approve Match (Planner Review Action)
+# Updates status to planner_approved, records timestamp, and writes to audit_log
+PATCH {{baseUrl}}/matches/{{pendingMatchId}}
+Content-Type: application/json
+
+{
+  "status": "planner_approved",
+  "resolved_by": "Senior Planner (Oil India Limited)"
+}
+
+### Reject Match (Alternative Planner Action)
+PATCH {{baseUrl}}/matches/{{pendingMatchId}}
+Content-Type: application/json
+
+{
+  "status": "rejected",
+  "resolved_by": "Discipline Lead (Piping)"
+}
+
+
+###############################################################################
+# 5. Audit Log (Immutable Verification Trail)
+###############################################################################
+### List All Audit Log Entries (Most Recent First)
+GET {{baseUrl}}/audit-log
+
+### Filter Audit Log by Specific Match ID
+GET {{baseUrl}}/audit-log?match_id={{pendingMatchId}}
+
+### Filter Audit Log by Approver (AI auto-approvals vs. human planners)
+GET {{baseUrl}}/audit-log?approver=ai

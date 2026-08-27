@@ -13,6 +13,7 @@
     "dev:frontend": "npm run dev --workspace=frontend",
     "build": "npm run build --workspaces",
     "lint": "npm run lint --workspaces",
-    "migrate": "tsx database/scripts/migrate.ts"
+    "migrate": "tsx database/scripts/migrate.ts",
+    "seed": "tsx database/scripts/seed.ts"
   }
 }
