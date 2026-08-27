@@ -14,6 +14,7 @@
     "build": "npm run build --workspaces",
     "lint": "npm run lint --workspaces",
     "migrate": "tsx database/scripts/migrate.ts",
-    "seed": "tsx database/scripts/seed.ts"
+    "seed": "tsx database/scripts/seed.ts",
+    "test:extract": "npm run test:extract --workspace=ai-worker"
   }
 }
