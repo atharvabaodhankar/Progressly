@@ -19,9 +19,36 @@ import {
   FileSpreadsheet,
   Building2,
   Sparkles,
+  LayoutDashboard,
+  Calendar,
+  History,
+  TrendingUp,
+  ChevronDown,
+  ChevronUp,
+  AlertCircle,
+  Activity as ActivityIcon,
+  Search,
 } from 'lucide-react';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+interface ActivityItem {
+  id: string;
+  wbs_node_id: string;
+  activity_code: string;
+  description: string;
+  discipline: string;
+  line: string | null;
+  location: string | null;
+  planned_start: string | null;
+  planned_end: string | null;
+  actual_start: string | null;
+  actual_end: string | null;
+  progress_pct: number | null;
+  has_embedding: boolean;
+  wbs_level?: string;
+  wbs_name?: string;
+}
 
 interface MatchItem {
   id: string;
@@ -50,6 +77,29 @@ interface MatchItem {
   report_uploaded_by?: string;
 }
 
+interface AuditLogEntry {
+  id: string;
+  match_id: string;
+  action: string;
+  source_report_id: string;
+  confidence_score: string | number;
+  model_version: string;
+  approver: string;
+  previous_value: Record<string, unknown> | string;
+  new_value: Record<string, unknown> | string;
+  timestamp: string;
+  report_uploaded_by?: string;
+  report_file_type?: string;
+  activity_code?: string;
+  activity_description?: string;
+  activity_discipline?: string;
+  event_description?: string;
+  event_discipline?: string;
+  event_line?: string | null;
+  event_location?: string | null;
+  event_type?: string;
+}
+
 interface ToastMessage {
   id: string;
   type: 'success' | 'error' | 'info';
@@ -57,7 +107,7 @@ interface ToastMessage {
 }
 
 export default function BridgeIQApp() {
-  const [activeTab, setActiveTab] = useState<'upload' | 'review' | 'audit'>('review');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'review' | 'upload'>('dashboard');
 
   // Screen 1: Upload State
   const [uploadMode, setUploadMode] = useState<'file' | 'text'>('text');
@@ -79,9 +129,18 @@ export default function BridgeIQApp() {
   const [isLoadingMatches, setIsLoadingMatches] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'pending' | 'manual_resolution' | 'all'>('pending');
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+
+  // Screen 3: Dashboard State
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+  const [isLoadingDashboard, setIsLoadingDashboard] = useState(false);
+  const [disciplineFilter, setDisciplineFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [expandedAuditId, setExpandedAuditId] = useState<string | null>(null);
+
+  // Toast State
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
-  // Toast Helper
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     const id = `${Date.now()}-${Math.random()}`;
     setToasts((prev) => [...prev, { id, type, message }]);
@@ -110,13 +169,55 @@ export default function BridgeIQApp() {
     }
   }, [statusFilter]);
 
+  // Fetch Dashboard Data (Activities & Audit Logs)
+  const fetchDashboardData = useCallback(async () => {
+    setIsLoadingDashboard(true);
+    try {
+      const [actRes, audRes, allMatchesRes] = await Promise.all([
+        fetch(`${API_BASE}/activities`),
+        fetch(`${API_BASE}/audit-log`),
+        fetch(`${API_BASE}/matches`),
+      ]);
+
+      if (actRes.ok) {
+        const actData = await actRes.json();
+        setActivities(actData.activities || []);
+      }
+
+      if (audRes.ok) {
+        const audData = await audRes.json();
+        setAuditLogs(audData.audit_logs || []);
+      }
+
+      if (allMatchesRes.ok) {
+        const allMatchesData = await allMatchesRes.json();
+        if (statusFilter === 'all') {
+          setMatches(allMatchesData.matches || []);
+        }
+      }
+    } catch (err: unknown) {
+      console.error('Error loading dashboard:', err);
+    } finally {
+      setIsLoadingDashboard(false);
+    }
+  }, [statusFilter]);
+
   useEffect(() => {
     fetchMatches();
-  }, [fetchMatches]);
+    fetchDashboardData();
+  }, [fetchMatches, fetchDashboardData]);
 
-  // Counts
-  const pendingCount = matches.filter((m) => m.status === 'pending').length;
-  const manualCount = matches.filter((m) => m.status === 'manual_resolution').length;
+  // Counts & Summary KPIs
+  const totalActivities = activities.length;
+  const pendingMatchesCount = matches.filter((m) => m.status === 'pending').length;
+  const manualResolutionCount = matches.filter((m) => m.status === 'manual_resolution').length;
+  const autoApprovedCount = matches.filter((m) => m.status === 'auto_approved').length;
+  const totalMatchesCount = matches.length;
+
+  const autoApprovedPct =
+    totalMatchesCount > 0 ? Math.round((autoApprovedCount / totalMatchesCount) * 100) : 0;
+  const pendingReviewPct =
+    totalMatchesCount > 0 ? Math.round((pendingMatchesCount / totalMatchesCount) * 100) : 0;
 
   // Handle Report Upload
   const handleUploadSubmit = async (e: React.FormEvent) => {
@@ -163,6 +264,7 @@ export default function BridgeIQApp() {
       showToast('Report received successfully. Ingested for schedule processing.', 'success');
       setReportText('');
       setSelectedFile(null);
+      fetchDashboardData();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Upload failed';
       setUploadError(msg);
@@ -197,8 +299,11 @@ export default function BridgeIQApp() {
       // Optimistic update: Remove from pending list
       setMatches((prev) => prev.filter((m) => m.id !== matchId));
 
-      const actionText = action === 'planner_approved' ? 'approved' : 'rejected';
-      showToast(`Match for activity ${activityCode} was ${actionText}.`, 'success');
+      const actionText = action === 'planner_approved' ? 'approved & schedule updated' : 'rejected';
+      showToast(`Match for ${activityCode} was ${actionText}.`, 'success');
+
+      // Refresh dashboard to show linked dates and audit log
+      fetchDashboardData();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to update match';
       showToast(msg, 'error');
@@ -207,7 +312,7 @@ export default function BridgeIQApp() {
     }
   };
 
-  // Helpers for Confidence Tiers
+  // Helper for Confidence Badges
   const getConfidenceBadge = (score: string | number) => {
     const num = typeof score === 'string' ? parseFloat(score) : score;
     const pct = Math.round(num > 1 ? num : num * 100);
@@ -235,6 +340,59 @@ export default function BridgeIQApp() {
       dot: 'bg-rose-400',
     };
   };
+
+  // Helper for Schedule Variance / Deviation
+  const getScheduleDeviation = (act: ActivityItem) => {
+    if (!act.actual_start) {
+      return { status: 'not_started', label: 'Not Started', badge: 'bg-slate-800 text-slate-400 border-slate-700' };
+    }
+
+    if (act.progress_pct === 100) {
+      if (act.planned_start && act.actual_start) {
+        const planned = new Date(act.planned_start).getTime();
+        const actual = new Date(act.actual_start).getTime();
+        const diffDays = Math.round((actual - planned) / (1000 * 60 * 60 * 24));
+        if (diffDays > 0) {
+          return {
+            status: 'completed_delayed',
+            label: `Completed (+${diffDays}d delay)`,
+            badge: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
+          };
+        }
+      }
+      return { status: 'completed_ontime', label: 'Completed (On Time)', badge: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' };
+    }
+
+    if (act.planned_start) {
+      const planned = new Date(act.planned_start).getTime();
+      const actual = new Date(act.actual_start).getTime();
+      const diffDays = Math.round((actual - planned) / (1000 * 60 * 60 * 24));
+      if (diffDays > 0) {
+        return {
+          status: 'delayed_start',
+          label: `Delayed Start (+${diffDays}d)`,
+          badge: 'bg-rose-500/10 text-rose-300 border-rose-500/30',
+        };
+      }
+    }
+
+    return { status: 'in_progress', label: `In Progress (${act.progress_pct || 0}%)`, badge: 'bg-sky-500/10 text-sky-300 border-sky-500/30' };
+  };
+
+  // Filtered Activities
+  const filteredActivities = activities.filter((act) => {
+    const matchesDiscipline =
+      disciplineFilter === 'all' ||
+      act.discipline.toLowerCase() === disciplineFilter.toLowerCase();
+    const matchesSearch =
+      searchQuery === '' ||
+      act.activity_code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      act.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (act.location && act.location.toLowerCase().includes(searchQuery.toLowerCase()));
+    return matchesDiscipline && matchesSearch;
+  });
+
+  const uniqueDisciplines = Array.from(new Set(activities.map((a) => a.discipline)));
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col antialiased">
@@ -273,15 +431,44 @@ export default function BridgeIQApp() {
                   Oil India Ltd
                 </span>
               </div>
-              <p className="text-xs text-slate-400">Intelligent Schedule-Linking & Verification</p>
+              <p className="text-xs text-slate-400">Schedule-Linking & Verification Layer</p>
             </div>
           </div>
 
-          {/* Navigation Tabs */}
+          {/* Navigation Tabs (3 Screens) */}
           <nav className="flex items-center gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800">
             <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
+                activeTab === 'dashboard'
+                  ? 'bg-emerald-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              }`}
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              <span>Project Dashboard</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('review')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all relative ${
+                activeTab === 'review'
+                  ? 'bg-emerald-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              }`}
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>Review Queue</span>
+              {pendingMatchesCount > 0 && (
+                <span className="ml-1 px-1.5 py-0.2 text-xs font-semibold bg-amber-400 text-slate-950 rounded-full">
+                  {pendingMatchesCount}
+                </span>
+              )}
+            </button>
+
+            <button
               onClick={() => setActiveTab('upload')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
                 activeTab === 'upload'
                   ? 'bg-emerald-600 text-white shadow-md'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
@@ -290,29 +477,636 @@ export default function BridgeIQApp() {
               <Upload className="w-4 h-4" />
               <span>Upload Report</span>
             </button>
-
-            <button
-              onClick={() => setActiveTab('review')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all relative ${
-                activeTab === 'review'
-                  ? 'bg-emerald-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-              }`}
-            >
-              <ShieldCheck className="w-4 h-4" />
-              <span>Review Queue</span>
-              {pendingCount > 0 && (
-                <span className="ml-1 px-1.5 py-0.2 text-xs font-semibold bg-amber-400 text-slate-950 rounded-full">
-                  {pendingCount}
-                </span>
-              )}
-            </button>
           </nav>
         </div>
       </header>
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        {/* ========================================================================= */}
+        {/* SCREEN 3: PROJECT DASHBOARD                                               */}
+        {/* ========================================================================= */}
+        {activeTab === 'dashboard' && (
+          <div className="space-y-8">
+            {/* Header with Project Title */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-3">
+                  <span>Project Schedule Dashboard</span>
+                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
+                    Live Schedule Sync
+                  </span>
+                </h1>
+                <p className="text-sm text-slate-400 mt-1">
+                  Oil India Ltd - Duliajan Infrastructure • Real-time progress tracking and automated schedule updates
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={fetchDashboardData}
+                  disabled={isLoadingDashboard}
+                  className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-2 transition"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLoadingDashboard ? 'animate-spin' : ''}`} />
+                  <span>Refresh Data</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Section C: Summary Stats KPI Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Card 1: Total Activities */}
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    Total Schedule Activities
+                  </span>
+                  <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                    <ActivityIcon className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="mt-3 flex items-baseline gap-2">
+                  <span className="text-3xl font-extrabold text-white tracking-tight">{totalActivities}</span>
+                  <span className="text-xs text-slate-400 font-medium">L6 Activities</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">Across 6 engineering disciplines</p>
+              </div>
+
+              {/* Card 2: Auto-Approved % */}
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">
+                    Auto-Approved (Tier 1)
+                  </span>
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                    <CheckCircle2 className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="mt-3 flex items-baseline gap-2">
+                  <span className="text-3xl font-extrabold text-emerald-400 tracking-tight">{autoApprovedPct}%</span>
+                  <span className="text-xs text-slate-400 font-medium">({autoApprovedCount} events)</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">Directly updated schedule ($\ge 95\%$ confidence)</p>
+              </div>
+
+              {/* Card 3: Requires Review % */}
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">
+                    Planner Review (Tier 2)
+                  </span>
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                    <Clock className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="mt-3 flex items-baseline gap-2">
+                  <span className="text-3xl font-extrabold text-amber-400 tracking-tight">{pendingReviewPct}%</span>
+                  <span className="text-xs text-slate-400 font-medium">({pendingMatchesCount} pending)</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">Awaiting human planner verification (70–94%)</p>
+              </div>
+
+              {/* Card 4: Manual Resolution */}
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-rose-400 uppercase tracking-wider">
+                    Manual Resolution (Tier 3)
+                  </span>
+                  <div className="w-8 h-8 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
+                    <AlertTriangle className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="mt-3 flex items-baseline gap-2">
+                  <span className="text-3xl font-extrabold text-rose-400 tracking-tight">{manualResolutionCount}</span>
+                  <span className="text-xs text-slate-400 font-medium">unmatched items</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">Unplanned site works flagged for review</p>
+              </div>
+            </div>
+
+            {/* Section A: Planned vs Actual Schedule Intelligence */}
+            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-emerald-400" />
+                    <span>Planned vs Actual Schedule Timeline</span>
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Baseline milestone tracking linked directly to verified supervisor reports
+                  </p>
+                </div>
+
+                {/* Filters */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <input
+                      type="text"
+                      placeholder="Search activity or code..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-8 pr-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                    <button
+                      onClick={() => setDisciplineFilter('all')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition ${
+                        disciplineFilter === 'all'
+                          ? 'bg-emerald-600 text-white'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      All
+                    </button>
+                    {uniqueDisciplines.map((disc) => (
+                      <button
+                        key={disc}
+                        onClick={() => setDisciplineFilter(disc)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-medium capitalize transition ${
+                          disciplineFilter === disc
+                            ? 'bg-emerald-600 text-white'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        {disc}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Activities Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-800 text-slate-400 font-semibold uppercase tracking-wider">
+                      <th className="py-3 px-4">Activity Code</th>
+                      <th className="py-3 px-4">Description & Scope</th>
+                      <th className="py-3 px-4">Discipline / Line</th>
+                      <th className="py-3 px-4">Planned Dates</th>
+                      <th className="py-3 px-4">Actual Dates</th>
+                      <th className="py-3 px-4">Progress</th>
+                      <th className="py-3 px-4 text-right">Variance / Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60">
+                    {filteredActivities.map((act) => {
+                      const dev = getScheduleDeviation(act);
+
+                      return (
+                        <tr key={act.id} className="hover:bg-slate-800/30 transition">
+                          <td className="py-3.5 px-4 font-mono font-bold text-emerald-400">
+                            {act.activity_code}
+                          </td>
+                          <td className="py-3.5 px-4 font-medium text-slate-200 max-w-xs truncate">
+                            {act.description}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-1.5">
+                              <span className="capitalize px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-300">
+                                {act.discipline}
+                              </span>
+                              {act.line && (
+                                <span className="px-1.5 py-0.5 rounded bg-slate-950 border border-slate-800 text-indigo-300 font-mono">
+                                  L-{act.line}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4 text-slate-400 font-mono text-[11px]">
+                            {act.planned_start ? act.planned_start.slice(0, 10) : '—'} →{' '}
+                            {act.planned_end ? act.planned_end.slice(0, 10) : '—'}
+                          </td>
+                          <td className="py-3.5 px-4 font-mono text-[11px]">
+                            {act.actual_start ? (
+                              <span className="text-white">
+                                {act.actual_start.slice(0, 10)}
+                                {act.actual_end && ` → ${act.actual_end.slice(0, 10)}`}
+                              </span>
+                            ) : (
+                              <span className="text-slate-600">Pending link</span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4 min-w-[120px]">
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-[10px] text-slate-400">
+                                <span>{act.progress_pct || 0}%</span>
+                              </div>
+                              <div className="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all duration-500 ${
+                                    act.progress_pct === 100
+                                      ? 'bg-emerald-500'
+                                      : act.progress_pct && act.progress_pct > 0
+                                      ? 'bg-sky-400'
+                                      : 'bg-transparent'
+                                  }`}
+                                  style={{ width: `${act.progress_pct || 0}%` }}
+                                />
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            <span className={`px-2.5 py-1 rounded-full border text-[11px] font-semibold ${dev.badge}`}>
+                              {dev.label}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Section B: Audit Trail & Lineage ("Why Did This Update Happen?") */}
+            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                    <History className="w-5 h-5 text-indigo-400" />
+                    <span>Audit Trail & Schedule Update Lineage</span>
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Immutable audit log of all automated and planner-approved schedule updates
+                  </p>
+                </div>
+                <span className="text-xs px-2.5 py-1 rounded-full bg-slate-950 border border-slate-800 text-slate-400 font-mono">
+                  {auditLogs.length} Verified Entries
+                </span>
+              </div>
+
+              {auditLogs.length === 0 ? (
+                <div className="p-8 text-center text-slate-500 space-y-2 bg-slate-950/40 rounded-xl border border-slate-800/60">
+                  <History className="w-6 h-6 mx-auto text-slate-600" />
+                  <p className="text-xs">No audit records logged yet. Approve a match in the Review Queue to generate an entry.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {auditLogs.map((log) => {
+                    const isExpanded = expandedAuditId === log.id;
+                    const conf = getConfidenceBadge(log.confidence_score);
+
+                    return (
+                      <div
+                        key={log.id}
+                        className="bg-slate-950/60 border border-slate-800 hover:border-slate-700/80 rounded-xl p-4 transition"
+                      >
+                        {/* Summary Header */}
+                        <div
+                          onClick={() => setExpandedAuditId(isExpanded ? null : log.id)}
+                          className="flex flex-wrap items-center justify-between gap-3 cursor-pointer select-none"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+                              <Check className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono font-bold text-emerald-400 text-xs">
+                                  {log.activity_code || 'Activity Update'}
+                                </span>
+                                <span className="text-slate-300 font-medium text-xs">
+                                  {log.activity_description || 'Schedule Link'}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-500 mt-0.5">
+                                Approver: <span className="text-slate-300">{log.approver}</span> • Model: {log.model_version}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            <div className={`px-2.5 py-0.5 rounded-full border text-[11px] font-bold ${conf.bg}`}>
+                              {conf.label}
+                            </div>
+                            <span className="text-[11px] text-slate-500 font-mono">
+                              {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            {isExpanded ? (
+                              <ChevronUp className="w-4 h-4 text-slate-400" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-slate-400" />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Expandable Explanation Details */}
+                        {isExpanded && (
+                          <div className="mt-4 pt-4 border-t border-slate-800/80 space-y-3 text-xs">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {/* Source Extraction */}
+                              <div className="bg-slate-900/60 p-3 rounded-lg border border-slate-800 space-y-1.5">
+                                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                                  Source Field Extraction
+                                </span>
+                                <p className="font-medium text-slate-200">
+                                  {log.event_description || 'Extracted construction activity'}
+                                </p>
+                                <div className="flex flex-wrap gap-1 text-[11px] text-slate-400">
+                                  {log.event_discipline && <span>Discipline: {log.event_discipline}</span>}
+                                  {log.event_line && <span>• Line: {log.event_line}</span>}
+                                  {log.event_location && <span>• Loc: {log.event_location}</span>}
+                                </div>
+                              </div>
+
+                              {/* State Transition Diff */}
+                              <div className="bg-slate-900/60 p-3 rounded-lg border border-slate-800 space-y-1.5 font-mono text-[11px]">
+                                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                                  State Transition
+                                </span>
+                                <div className="text-slate-400">
+                                  <span className="text-rose-400">- Previous:</span>{' '}
+                                  {typeof log.previous_value === 'string'
+                                    ? log.previous_value
+                                    : JSON.stringify(log.previous_value)}
+                                </div>
+                                <div className="text-emerald-400">
+                                  <span className="text-emerald-400">+ New:</span>{' '}
+                                  {typeof log.new_value === 'string'
+                                    ? log.new_value
+                                    : JSON.stringify(log.new_value)}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* SCREEN 2: REVIEW QUEUE                                                    */}
+        {/* ========================================================================= */}
+        {activeTab === 'review' && (
+          <div className="space-y-6">
+            {/* Header & Filter Controls */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-3">
+                  <span>Planner Review Queue</span>
+                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-900 border border-slate-800 text-slate-400 font-normal">
+                    AI Schedule Matcher
+                  </span>
+                </h1>
+                <p className="text-sm text-slate-400 mt-1">
+                  Verify or reject schedule activity updates flagged by confidence gating policy.
+                </p>
+              </div>
+
+              {/* Status Filter Buttons */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setStatusFilter('pending')}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition ${
+                    statusFilter === 'pending'
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
+                      : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Pending Review</span>
+                  <span className="px-1.5 py-0.2 rounded-full bg-amber-400/20 text-amber-300 text-[10px]">
+                    {matches.filter((m) => m.status === 'pending').length}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setStatusFilter('manual_resolution')}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition ${
+                    statusFilter === 'manual_resolution'
+                      ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm'
+                      : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  <span>Manual Resolution</span>
+                  <span className="px-1.5 py-0.2 rounded-full bg-rose-400/20 text-rose-300 text-[10px]">
+                    {matches.filter((m) => m.status === 'manual_resolution').length}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setStatusFilter('all')}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition ${
+                    statusFilter === 'all'
+                      ? 'bg-slate-800 text-white border border-slate-700'
+                      : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <Filter className="w-3.5 h-3.5" />
+                  <span>All ({matches.length})</span>
+                </button>
+
+                <button
+                  onClick={fetchMatches}
+                  disabled={isLoadingMatches}
+                  className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 transition"
+                  title="Refresh Queue"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isLoadingMatches ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
+            </div>
+
+            {/* Matches List */}
+            {isLoadingMatches ? (
+              <div className="p-12 text-center text-slate-500 space-y-3 bg-slate-900/30 rounded-2xl border border-slate-800/60">
+                <RefreshCw className="w-8 h-8 animate-spin mx-auto text-emerald-400" />
+                <p className="text-sm font-medium">Loading match items...</p>
+              </div>
+            ) : matches.length === 0 ? (
+              <div className="p-12 text-center text-slate-400 space-y-4 bg-slate-900/30 rounded-2xl border border-slate-800/60">
+                <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto text-emerald-400">
+                  <Inbox className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-white">No items in this queue</h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    All matches matching filter &quot;{statusFilter}&quot; have been resolved.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setActiveTab('upload')}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Upload a Field Report</span>
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {matches.map((item) => {
+                  const conf = getConfidenceBadge(item.confidence_score);
+                  const isProcessing = actionInProgress === item.id;
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="bg-slate-900/60 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-5 transition shadow-lg space-y-4"
+                    >
+                      {/* Card Header: Confidence & Status Badge */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/70 pb-3">
+                        <div className="flex items-center gap-3">
+                          <div className={`flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-bold ${conf.bg}`}>
+                            <span className={`w-2 h-2 rounded-full ${conf.dot}`} />
+                            <span>Confidence: {conf.label}</span>
+                          </div>
+                          <span className="text-xs text-slate-400 font-medium">{conf.tier}</span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-slate-500 font-mono">
+                            Match ID: {item.id.slice(0, 8)}
+                          </span>
+                          <span
+                            className={`text-xs px-2.5 py-0.5 rounded-full font-semibold capitalize ${
+                              item.status === 'pending'
+                                ? 'bg-amber-500/10 text-amber-300 border border-amber-500/20'
+                                : item.status === 'auto_approved' || item.status === 'planner_approved'
+                                ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20'
+                                : item.status === 'manual_resolution'
+                                ? 'bg-rose-500/10 text-rose-300 border border-rose-500/20'
+                                : 'bg-slate-800 text-slate-400'
+                            }`}
+                          >
+                            {item.status.replace('_', ' ')}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Card Body: Side-by-Side Comparison */}
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                        {/* Left: Extracted Field Event */}
+                        <div className="md:col-span-5 bg-slate-950/60 border border-slate-800/80 rounded-xl p-4 space-y-2.5">
+                          <div className="flex items-center justify-between text-xs text-slate-400">
+                            <span className="font-semibold uppercase tracking-wider text-slate-300">
+                              Extracted Field Event
+                            </span>
+                            <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-emerald-400 font-mono text-[11px] uppercase">
+                              {item.event_type}
+                            </span>
+                          </div>
+
+                          <p className="text-sm font-semibold text-white leading-snug">
+                            {item.event_description}
+                          </p>
+
+                          <div className="flex flex-wrap gap-1.5 pt-1 text-xs">
+                            <span className="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-slate-300 font-medium">
+                              Discipline: {item.event_discipline}
+                            </span>
+                            {item.event_line && (
+                              <span className="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-indigo-300 font-mono">
+                                Line: {item.event_line}
+                              </span>
+                            )}
+                            {item.event_location && (
+                              <span className="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-amber-300">
+                                Loc: {item.event_location}
+                              </span>
+                            )}
+                            {item.quantity && (
+                              <span className="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-teal-300">
+                                Qty: {item.quantity}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Middle: Arrow */}
+                        <div className="md:col-span-2 flex flex-col items-center justify-center gap-1 text-slate-500 py-1">
+                          <ArrowRight className="w-5 h-5 text-emerald-400/80 hidden md:block" />
+                          <span className="text-[10px] uppercase font-bold tracking-widest text-slate-500">
+                            Candidate
+                          </span>
+                        </div>
+
+                        {/* Right: Matched Baseline Schedule Activity */}
+                        <div className="md:col-span-5 bg-slate-950/60 border border-slate-800/80 rounded-xl p-4 space-y-2.5">
+                          <div className="flex items-center justify-between text-xs text-slate-400">
+                            <span className="font-semibold uppercase tracking-wider text-slate-300">
+                              Schedule Baseline Activity
+                            </span>
+                            <span className="px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-500/30 text-emerald-300 font-mono text-[11px] font-bold">
+                              {item.activity_code}
+                            </span>
+                          </div>
+
+                          <p className="text-sm font-semibold text-white leading-snug">
+                            {item.activity_description}
+                          </p>
+
+                          <div className="flex flex-wrap gap-1.5 pt-1 text-xs">
+                            <span className="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-slate-300 font-medium">
+                              Discipline: {item.activity_discipline}
+                            </span>
+                            {item.activity_line && (
+                              <span className="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-indigo-300 font-mono">
+                                Line: {item.activity_line}
+                              </span>
+                            )}
+                            {item.activity_location && (
+                              <span className="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-amber-300">
+                                Loc: {item.activity_location}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Card Footer: Metadata & Approval Actions */}
+                      <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-slate-800/50">
+                        <div className="text-xs text-slate-500 flex items-center gap-3">
+                          <span>Report: {item.report_file_type || 'free-text'}</span>
+                          {item.report_uploaded_by && <span>• Uploaded by: {item.report_uploaded_by}</span>}
+                          <span>• Model: {item.model_version}</span>
+                        </div>
+
+                        {/* Action Buttons (Enabled for Pending Items) */}
+                        {item.status === 'pending' && (
+                          <div className="flex items-center gap-2.5">
+                            <button
+                              onClick={() =>
+                                handleMatchAction(item.id, 'rejected', item.activity_code)
+                              }
+                              disabled={isProcessing}
+                              className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-rose-950/60 border border-slate-700 hover:border-rose-500/50 text-rose-300 text-xs font-semibold flex items-center gap-1.5 transition disabled:opacity-50"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                              <span>Reject Match</span>
+                            </button>
+
+                            <button
+                              onClick={() =>
+                                handleMatchAction(item.id, 'planner_approved', item.activity_code)
+                              }
+                              disabled={isProcessing}
+                              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500/50 text-white text-xs font-semibold flex items-center gap-1.5 transition shadow-md shadow-emerald-950/40 disabled:opacity-50"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Approve & Link Schedule</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ========================================================================= */}
         {/* SCREEN 1: UPLOAD                                                          */}
         {/* ========================================================================= */}
@@ -526,270 +1320,6 @@ export default function BridgeIQApp() {
                 )}
               </button>
             </form>
-          </div>
-        )}
-
-        {/* ========================================================================= */}
-        {/* SCREEN 2: REVIEW QUEUE                                                    */}
-        {/* ========================================================================= */}
-        {activeTab === 'review' && (
-          <div className="space-y-6">
-            {/* Header & Filter Controls */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-3">
-                  <span>Planner Review Queue</span>
-                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-900 border border-slate-800 text-slate-400 font-normal">
-                    AI Schedule Matcher
-                  </span>
-                </h1>
-                <p className="text-sm text-slate-400 mt-1">
-                  Verify or reject schedule activity updates flagged by confidence gating policy.
-                </p>
-              </div>
-
-              {/* Status Filter Buttons */}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setStatusFilter('pending')}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition ${
-                    statusFilter === 'pending'
-                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
-                      : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>Pending Review</span>
-                  <span className="px-1.5 py-0.2 rounded-full bg-amber-400/20 text-amber-300 text-[10px]">
-                    {matches.filter((m) => m.status === 'pending').length}
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => setStatusFilter('manual_resolution')}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition ${
-                    statusFilter === 'manual_resolution'
-                      ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm'
-                      : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  <span>Manual Resolution</span>
-                  <span className="px-1.5 py-0.2 rounded-full bg-rose-400/20 text-rose-300 text-[10px]">
-                    {matches.filter((m) => m.status === 'manual_resolution').length}
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => setStatusFilter('all')}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition ${
-                    statusFilter === 'all'
-                      ? 'bg-slate-800 text-white border border-slate-700'
-                      : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <Filter className="w-3.5 h-3.5" />
-                  <span>All ({matches.length})</span>
-                </button>
-
-                <button
-                  onClick={fetchMatches}
-                  disabled={isLoadingMatches}
-                  className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 transition"
-                  title="Refresh Queue"
-                >
-                  <RefreshCw className={`w-4 h-4 ${isLoadingMatches ? 'animate-spin' : ''}`} />
-                </button>
-              </div>
-            </div>
-
-            {/* Matches List */}
-            {isLoadingMatches ? (
-              <div className="p-12 text-center text-slate-500 space-y-3 bg-slate-900/30 rounded-2xl border border-slate-800/60">
-                <RefreshCw className="w-8 h-8 animate-spin mx-auto text-emerald-400" />
-                <p className="text-sm font-medium">Loading match items...</p>
-              </div>
-            ) : matches.length === 0 ? (
-              <div className="p-12 text-center text-slate-400 space-y-4 bg-slate-900/30 rounded-2xl border border-slate-800/60">
-                <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto text-emerald-400">
-                  <Inbox className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="text-base font-semibold text-white">No items in this queue</h3>
-                  <p className="text-xs text-slate-500 mt-1">
-                    All matches matching filter &quot;{statusFilter}&quot; have been resolved.
-                  </p>
-                </div>
-                <button
-                  onClick={() => setActiveTab('upload')}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition"
-                >
-                  <Upload className="w-3.5 h-3.5" />
-                  <span>Upload a Field Report</span>
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {matches.map((item) => {
-                  const conf = getConfidenceBadge(item.confidence_score);
-                  const isProcessing = actionInProgress === item.id;
-
-                  return (
-                    <div
-                      key={item.id}
-                      className="bg-slate-900/60 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-5 transition shadow-lg space-y-4"
-                    >
-                      {/* Card Header: Confidence & Status Badge */}
-                      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/70 pb-3">
-                        <div className="flex items-center gap-3">
-                          {/* Confidence Score Pill */}
-                          <div className={`flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-bold ${conf.bg}`}>
-                            <span className={`w-2 h-2 rounded-full ${conf.dot}`} />
-                            <span>Confidence: {conf.label}</span>
-                          </div>
-                          <span className="text-xs text-slate-400 font-medium">{conf.tier}</span>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-slate-500 font-mono">
-                            Match ID: {item.id.slice(0, 8)}
-                          </span>
-                          <span
-                            className={`text-xs px-2.5 py-0.5 rounded-full font-semibold capitalize ${
-                              item.status === 'pending'
-                                ? 'bg-amber-500/10 text-amber-300 border border-amber-500/20'
-                                : item.status === 'auto_approved' || item.status === 'planner_approved'
-                                ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20'
-                                : item.status === 'manual_resolution'
-                                ? 'bg-rose-500/10 text-rose-300 border border-rose-500/20'
-                                : 'bg-slate-800 text-slate-400'
-                            }`}
-                          >
-                            {item.status.replace('_', ' ')}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Card Body: Side-by-Side Comparison */}
-                      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-                        {/* Left: Extracted Field Event */}
-                        <div className="md:col-span-5 bg-slate-950/60 border border-slate-800/80 rounded-xl p-4 space-y-2.5">
-                          <div className="flex items-center justify-between text-xs text-slate-400">
-                            <span className="font-semibold uppercase tracking-wider text-slate-300">
-                              Extracted Field Event
-                            </span>
-                            <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-emerald-400 font-mono text-[11px] uppercase">
-                              {item.event_type}
-                            </span>
-                          </div>
-
-                          <p className="text-sm font-semibold text-white leading-snug">
-                            {item.event_description}
-                          </p>
-
-                          <div className="flex flex-wrap gap-1.5 pt-1 text-xs">
-                            <span className="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-slate-300 font-medium">
-                              Discipline: {item.event_discipline}
-                            </span>
-                            {item.event_line && (
-                              <span className="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-indigo-300 font-mono">
-                                Line: {item.event_line}
-                              </span>
-                            )}
-                            {item.event_location && (
-                              <span className="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-amber-300">
-                                Loc: {item.event_location}
-                              </span>
-                            )}
-                            {item.quantity && (
-                              <span className="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-teal-300">
-                                Qty: {item.quantity}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Middle: Arrow */}
-                        <div className="md:col-span-2 flex flex-col items-center justify-center gap-1 text-slate-500 py-1">
-                          <ArrowRight className="w-5 h-5 text-emerald-400/80 hidden md:block" />
-                          <span className="text-[10px] uppercase font-bold tracking-widest text-slate-500">
-                            Candidate
-                          </span>
-                        </div>
-
-                        {/* Right: Matched Baseline Schedule Activity */}
-                        <div className="md:col-span-5 bg-slate-950/60 border border-slate-800/80 rounded-xl p-4 space-y-2.5">
-                          <div className="flex items-center justify-between text-xs text-slate-400">
-                            <span className="font-semibold uppercase tracking-wider text-slate-300">
-                              Schedule Baseline Activity
-                            </span>
-                            <span className="px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-500/30 text-emerald-300 font-mono text-[11px] font-bold">
-                              {item.activity_code}
-                            </span>
-                          </div>
-
-                          <p className="text-sm font-semibold text-white leading-snug">
-                            {item.activity_description}
-                          </p>
-
-                          <div className="flex flex-wrap gap-1.5 pt-1 text-xs">
-                            <span className="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-slate-300 font-medium">
-                              Discipline: {item.activity_discipline}
-                            </span>
-                            {item.activity_line && (
-                              <span className="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-indigo-300 font-mono">
-                                Line: {item.activity_line}
-                              </span>
-                            )}
-                            {item.activity_location && (
-                              <span className="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-amber-300">
-                                Loc: {item.activity_location}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Card Footer: Metadata & Approval Actions */}
-                      <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-slate-800/50">
-                        <div className="text-xs text-slate-500 flex items-center gap-3">
-                          <span>Report: {item.report_file_type || 'free-text'}</span>
-                          {item.report_uploaded_by && <span>• Uploaded by: {item.report_uploaded_by}</span>}
-                          <span>• Model: {item.model_version}</span>
-                        </div>
-
-                        {/* Action Buttons (Enabled for Pending Items) */}
-                        {item.status === 'pending' && (
-                          <div className="flex items-center gap-2.5">
-                            <button
-                              onClick={() =>
-                                handleMatchAction(item.id, 'rejected', item.activity_code)
-                              }
-                              disabled={isProcessing}
-                              className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-rose-950/60 border border-slate-700 hover:border-rose-500/50 text-rose-300 text-xs font-semibold flex items-center gap-1.5 transition disabled:opacity-50"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                              <span>Reject Match</span>
-                            </button>
-
-                            <button
-                              onClick={() =>
-                                handleMatchAction(item.id, 'planner_approved', item.activity_code)
-                              }
-                              disabled={isProcessing}
-                              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500/50 text-white text-xs font-semibold flex items-center gap-1.5 transition shadow-md shadow-emerald-950/40 disabled:opacity-50"
-                            >
-                              <Check className="w-3.5 h-3.5" />
-                              <span>Approve & Link Schedule</span>
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
         )}
       </main>

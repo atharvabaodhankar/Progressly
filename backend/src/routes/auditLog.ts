@@ -40,9 +40,20 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
         a.new_value,
         a.timestamp,
         r.uploaded_by AS report_uploaded_by,
-        r.file_type AS report_file_type
+        r.file_type AS report_file_type,
+        act.activity_code,
+        act.description AS activity_description,
+        act.discipline AS activity_discipline,
+        evt.activity_description AS event_description,
+        evt.discipline AS event_discipline,
+        evt.line AS event_line,
+        evt.location AS event_location,
+        evt.event_type
       FROM audit_log a
       LEFT JOIN reports r ON a.source_report_id = r.id
+      LEFT JOIN matches m ON a.match_id = m.id
+      LEFT JOIN activities act ON m.activity_id = act.id
+      LEFT JOIN actual_events evt ON m.event_id = evt.id
       ${whereClause}
       ORDER BY a.timestamp DESC;
     `;

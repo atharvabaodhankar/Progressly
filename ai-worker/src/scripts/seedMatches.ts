@@ -31,11 +31,17 @@ async function seedTestMatches() {
 
     console.log(`Using Project: ${projectId}`);
 
-    // Clear previous test matches and actual_events
+    // Clear previous test matches, audit_log, and actual_events
     await client.query('DELETE FROM audit_log');
     await client.query('DELETE FROM matches');
     await client.query('DELETE FROM actual_events');
     await client.query('DELETE FROM reports');
+
+    // Reset activities actual dates
+    await client.query(`
+      UPDATE activities 
+      SET actual_start = NULL, actual_end = NULL, progress_pct = 0;
+    `);
 
     for (const sample of SAMPLE_REPORTS) {
       console.log(`Processing Sample Report ${sample.id}: "${sample.title}"...`);
@@ -83,24 +89,77 @@ async function seedTestMatches() {
         const matchRes = await matchEventToSchedule(event);
 
         if (matchRes.matched_candidate) {
-          // Keep some as pending for planner review queue testing
-          let status = matchRes.status;
-          if (sample.id === 3 || sample.id === 5 || sample.id === 2 || sample.id === 4) {
-            status = 'pending';
-          }
+          const status = matchRes.status;
 
-          await client.query(
+          const matchInsert = await client.query(
             `INSERT INTO matches (
-              event_id, activity_id, confidence_score, status, model_version
+              event_id, activity_id, confidence_score, status, model_version, resolved_at, resolved_by
             )
-            VALUES ($1, $2, $3, $4, 'bedrock-titan-v2-nova-micro')`,
+            VALUES ($1, $2, $3, $4, 'bedrock-titan-v2-nova-micro', $5, $6)
+            RETURNING id`,
             [
               eventId,
               matchRes.matched_candidate.activity_id,
               matchRes.confidence_score,
               status,
+              status === 'auto_approved' ? new Date() : null,
+              status === 'auto_approved' ? 'AI Auto-Approval Policy (Score ≥ 95%)' : null,
             ]
           );
+          const matchId = matchInsert.rows[0].id;
+
+          // If auto_approved, create initial audit_log entry and update activity actual dates
+          if (status === 'auto_approved') {
+            await client.query(
+              `INSERT INTO audit_log (
+                match_id, action, source_report_id, confidence_score, model_version,
+                approver, previous_value, new_value, timestamp
+              )
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
+              [
+                matchId,
+                'match_auto_approved',
+                reportId,
+                matchRes.confidence_score,
+                'bedrock-titan-v2-nova-micro',
+                'AI Auto-Approval Engine',
+                JSON.stringify({ status: 'pending', schedule_linked: false }),
+                JSON.stringify({
+                  status: 'auto_approved',
+                  confidence: `${(matchRes.confidence_score * 100).toFixed(1)}%`,
+                  reasoning: matchRes.matched_candidate.reasoning,
+                  schedule_linked: true,
+                }),
+              ]
+            );
+
+            // Update activity actual dates and progress
+            if (event.activity_description.toLowerCase().includes('spool')) {
+              // Delayed start example (+2 days delay)
+              await client.query(
+                `UPDATE activities 
+                 SET actual_start = '2026-09-03', actual_end = '2026-09-05', progress_pct = 100
+                 WHERE id = $1`,
+                [matchRes.matched_candidate.activity_id]
+              );
+            } else if (event.activity_description.toLowerCase().includes('backfill')) {
+              // In progress on schedule
+              await client.query(
+                `UPDATE activities 
+                 SET actual_start = '2026-08-15', actual_end = NULL, progress_pct = 60
+                 WHERE id = $1`,
+                [matchRes.matched_candidate.activity_id]
+              );
+            } else if (event.activity_description.toLowerCase().includes('pump')) {
+              // Completed on schedule
+              await client.query(
+                `UPDATE activities 
+                 SET actual_start = '2026-09-10', actual_end = '2026-09-12', progress_pct = 100
+                 WHERE id = $1`,
+                [matchRes.matched_candidate.activity_id]
+              );
+            }
+          }
 
           console.log(
             `  ✓ Created Match: [${matchRes.matched_candidate.activity_code}] ${matchRes.matched_candidate.description} | Status: ${status} (${(
@@ -118,7 +177,7 @@ async function seedTestMatches() {
             `INSERT INTO matches (
               event_id, activity_id, confidence_score, status, model_version
             )
-            VALUES ($1, $2, 0.12, 'manual_resolution', 'bedrock-titan-v2-nova-micro')`,
+            VALUES ($1, $2, 0.00, 'manual_resolution', 'bedrock-titan-v2-nova-micro')`,
             [eventId, actId]
           );
 
@@ -128,7 +187,7 @@ async function seedTestMatches() {
     }
 
     console.log('\n================================================================');
-    console.log('✓ Successfully seeded reports, actual events, and matches!');
+    console.log('✓ Successfully seeded reports, actual events, matches, and audit trail!');
     console.log('================================================================\n');
   } finally {
     await client.end();

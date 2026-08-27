@@ -134,6 +134,40 @@ router.patch('/:id', async (req: Request, res: Response): Promise<void> => {
     const updatedMatchRes = await client.query(updateMatchQuery, [status, resolved_by, id]);
     const updatedMatch = updatedMatchRes.rows[0];
 
+    // 2b. If approved, link and update activity actual dates & progress
+    if (status === 'planner_approved' || status === 'auto_approved') {
+      const evtRes = await client.query('SELECT * FROM actual_events WHERE id = $1', [currentMatch.event_id]);
+      const evt = evtRes.rows[0];
+      if (evt) {
+        if (evt.event_type === 'end') {
+          await client.query(
+            `UPDATE activities 
+             SET actual_start = COALESCE(actual_start, planned_start, NOW() - interval '2 days'),
+                 actual_end = NOW(),
+                 progress_pct = 100
+             WHERE id = $1`,
+            [currentMatch.activity_id]
+          );
+        } else if (evt.event_type === 'start') {
+          await client.query(
+            `UPDATE activities 
+             SET actual_start = NOW(),
+                 progress_pct = COALESCE(progress_pct, 20)
+             WHERE id = $1`,
+            [currentMatch.activity_id]
+          );
+        } else {
+          await client.query(
+            `UPDATE activities 
+             SET actual_start = COALESCE(actual_start, planned_start, NOW() - interval '1 day'),
+                 progress_pct = GREATEST(COALESCE(progress_pct, 0), 60)
+             WHERE id = $1`,
+            [currentMatch.activity_id]
+          );
+        }
+      }
+    }
+
     const newValue = {
       status: updatedMatch.status,
       resolved_at: updatedMatch.resolved_at,
