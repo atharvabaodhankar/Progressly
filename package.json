@@ -15,8 +15,12 @@
     "lint": "npm run lint --workspaces",
     "migrate": "tsx database/scripts/migrate.ts",
     "seed": "tsx database/scripts/seed.ts",
+    "seed:matches": "npm run seed:matches --workspace=ai-worker",
     "test:extract": "npm run test:extract --workspace=ai-worker",
     "embed:schedule": "npm run embed:schedule --workspace=ai-worker",
     "test:match": "npm run test:match --workspace=ai-worker"
+  },
+  "devDependencies": {
+    "@esbuild/win32-x64": "^0.28.2"
   }
 }

@@ -10,7 +10,8 @@
     "lint": "eslint src --ext .ts",
     "test:extract": "tsx src/scripts/testExtract.ts",
     "embed:schedule": "tsx src/scripts/embedSchedule.ts",
-    "test:match": "tsx src/scripts/testMatch.ts"
+    "test:match": "tsx src/scripts/testMatch.ts",
+    "seed:matches": "tsx src/scripts/seedMatches.ts"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1119.0",

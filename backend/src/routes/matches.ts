@@ -49,10 +49,15 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
         e.location AS event_location,
         e.event_type,
         e.quantity,
-        e.report_id
+        e.report_id,
+        e.extracted_json,
+        r.file_path AS report_file_path,
+        r.file_type AS report_file_type,
+        r.uploaded_by AS report_uploaded_by
       FROM matches m
       JOIN activities a ON m.activity_id = a.id
       JOIN actual_events e ON m.event_id = e.id
+      LEFT JOIN reports r ON e.report_id = r.id
       ${whereClause}
       ORDER BY m.created_at DESC;
     `;
