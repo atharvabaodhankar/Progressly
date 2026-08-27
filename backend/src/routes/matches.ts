@@ -79,6 +79,12 @@ router.patch('/:id', async (req: Request, res: Response): Promise<void> => {
   const { id } = req.params;
   const { status, resolved_by = 'Planner' } = req.body;
 
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!id || !UUID_REGEX.test(id)) {
+    res.status(400).json({ error: 'Invalid match ID format. Must be a valid UUID.' });
+    return;
+  }
+
   const validStatuses = [
     'pending',
     'auto_approved',

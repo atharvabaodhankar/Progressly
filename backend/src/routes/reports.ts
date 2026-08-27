@@ -18,12 +18,27 @@ const storage = multer.diskStorage({
   },
   filename: (_req, file, cb) => {
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    const ext = path.extname(file.originalname);
+    const ext = path.extname(file.originalname).toLowerCase();
     cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
   },
 });
 
-const upload = multer({ storage });
+const ALLOWED_EXTENSIONS = ['.csv', '.xlsx', '.xls', '.pdf', '.txt', '.jpg', '.jpeg', '.png', '.webp'];
+
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (ALLOWED_EXTENSIONS.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Unsupported file type: ${ext}. Allowed formats: ${ALLOWED_EXTENSIONS.join(', ')}`));
+    }
+  },
+});
 
 // Helper to determine file_type from extension
 function inferFileType(fileName: string): 'free-text' | 'csv' | 'pdf' | 'excel' | 'image' {
@@ -57,14 +72,14 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
     if (req.file) {
       filePath = req.file.path;
       detectedFileType = file_type || inferFileType(req.file.originalname);
-    } else if (req.body.text_content) {
+    } else if (req.body.text_content && typeof req.body.text_content === 'string' && req.body.text_content.trim().length > 0) {
       // Allow raw free-text payload directly
       const textFileName = `report-${Date.now()}.txt`;
       filePath = path.join(uploadDir, textFileName);
-      fs.writeFileSync(filePath, req.body.text_content, 'utf-8');
+      fs.writeFileSync(filePath, req.body.text_content.trim(), 'utf-8');
       detectedFileType = 'free-text';
     } else {
-      res.status(400).json({ error: 'Either a multipart file or text_content must be provided.' });
+      res.status(400).json({ error: 'Either a valid multipart file or non-empty text_content must be provided.' });
       return;
     }
 
@@ -134,6 +149,13 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
 router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!id || !UUID_REGEX.test(id)) {
+      res.status(400).json({ error: 'Invalid report ID format. Must be a valid UUID.' });
+      return;
+    }
+
     const query = `
       SELECT r.*, p.name AS project_name
       FROM reports r

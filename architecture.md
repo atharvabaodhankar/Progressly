@@ -116,8 +116,7 @@ Historical reports + events
     records + source evidence
              │
              ▼
-    Bedrock — Nova Pro (Active) /
-    Claude 3.7 Sonnet (Target)
+    Bedrock — Amazon Nova Pro
     (Standard tier)
              │
              ▼
@@ -142,7 +141,7 @@ Historical reports + events
 | Embeddings | **Amazon Bedrock — Titan Text Embeddings V2** | Converts activity descriptions (schedule + field reports) into vectors |
 | Vector similarity | **pgvector extension on RDS Postgres** | Cosine similarity search for MVP — no separate vector DB needed |
 | Source of truth DB | **RDS PostgreSQL** | Relational: Project → WBS → Discipline → Area → L5/L6 Activity → Actual Events → Reports → Matches → Audit Log |
-| Project Memory / RAG | **Amazon Bedrock — Nova Pro** (Active: `apac.amazon.nova-pro-v1:0`) / **Claude 3.7 Sonnet** (Target: `apac.anthropic.claude-3-7-sonnet-20250219-v1:0`) | Synthesizes evidence-backed answers from retrieved historical records; low call volume, reasoning-critical |
+| Project Memory / RAG | **Amazon Bedrock — Nova Pro** (`apac.amazon.nova-pro-v1:0`) | Synthesizes evidence-backed answers from retrieved historical records; low call volume, reasoning-critical |
 | Auth | **Cognito or JWT** with role-based access | Supervisor / Planner / Manager views gated by role |
 | Secrets | **AWS Secrets Manager** | DB credentials, API keys — never hardcoded |
 | Observability | **CloudWatch** | Logs/metrics across Fargate + Lambda |
@@ -240,19 +239,21 @@ Two distinct workloads, two distinct model choices — picked on fit, not on a s
 
 ### Project Memory / RAG (low-volume, judge-facing, reasoning-critical)
 
-| Model | Status | Input $/1M | Output $/1M | Cost per 200 queries** | Context Window |
+| Model | Status | Input $/1M | Output $/1M | Cost per 200 queries* | Context Window |
 |---|---|---|---|---|---|
-| **Amazon Nova Pro** (`apac.amazon.nova-pro-v1:0`) | **Active** | $0.80 | $3.20 | **$0.48** | 300,000 tokens |
-| **Claude 3.7 Sonnet** (`apac.anthropic.claude-3-7-sonnet-20250219-v1:0`) | **Target / Fallback** | $3.00 | $15.00 | $2.10 | 200,000 tokens |
+| **Amazon Nova Pro** (`apac.amazon.nova-pro-v1:0`) | **Committed Production Model** | $0.80 | $3.20 | **$0.48** | 300,000 tokens |
 | Nova Micro | Baseline | $0.041 | $0.164 | $0.033 | 128,000 tokens |
+| Claude 3.7 Sonnet | Alternative Option | $3.00 | $15.00 | $2.10 | 200,000 tokens |
 
-**assuming ~2,000 input / ~500 output tokens per query
+*assuming ~2,000 input / ~500 output tokens per query
 
-**Active vs Target Synthesis Strategy:**
-- **Active Production Model:** **Amazon Bedrock Nova Pro** is the active synthesis model for Project Memory. It provides state-of-the-art multi-modal reasoning and a 300k token context window as a native first-party AWS service, with zero external subscription dependencies.
-- **Target Primary Model:** **Claude 3.7 Sonnet** remains the long-term target model for deep analytical synthesis. The `BedrockSynthesisProvider` implementation includes automated dual-routing: once the AWS Marketplace payment instrument configuration is verified, Claude 3.7 Sonnet seamlessly takes over as primary, with Nova Pro serving as the high-availability fallback.
+**Why Amazon Nova Pro (`apac.amazon.nova-pro-v1:0`):**
+- **Reasoning & Context Depth:** 300k token context window easily accommodates multiple retrieved project execution records and computed grounding statistics with zero risk of truncation.
+- **Unified AWS Architecture:** A clean, 100% first-party AWS stack on Amazon Bedrock (`Nova Micro` for extraction/reranking + `Titan Embeddings V2` for vector representations + `Nova Pro` for RAG synthesis) without external marketplace or billing dependencies.
+- **Strict Factual Grounding:** Follows system-level prompt constraints meticulously, quoting exact project names and activity descriptions, attributing claims directly to database records, and respecting computed mathematical averages without hallucinations.
+- **Cost Efficiency:** At $0.48 per 200 executive queries, total monthly spend for institutional memory retrieval remains under $1.
 
-**Net effect:** synthesis quality is grounded, completely unhallucinated, and backed by citations with real-time stats computation on either model, with total AI spend under $1 at demo scale.
+**Net effect:** the AI pipeline uses a bounded, cost-effective model (`Nova Micro`) for high-volume automated matching and an advanced reasoning model (`Nova Pro`) for institutional memory synthesis, keeping total AI spend for the whole system under $1.
 
 ### Service tiers used
 
@@ -347,6 +348,6 @@ The workflow story is the centerpiece. The infrastructure story is a closing not
 
 ## 13. Open Items Before Build
 
-- Confirm Bedrock model access (Nova Micro, Titan Embeddings V2, Claude 3.7 Sonnet) is enabled in the target AWS region before relying on it in dev
+- Confirm Bedrock model access (Nova Micro, Titan Embeddings V2, Nova Pro) is enabled in the target AWS region before relying on it in dev
 - Finalize RBAC roles (Supervisor / Planner / Discipline Lead / Manager) and what each can see/approve
 - Decide exact schema for `audit_log` and `matches` tables (next step)

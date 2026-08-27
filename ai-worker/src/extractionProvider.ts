@@ -79,6 +79,10 @@ export function normalizeEventType(rawType: string): EventType {
  * Parses raw LLM response text into a validated, deduplicated array of ExtractedEvents.
  */
 export function parseAndValidateJson(rawText: string): ExtractedEvent[] {
+  if (!rawText || !rawText.trim()) {
+    return [];
+  }
+
   let cleaned = rawText.trim();
 
   // Strip markdown code blocks if present
@@ -105,8 +109,14 @@ export function parseAndValidateJson(rawText: string): ExtractedEvent[] {
     }
   }
 
-  const parsed = JSON.parse(jsonStr);
-  const rawArray = Array.isArray(parsed) ? parsed : [parsed];
+  let rawArray: unknown[] = [];
+  try {
+    const parsed = JSON.parse(jsonStr);
+    rawArray = Array.isArray(parsed) ? parsed : [parsed];
+  } catch {
+    // If JSON parsing fails (e.g. malformed or text commentary), return safe empty array
+    return [];
+  }
 
   const seenKeys = new Set<string>();
   const results: ExtractedEvent[] = [];
@@ -220,6 +230,14 @@ export class BedrockExtractionProvider implements IExtractionProvider {
   public name = 'Amazon Bedrock Nova Micro';
 
   async extractEvents(inputText: string): Promise<ExtractionResult> {
+    if (!inputText || !inputText.trim()) {
+      return {
+        input_text: inputText || '',
+        raw_response: '[]',
+        events: [],
+      };
+    }
+
     const client = getBedrockRuntimeClient();
     const modelId = process.env.BEDROCK_EXTRACTION_MODEL_ID || 'amazon.nova-micro-v1:0';
     const prompt = `Field Report Input:\n"""\n${inputText}\n"""\n\nExtract the activity events JSON array:`;
