@@ -8,10 +8,13 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "lint": "eslint src --ext .ts",
-    "test:extract": "tsx src/scripts/testExtract.ts"
+    "test:extract": "tsx src/scripts/testExtract.ts",
+    "embed:schedule": "tsx src/scripts/embedSchedule.ts",
+    "test:match": "tsx src/scripts/testMatch.ts"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1119.0",
+    "@xenova/transformers": "^2.17.2",
     "dotenv": "^16.4.7",
     "groq-sdk": "^1.6.0"
   },
