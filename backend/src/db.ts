@@ -1,11 +1,17 @@
 import { Pool } from 'pg';
 import dotenv from 'dotenv';
+import path from 'path';
 
 dotenv.config();
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
 
-const connectionString =
+const rawConnectionString =
   process.env.DATABASE_URL ||
-  'postgresql://postgres:postgrespassword@localhost:5433/bridgeiq_db';
+  'postgresql://postgres:postgrespassword@127.0.0.1:5433/bridgeiq_db';
+
+// Ensure IPv4 on Windows to prevent ::1 ECONNREFUSED
+const connectionString = rawConnectionString.replace('localhost', '127.0.0.1');
 
 export const pool = new Pool({
   connectionString,
