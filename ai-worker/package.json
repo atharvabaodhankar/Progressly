@@ -13,7 +13,8 @@
     "test:match": "tsx src/scripts/testMatch.ts",
     "seed:matches": "tsx src/scripts/seedMatches.ts",
     "seed:historical": "tsx src/scripts/seedHistorical.ts",
-    "test:retrieve": "tsx src/scripts/testRetrieve.ts"
+    "test:retrieve": "tsx src/scripts/testRetrieve.ts",
+    "test:memory": "tsx src/scripts/testMemory.ts"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1119.0",

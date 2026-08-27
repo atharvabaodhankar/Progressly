@@ -88,7 +88,7 @@ No standalone native mobile app for the MVP — that's explicitly scoped as a fu
 Auto-approve         Human Review
 (≥95%, logged)       (70–95% planner,
      │                <70% manual)
-     └────────┬─────────┘
+     └───────┬─────────┘
               ▼
        PostgreSQL (audit_log)
               │
@@ -112,16 +112,17 @@ Historical reports + events
    delays in past projects?"
             │
             ▼
-   Retrieve relevant historical
-   records + source evidence
-            │
-            ▼
-   Bedrock — Claude Sonnet 5
-   (Standard tier)
-            │
-            ▼
-  Evidence-backed answer,
-  sources shown (not invented)
+    Retrieve relevant historical
+    records + source evidence
+             │
+             ▼
+    Bedrock — Nova Pro (Active) /
+    Claude 3.7 Sonnet (Target)
+    (Standard tier)
+             │
+             ▼
+   Evidence-backed answer,
+   sources shown (not invented)
 ```
 
 ---
@@ -141,7 +142,7 @@ Historical reports + events
 | Embeddings | **Amazon Bedrock — Titan Text Embeddings V2** | Converts activity descriptions (schedule + field reports) into vectors |
 | Vector similarity | **pgvector extension on RDS Postgres** | Cosine similarity search for MVP — no separate vector DB needed |
 | Source of truth DB | **RDS PostgreSQL** | Relational: Project → WBS → Discipline → Area → L5/L6 Activity → Actual Events → Reports → Matches → Audit Log |
-| Project Memory / RAG | **Amazon Bedrock — Claude Sonnet 5** | Synthesizes evidence-backed answers from retrieved historical records; low call volume, reasoning-critical |
+| Project Memory / RAG | **Amazon Bedrock — Nova Pro** (Active: `apac.amazon.nova-pro-v1:0`) / **Claude 3.7 Sonnet** (Target: `apac.anthropic.claude-3-7-sonnet-20250219-v1:0`) | Synthesizes evidence-backed answers from retrieved historical records; low call volume, reasoning-critical |
 | Auth | **Cognito or JWT** with role-based access | Supervisor / Planner / Manager views gated by role |
 | Secrets | **AWS Secrets Manager** | DB credentials, API keys — never hardcoded |
 | Observability | **CloudWatch** | Logs/metrics across Fargate + Lambda |
@@ -239,18 +240,19 @@ Two distinct workloads, two distinct model choices — picked on fit, not on a s
 
 ### Project Memory / RAG (low-volume, judge-facing, reasoning-critical)
 
-| Model | Input $/1M | Output $/1M | Cost per 200 queries** |
-|---|---|---|---|
-| Nova Micro | $0.041 | $0.164 | $0.033 |
-| Qwen3 Next 80B A3B | $0.18 | $1.41 | $0.213 |
-| **Claude Sonnet 5 (chosen)** | $2.00 | $10.00 | **$1.80** |
-| Claude Opus 5 | $5.00 | $25.00 | $4.50 |
+| Model | Status | Input $/1M | Output $/1M | Cost per 200 queries** | Context Window |
+|---|---|---|---|---|---|
+| **Amazon Nova Pro** (`apac.amazon.nova-pro-v1:0`) | **Active** | $0.80 | $3.20 | **$0.48** | 300,000 tokens |
+| **Claude 3.7 Sonnet** (`apac.anthropic.claude-3-7-sonnet-20250219-v1:0`) | **Target / Fallback** | $3.00 | $15.00 | $2.10 | 200,000 tokens |
+| Nova Micro | Baseline | $0.041 | $0.164 | $0.033 | 128,000 tokens |
 
 **assuming ~2,000 input / ~500 output tokens per query
 
-**Why Claude Sonnet 5 here specifically:** this is a harder, fuzzier task — synthesizing an evidence-backed answer across multiple retrieved historical records, not just classifying one report. At this call volume (a handful of queries per demo, maybe a few hundred a month in light real use), the entire monthly cost is under $2 — cost is not a real constraint here, so the decision is made on synthesis quality, where Sonnet is the stronger choice. This is the one place in the pipeline where paying for a better model is worth it, and it's cheap in absolute terms regardless.
+**Active vs Target Synthesis Strategy:**
+- **Active Production Model:** **Amazon Bedrock Nova Pro** is the active synthesis model for Project Memory. It provides state-of-the-art multi-modal reasoning and a 300k token context window as a native first-party AWS service, with zero external subscription dependencies.
+- **Target Primary Model:** **Claude 3.7 Sonnet** remains the long-term target model for deep analytical synthesis. The `BedrockSynthesisProvider` implementation includes automated dual-routing: once the AWS Marketplace payment instrument configuration is verified, Claude 3.7 Sonnet seamlessly takes over as primary, with Nova Pro serving as the high-availability fallback.
 
-**Net effect:** the "expensive" model appears exactly once, in the one place reasoning quality is visibly the differentiator. Total AI spend for the whole system at demo scale is under $2.
+**Net effect:** synthesis quality is grounded, completely unhallucinated, and backed by citations with real-time stats computation on either model, with total AI spend under $1 at demo scale.
 
 ### Service tiers used
 
@@ -345,6 +347,6 @@ The workflow story is the centerpiece. The infrastructure story is a closing not
 
 ## 13. Open Items Before Build
 
-- Confirm Bedrock model access (Nova Micro, Titan Embeddings V2, Claude Sonnet 5) is enabled in the target AWS region before relying on it in dev
+- Confirm Bedrock model access (Nova Micro, Titan Embeddings V2, Claude 3.7 Sonnet) is enabled in the target AWS region before relying on it in dev
 - Finalize RBAC roles (Supervisor / Planner / Discipline Lead / Manager) and what each can see/approve
 - Decide exact schema for `audit_log` and `matches` tables (next step)

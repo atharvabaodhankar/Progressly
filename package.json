@@ -20,7 +20,8 @@
     "test:extract": "npm run test:extract --workspace=ai-worker",
     "embed:schedule": "npm run embed:schedule --workspace=ai-worker",
     "test:match": "npm run test:match --workspace=ai-worker",
-    "test:retrieve": "npm run test:retrieve --workspace=ai-worker"
+    "test:retrieve": "npm run test:retrieve --workspace=ai-worker",
+    "test:memory": "npm run test:memory --workspace=ai-worker"
   },
   "devDependencies": {
     "@esbuild/win32-x64": "^0.28.2"
