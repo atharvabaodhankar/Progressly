@@ -12,6 +12,7 @@
     "dev:worker": "npm run dev --workspace=ai-worker",
     "dev:frontend": "npm run dev --workspace=frontend",
     "build": "npm run build --workspaces",
-    "lint": "npm run lint --workspaces"
+    "lint": "npm run lint --workspaces",
+    "migrate": "tsx database/scripts/migrate.ts"
   }
 }
