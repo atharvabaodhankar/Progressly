@@ -28,40 +28,38 @@ dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
 export const EXTRACTION_SYSTEM_PROMPT = `You are an expert infrastructure construction AI assistant for Oil India Limited.
 Your task is to parse raw daily field reports, spreadsheets, site diary entries, or supervisor updates and extract structured activity events.
 
-For each distinct construction/engineering event in the input text, extract:
-- "discipline": The engineering discipline (e.g. "Piping", "Civil", "Electrical", "Instrumentation", "Static/Rotating", "HSE").
-- "activity_description": A concise, clear summary of the actual executable activity (e.g., "spool erection", "hydrotest preparation", "cable pulling", "foundation backfill", "pump skid alignment").
-- "line": The pipeline number or equipment line identifier if mentioned (e.g. "24", "18", "30", "Sub-04"), or null.
-- "location": The physical plant location/area (e.g. "Tank Farm", "Substation", "Pump House", "Corridor West"), or null.
-- "quantity": A numeric count of items completed or installed if explicitly mentioned (e.g., 3 for "three spools"), or null.
-- "event_type": Must strictly be one of:
-  - "start" (for initiation, kickoff, preparation started)
-  - "end" (for completed, finished, signed off, verified)
-  - "progress" (for ongoing work, partial completion, in progress, continuing)
+CRITICAL EXTRACTION RULES:
+1. ONE EVENT PER DISTINCT PHYSICAL ACTIVITY:
+   - Extract exactly ONE event per major physical work activity.
+   - Do NOT split a single activity into multiple events based on intermediate verbs, supporting sub-steps, inspection checks, or narrative clauses.
+   - Sub-steps like "alignment checked", "gauges installed", "valves confirmed closed", "QA sign-off" belong to the primary parent activity (e.g., "spool erection" or "hydrotest preparation") and must NOT be emitted as standalone events.
+   - For CSV / spreadsheets, extract one event per distinct table row.
 
-IMPORTANT INSTRUCTIONS:
-1. Return ONLY a valid JSON array containing one or more event objects matching the schema:
-   [
-     {
-       "discipline": "Piping",
-       "activity_description": "spool erection",
-       "line": "24",
-       "location": "Tank Farm",
-       "quantity": 3,
-       "event_type": "progress"
-     }
-   ]
-2. If the input contains multiple tasks (e.g. multiple CSV rows or multi-task updates), extract each as a separate object in the array.
-3. Do not include markdown commentary, explanations, or conversational filler. Return raw JSON array only.`;
+2. STRICT EVENT_TYPE SEMANTICS:
+   - "start": The activity was started, commenced, or initiated today (e.g., "prep started", "began work", "kickoff").
+   - "end": The activity was fully completed, finished, or signed off today (e.g., "completed erection", "alignment complete", "finished today", "3 nos completed").
+   - "progress": The activity was ongoing today but remains incomplete or continues tomorrow (e.g., "continuing tomorrow", "in progress", "60% complete", "work ongoing").
+
+3. OUTPUT SCHEMA:
+   For each distinct activity, extract:
+   - "discipline": Capitalized discipline ("Piping", "Civil", "Electrical", "Instrumentation", "Static/Rotating", "HSE").
+   - "activity_description": Concise, normalized description of the primary activity (e.g., "spool erection", "hydrotest preparation", "electrical work", "foundation backfill", "pump skid alignment", "temporary support installation").
+   - "line": The pipeline number or equipment line identifier if mentioned (e.g. "24", "18", "30", "P-101", "Sub-04"), or null.
+   - "location": The physical plant location/area (e.g. "Tank Farm", "Substation", "Pump House"), or null.
+   - "quantity": Integer count of items completed if explicitly stated (e.g., 3 for "3 spools"), or null.
+   - "event_type": Strictly "start", "end", or "progress".
+
+4. NO DUPLICATES:
+   Never generate duplicate or near-duplicate event objects for the same physical work in the same report.
+
+5. FORMAT:
+   Return ONLY a valid JSON array of event objects. No markdown formatting, code block wrappers, or conversational filler.`;
 
 /**
  * Normalizes event_type to ensure strict compliance with database constraints.
  */
 export function normalizeEventType(rawType: string): EventType {
   const lower = (rawType || '').toLowerCase().trim();
-  if (lower.includes('start') || lower.includes('initiat') || lower.includes('kick')) {
-    return 'start';
-  }
   if (
     lower.includes('end') ||
     lower.includes('complete') ||
@@ -71,11 +69,14 @@ export function normalizeEventType(rawType: string): EventType {
   ) {
     return 'end';
   }
+  if (lower.includes('start') || lower.includes('initiat') || lower.includes('kick') || lower.includes('prep started')) {
+    return 'start';
+  }
   return 'progress';
 }
 
 /**
- * Parses raw LLM response text into a validated array of ExtractedEvents.
+ * Parses raw LLM response text into a validated, deduplicated array of ExtractedEvents.
  */
 export function parseAndValidateJson(rawText: string): ExtractedEvent[] {
   let cleaned = rawText.trim();
@@ -107,24 +108,45 @@ export function parseAndValidateJson(rawText: string): ExtractedEvent[] {
   const parsed = JSON.parse(jsonStr);
   const rawArray = Array.isArray(parsed) ? parsed : [parsed];
 
-  return rawArray.map((item: Record<string, unknown>) => ({
-    discipline: item.discipline ? String(item.discipline).trim() : 'General',
-    activity_description: item.activity_description
+  const seenKeys = new Set<string>();
+  const results: ExtractedEvent[] = [];
+
+  for (const item of rawArray as Record<string, unknown>[]) {
+    const discipline = item.discipline ? String(item.discipline).trim() : 'General';
+    const activity_description = item.activity_description
       ? String(item.activity_description).trim()
-      : 'General construction work',
-    line: item.line !== undefined && item.line !== null ? String(item.line).trim() : null,
-    location:
+      : 'General construction work';
+    const line = item.line !== undefined && item.line !== null ? String(item.line).trim() : null;
+    const location =
       item.location !== undefined && item.location !== null
         ? String(item.location).trim()
-        : null,
-    quantity:
+        : null;
+    const quantity =
       typeof item.quantity === 'number'
         ? item.quantity
         : !isNaN(Number(item.quantity)) && item.quantity !== null
         ? Number(item.quantity)
-        : null,
-    event_type: normalizeEventType(typeof item.event_type === 'string' ? item.event_type : ''),
-  }));
+        : null;
+    const event_type = normalizeEventType(
+      typeof item.event_type === 'string' ? item.event_type : ''
+    );
+
+    // Deduplication key based on normalized activity, discipline, line, and location
+    const dedupeKey = `${discipline.toLowerCase()}|${activity_description.toLowerCase()}|${line || ''}|${location || ''}|${event_type}`;
+    if (!seenKeys.has(dedupeKey)) {
+      seenKeys.add(dedupeKey);
+      results.push({
+        discipline,
+        activity_description,
+        line,
+        location,
+        quantity,
+        event_type,
+      });
+    }
+  }
+
+  return results;
 }
 
 export interface IExtractionProvider {
@@ -167,7 +189,7 @@ export class GroqExtractionProvider implements IExtractionProvider {
 
     const response = await client.chat.completions.create({
       model: this.model,
-      temperature: 0.1,
+      temperature: 0.05,
       messages: [
         {
           role: 'system',
@@ -175,7 +197,7 @@ export class GroqExtractionProvider implements IExtractionProvider {
         },
         {
           role: 'user',
-          content: `Input Field Report / Data:\n"""\n${inputText}\n"""\n\nExtract all activity events into a JSON array:`,
+          content: `Field Report Input:\n"""\n${inputText}\n"""\n\nExtract the activity events JSON array:`,
         },
       ],
     });
@@ -198,7 +220,7 @@ export class BedrockExtractionProvider implements IExtractionProvider {
   public name = 'Amazon Bedrock Nova Micro';
 
   async extractEvents(inputText: string): Promise<ExtractionResult> {
-    const prompt = `Input Field Report / Data:\n"""\n${inputText}\n"""\n\nExtract all activity events into a JSON array:`;
+    const prompt = `Field Report Input:\n"""\n${inputText}\n"""\n\nExtract the activity events JSON array:`;
 
     const command = new ConverseCommand({
       modelId: BEDROCK_EXTRACTION_MODEL_ID,
@@ -210,7 +232,7 @@ export class BedrockExtractionProvider implements IExtractionProvider {
         },
       ],
       inferenceConfig: {
-        temperature: 0.1,
+        temperature: 0.05,
         maxTokens: 1000,
       },
     });
@@ -233,7 +255,7 @@ export class BedrockExtractionProvider implements IExtractionProvider {
 export function getExtractionProvider(): IExtractionProvider {
   const providerType = (process.env.EXTRACTION_PROVIDER || '').toLowerCase().trim();
 
-  // If explicitly configured for bedrock and no override:
+  // If explicitly configured for bedrock:
   if (providerType === 'bedrock') {
     return new BedrockExtractionProvider();
   }
@@ -243,7 +265,6 @@ export function getExtractionProvider(): IExtractionProvider {
     return new GroqExtractionProvider();
   }
 
-  // Fallback to Bedrock
   return new BedrockExtractionProvider();
 }
 
