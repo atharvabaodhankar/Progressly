@@ -1,12 +1,16 @@
-activity_code,discipline,description,line,location,planned_start,planned_end,wbs_level,wbs_name
-L6-PIP-0241,piping,Erect Line 24-XX Pipe Spools,24,Tank Farm Area A,2026-09-01T08:00:00Z,2026-09-15T17:00:00Z,L6,Piping Spool Erection
-L6-PIP-0242,piping,Hydrotest Line 24-XX System,24,Tank Farm Area A,2026-09-16T08:00:00Z,2026-09-20T17:00:00Z,L6,Piping Pressure Testing
-L6-PIP-0243,piping,Golden Weld Line 24-XX Tie-in,24,Manifold Station 2,2026-09-21T08:00:00Z,2026-09-25T17:00:00Z,L6,Piping Tie-in Works
-L6-CIV-0112,civil,Construct Tank Farm Foundation Pad,TF-01,Tank Farm Area B,2026-08-15T08:00:00Z,2026-08-30T17:00:00Z,L6,Civil Concrete Foundations
-L6-CIV-0115,civil,Excavate Trench for Underground Pipeline Line 24,24,Corridor West,2026-08-20T08:00:00Z,2026-09-05T17:00:00Z,L6,Civil Trenching & Earthworks
-L6-ELE-0301,electrical,Cable Pulling & Termination for Substation 4,Sub-04,Substation 4,2026-09-05T08:00:00Z,2026-09-12T17:00:00Z,L6,Electrical Cable Works
-L6-ELE-0305,electrical,Install High Voltage Switchgear Panel 2,SW-02,Substation 4,2026-09-13T08:00:00Z,2026-09-18T17:00:00Z,L6,Electrical Equipment Installation
-L6-INS-0410,instrumentation,Install & Calibrate Pressure Transmitters on Line 24,24,Tank Farm Area A,2026-09-18T08:00:00Z,2026-09-22T17:00:00Z,L6,Instrumentation Field Devices
-L6-INS-0415,instrumentation,DCS Loop Checking for Flow Control Valve FCV-101,FCV-101,Control Room,2026-09-23T08:00:00Z,2026-09-28T17:00:00Z,L6,DCS Loop Testing
-L6-HSE-0501,HSE,Safety Induction & Pre-Commissioning Gas Detection Audit,GD-01,Plant Wide,2026-08-10T08:00:00Z,2026-08-12T17:00:00Z,L6,HSE Compliance & Audits
-L6-ROT-0601,static-rotating,Erect Main Crude Oil Transfer Pump P-101A,P-101A,Pump House 1,2026-09-10T08:00:00Z,2026-09-20T17:00:00Z,L6,Rotating Equipment Erection
+activity_code,description,discipline,line,location,planned_start,planned_end
+L6-PIP-0241,Erect Line 24-XX,Piping,24,Tank Farm,2026-08-01,2026-08-10
+L6-PIP-0242,Erect Line 25-XX,Piping,25,Tank Farm,2026-08-05,2026-08-15
+L6-PIP-0189,Hydrotest Line 24-XX,Piping,24,Tank Farm,2026-08-11,2026-08-14
+L6-CIV-0112,Construct Tank Farm Foundation,Civil,,Tank Farm,2026-07-01,2026-07-25
+L6-CIV-0113,Backfill Foundation Area B,Civil,,Tank Farm,2026-07-20,2026-07-28
+L6-ELE-0301,Install Cable Tray Section 4,Electrical,,Substation,2026-08-02,2026-08-06
+L6-ELE-0302,Terminate Power Cables Panel B,Electrical,,Substation,2026-08-07,2026-08-09
+L6-INS-0410,Install Pressure Transmitter PT-204,Instrumentation,24,Tank Farm,2026-08-12,2026-08-13
+L6-INS-0411,Calibrate Flow Meter FM-118,Instrumentation,18,Tank Farm,2026-08-14,2026-08-15
+L6-STE-0501,Align Pump Skid P-101,Static/Rotating,,Pump House,2026-08-03,2026-08-05
+L6-STE-0502,Install Coupling Guard P-101,Static/Rotating,,Pump House,2026-08-06,2026-08-06
+L6-HSE-0601,Conduct Confined Space Safety Audit,HSE,,Tank Farm,2026-08-01,2026-08-01
+L6-PIP-0243,Weld Line 24-XX Spool Joints,Piping,24,Tank Farm,2026-08-02,2026-08-04
+L6-PIP-0250,Erect Line 30-XX,Piping,30,Pump House,2026-08-08,2026-08-16
+L6-CIV-0120,Pour Concrete Pedestal C-12,Civil,,Pump House,2026-07-28,2026-08-01
