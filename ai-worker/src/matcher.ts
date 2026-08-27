@@ -47,6 +47,10 @@ function clean(str: string | null | undefined): string {
 
 /**
  * Applies Oil & Gas business rules to score candidate matches.
+ * - Multiplicative scaling: rule bonuses scale with base semantic similarity rather than adding flat percentages.
+ * - Semantic gating: positive bonuses only apply when base similarity is viable (>= 0.70).
+ * - Line asymmetry penalty: if the field report specifies a line number but the schedule activity has line = NULL,
+ *   a penalty (-0.08) is applied for unverified dimension.
  */
 export function applyBusinessRules(
   event: ExtractedEvent,
@@ -57,7 +61,9 @@ export function applyBusinessRules(
     vector_similarity: number;
   }
 ): number {
-  let score = candidate.vector_similarity;
+  const baseSim = candidate.vector_similarity;
+  let multiplier = 1.0;
+  let penalty = 0.0;
 
   const eventDisc = clean(event.discipline);
   const candDisc = clean(candidate.discipline);
@@ -65,80 +71,91 @@ export function applyBusinessRules(
   // 1. Discipline Rule
   if (eventDisc && candDisc) {
     if (eventDisc === candDisc || (eventDisc.includes('static') && candDisc.includes('static'))) {
-      score += 0.08; // Discipline match bonus
+      if (baseSim >= 0.70) {
+        multiplier += 0.10; // Scaled discipline bonus only for viable semantic matches
+      }
     } else {
-      score -= 0.35; // Severe discipline mismatch penalty (e.g. Civil vs Piping)
+      penalty += 0.35; // Severe discipline mismatch penalty
     }
   }
 
   // 2. Line Number Rule
-  if (event.line && candidate.line) {
-    if (clean(event.line) === clean(candidate.line)) {
-      score += 0.15; // Line match boost
+  if (event.line) {
+    if (candidate.line) {
+      if (clean(event.line) === clean(candidate.line)) {
+        if (baseSim >= 0.70) {
+          multiplier += 0.15; // Scaled line match bonus
+        }
+      } else {
+        penalty += 0.30; // Direct line conflict (e.g. Line 18 vs Line 30)
+      }
     } else {
-      score -= 0.25; // Different line penalty (e.g., Line 24 vs Line 25)
+      // Schedule line is NULL but report explicitly specified a line:
+      // Treat as missing verification dimension penalty
+      penalty += 0.08;
     }
   }
 
   // 3. Location Rule
   if (event.location && candidate.location) {
     if (clean(event.location) === clean(candidate.location)) {
-      score += 0.05; // Same plant area
+      if (baseSim >= 0.70) {
+        multiplier += 0.05; // Scaled location match bonus
+      }
     }
   }
 
-  // Clamp between 0 and 1
-  return Math.max(0, Math.min(1, score));
+  const finalScore = baseSim * multiplier - penalty;
+  return Math.max(0, Math.min(1, finalScore));
 }
 
-const RERANKER_SYSTEM_PROMPT = `You are an expert schedule matching and verification agent for Oil India Limited.
-Your task is to compare an extracted field event against shortlisted baseline schedule activities and determine the exact match confidence.
+export type SemanticAlignment = 'EXACT' | 'LIKELY' | 'PARTIAL' | 'NONE';
 
-Given the extracted event and top candidate activities:
-- Analyze activity description, engineering discipline, line number, and location.
-- Determine if Candidate #1 is a genuine match for the field report.
-- Return a JSON object with:
-  {
-    "best_match_code": "L6-XXX-XXXX" or null if no valid match exists,
-    "confidence_score": 0.00 to 1.00 (calibrated match confidence),
-    "reasoning": "brief explanation"
-  }
+const RERANKER_SYSTEM_PROMPT = `You are an expert infrastructure schedule verification agent for Oil India Limited.
+Your task is to judge the semantic correspondence between an extracted field event and candidate baseline schedule activities.
 
-CALIBRATION GUIDELINES:
-- ≥ 0.95: High certainty exact match in discipline, activity, and line (e.g. "spool erection" -> "Erect Line 24-XX" on line 24).
-- 0.70 - 0.94: Likely match with slight ambiguity or missing specifics (routes to planner review queue).
-- < 0.70: Vague input, conflicting discipline/line, or new unplanned work that is not in the baseline schedule.
-- Return ONLY valid JSON.`;
+EVALUATION CRITERIA:
+- "EXACT": The field event directly describes the identical physical work or is an exact industry synonym (e.g., "spool erection" <=> "Erect Line 24-XX", "foundation backfill" <=> "Backfill Foundation Area B", "pump skid alignment" <=> "Align Pump Skid P-101").
+- "LIKELY": The field event is strongly related to the candidate activity with high contextual alignment, but may represent a preparatory or supporting stage.
+- "PARTIAL": The field event is too vague or ambiguous to distinguish between candidate activities (e.g., "electrical work" when candidate is a specific cable tray).
+- "NONE": The field event describes distinct or unrelated work (e.g., "temporary support installation" is NOT "coupling guard installation").
+
+Output strictly valid JSON with this schema:
+{
+  "best_match_code": "L6-XXX-XXXX" or null,
+  "semantic_alignment": "EXACT" | "LIKELY" | "PARTIAL" | "NONE",
+  "reasoning": "Concise 1-2 sentence engineering justification"
+}`;
 
 /**
- * Reranks top candidates using LLM reasoning.
+ * Evaluates semantic alignment via LLM at temperature 0 (no numeric scores in prompt).
  */
-async function rerankCandidates(
+async function evaluateSemanticAlignment(
   event: ExtractedEvent,
   candidates: CandidateMatch[]
-): Promise<{ best_code: string | null; confidence: number; reasoning: string }> {
+): Promise<{ best_code: string | null; alignment: SemanticAlignment; reasoning: string }> {
   if (candidates.length === 0) {
-    return { best_code: null, confidence: 0, reasoning: 'No candidate activities found.' };
+    return { best_code: null, alignment: 'NONE', reasoning: 'No candidate activities found.' };
   }
 
+  // Format prompt with TEXT ONLY — no similarity numbers to eliminate anchoring bias
   const prompt = `Extracted Field Event:
-${JSON.stringify(event, null, 2)}
+- Discipline: ${event.discipline}
+- Activity: ${event.activity_description}
+- Line: ${event.line || 'Not specified'}
+- Location: ${event.location || 'Not specified'}
 
-Candidate Activities from Baseline Schedule:
-${JSON.stringify(
-  candidates.map((c, i) => ({
-    rank: i + 1,
-    activity_code: c.activity_code,
-    description: c.description,
-    discipline: c.discipline,
-    line: c.line,
-    location: c.location,
-    vector_similarity: Number(c.vector_similarity.toFixed(3)),
-    rule_score: Number(c.rule_score.toFixed(3)),
-  })),
-  null,
-  2
-)}
+Candidate Baseline Schedule Activities:
+${candidates
+  .map(
+    (c, i) => `Candidate #${i + 1}:
+  Code: ${c.activity_code}
+  Description: ${c.description}
+  Discipline: ${c.discipline}
+  Line: ${c.line || 'Not specified'}
+  Location: ${c.location || 'Not specified'}`
+  )
+  .join('\n\n')}
 
 Evaluate the best match and output the JSON verdict:`;
 
@@ -154,7 +171,7 @@ Evaluate the best match and output the JSON verdict:`;
 
       const res = await groq.chat.completions.create({
         model,
-        temperature: 0.05,
+        temperature: 0.0,
         messages: [
           { role: 'system', content: RERANKER_SYSTEM_PROMPT },
           { role: 'user', content: prompt },
@@ -163,18 +180,17 @@ Evaluate the best match and output the JSON verdict:`;
       responseText = res.choices[0]?.message?.content || '{}';
     } else {
       const client = getBedrockRuntimeClient();
-      const modelId = process.env.BEDROCK_EXTRACTION_MODEL_ID || 'amazon.nova-micro-v1:0';
+      const modelId = process.env.BEDROCK_EXTRACTION_MODEL_ID || 'apac.amazon.nova-micro-v1:0';
       const cmd = new ConverseCommand({
         modelId,
         system: [{ text: RERANKER_SYSTEM_PROMPT }],
         messages: [{ role: 'user', content: [{ text: prompt }] }],
-        inferenceConfig: { temperature: 0.05, maxTokens: 500 },
+        inferenceConfig: { temperature: 0.0, maxTokens: 400 },
       });
       const res = await client.send(cmd);
       responseText = res.output?.message?.content?.[0]?.text || '{}';
     }
 
-    // Clean JSON
     let cleaned = responseText.trim();
     if (cleaned.startsWith('```json')) {
       cleaned = cleaned.replace(/^```json\s*/, '').replace(/\s*```$/, '');
@@ -183,22 +199,47 @@ Evaluate the best match and output the JSON verdict:`;
     }
 
     const parsed = JSON.parse(cleaned);
+    const validAlignments: SemanticAlignment[] = ['EXACT', 'LIKELY', 'PARTIAL', 'NONE'];
+    const alignment: SemanticAlignment = validAlignments.includes(parsed.semantic_alignment)
+      ? parsed.semantic_alignment
+      : 'LIKELY';
+
     return {
-      best_code: parsed.best_match_code || null,
-      confidence:
-        typeof parsed.confidence_score === 'number'
-          ? Math.max(0, Math.min(1, parsed.confidence_score))
-          : candidates[0].rule_score,
-      reasoning: parsed.reasoning || 'Reranked via semantic matching model.',
+      best_code: parsed.best_match_code || candidates[0].activity_code,
+      alignment,
+      reasoning: parsed.reasoning || 'Evaluated via semantic alignment analysis.',
     };
   } catch (_err) {
-    // Fallback to rule_score if reranker fails
-    const top = candidates[0];
     return {
-      best_code: top ? top.activity_code : null,
-      confidence: top ? top.rule_score : 0,
+      best_code: candidates[0]?.activity_code || null,
+      alignment: 'LIKELY',
       reasoning: 'Calculated via vector similarity and business-rule scoring.',
     };
+  }
+}
+
+/**
+ * Calculates a deterministic final confidence score in code.
+ */
+export function calculateFinalConfidence(
+  ruleScore: number,
+  alignment: SemanticAlignment
+): number {
+  if (alignment === 'NONE') return 0.0;
+  if (ruleScore <= 0) return 0.0;
+
+  switch (alignment) {
+    case 'EXACT':
+      // Exact physical synonym with matching rules -> High confidence (0.95 - 0.98)
+      return Math.min(0.98, Math.max(0.95, Number((ruleScore * 0.98).toFixed(3))));
+    case 'LIKELY':
+      // Likely contextual match -> Planner review band (0.75 - 0.90)
+      return Math.min(0.90, Math.max(0.70, Number((ruleScore * 0.85).toFixed(3))));
+    case 'PARTIAL':
+      // Ambiguous / vague match -> Under 0.70
+      return Math.min(0.65, Number((ruleScore * 0.65).toFixed(3)));
+    default:
+      return 0.0;
   }
 }
 
@@ -266,20 +307,23 @@ export async function matchEventToSchedule(event: ExtractedEvent): Promise<Match
   // Sort candidates by combined rule score
   candidates.sort((a, b) => b.rule_score - a.rule_score);
 
-  // 3. Rerank top candidates with LLM
-  const reranked = await rerankCandidates(event, candidates.slice(0, 3));
+  // 3. Evaluate Semantic Alignment with LLM at temperature 0 (text-only prompt)
+  const evalResult = await evaluateSemanticAlignment(event, candidates.slice(0, 3));
 
-  let matchedCandidate = candidates.find((c) => c.activity_code === reranked.best_code) || null;
-  if (!matchedCandidate && candidates.length > 0 && reranked.confidence >= 0.7) {
+  let matchedCandidate = candidates.find((c) => c.activity_code === evalResult.best_code) || null;
+  if (!matchedCandidate && candidates.length > 0 && evalResult.alignment !== 'NONE') {
     matchedCandidate = candidates[0];
   }
 
-  if (matchedCandidate) {
-    matchedCandidate.final_confidence = reranked.confidence;
-    matchedCandidate.reasoning = reranked.reasoning;
-  }
+  // Deterministically compute final calibrated confidence score in code
+  const confidenceScore = matchedCandidate
+    ? calculateFinalConfidence(matchedCandidate.rule_score, evalResult.alignment)
+    : 0;
 
-  const confidenceScore = matchedCandidate ? matchedCandidate.final_confidence : 0;
+  if (matchedCandidate) {
+    matchedCandidate.final_confidence = confidenceScore;
+    matchedCandidate.reasoning = `[${evalResult.alignment}] ${evalResult.reasoning}`;
+  }
 
   // 4. Policy Gating
   let status: 'auto_approved' | 'pending' | 'manual_resolution';
