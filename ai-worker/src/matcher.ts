@@ -4,7 +4,7 @@ import { getExtractionProvider } from './extractionProvider';
 import { ExtractedEvent } from './types';
 import Groq from 'groq-sdk';
 import { ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
-import { bedrockRuntimeClient, BEDROCK_EXTRACTION_MODEL_ID } from './bedrockClient';
+import { getBedrockRuntimeClient } from './bedrockClient';
 import dotenv from 'dotenv';
 import path from 'path';
 
@@ -162,13 +162,15 @@ Evaluate the best match and output the JSON verdict:`;
       });
       responseText = res.choices[0]?.message?.content || '{}';
     } else {
+      const client = getBedrockRuntimeClient();
+      const modelId = process.env.BEDROCK_EXTRACTION_MODEL_ID || 'amazon.nova-micro-v1:0';
       const cmd = new ConverseCommand({
-        modelId: BEDROCK_EXTRACTION_MODEL_ID,
+        modelId,
         system: [{ text: RERANKER_SYSTEM_PROMPT }],
         messages: [{ role: 'user', content: [{ text: prompt }] }],
         inferenceConfig: { temperature: 0.05, maxTokens: 500 },
       });
-      const res = await bedrockRuntimeClient.send(cmd);
+      const res = await client.send(cmd);
       responseText = res.output?.message?.content?.[0]?.text || '{}';
     }
 

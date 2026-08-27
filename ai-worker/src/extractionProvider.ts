@@ -16,7 +16,7 @@
 
 import Groq from 'groq-sdk';
 import { ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
-import { bedrockRuntimeClient, BEDROCK_EXTRACTION_MODEL_ID } from './bedrockClient';
+import { getBedrockRuntimeClient } from './bedrockClient';
 import { ExtractedEvent, ExtractionResult, EventType } from './types';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -220,10 +220,12 @@ export class BedrockExtractionProvider implements IExtractionProvider {
   public name = 'Amazon Bedrock Nova Micro';
 
   async extractEvents(inputText: string): Promise<ExtractionResult> {
+    const client = getBedrockRuntimeClient();
+    const modelId = process.env.BEDROCK_EXTRACTION_MODEL_ID || 'amazon.nova-micro-v1:0';
     const prompt = `Field Report Input:\n"""\n${inputText}\n"""\n\nExtract the activity events JSON array:`;
 
     const command = new ConverseCommand({
-      modelId: BEDROCK_EXTRACTION_MODEL_ID,
+      modelId,
       system: [{ text: EXTRACTION_SYSTEM_PROMPT }],
       messages: [
         {
@@ -237,7 +239,7 @@ export class BedrockExtractionProvider implements IExtractionProvider {
       },
     });
 
-    const response = await bedrockRuntimeClient.send(command);
+    const response = await client.send(command);
     const responseText = response.output?.message?.content?.[0]?.text || '[]';
     const events = parseAndValidateJson(responseText);
 

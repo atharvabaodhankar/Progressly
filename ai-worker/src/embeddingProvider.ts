@@ -15,7 +15,8 @@
  * ============================================================================
  */
 
-import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
+import { InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
+import { getBedrockRuntimeClient } from './bedrockClient';
 import { pipeline, FeatureExtractionPipeline } from '@xenova/transformers';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -74,28 +75,14 @@ export class LocalTransformerEmbeddingProvider implements IEmbeddingProvider {
 export class BedrockTitanEmbeddingProvider implements IEmbeddingProvider {
   public name = 'Amazon Bedrock Titan Text Embeddings V2';
   public dimension = 1024;
-  private client: BedrockRuntimeClient;
   private modelId: string;
 
   constructor() {
-    const region = process.env.AWS_REGION || 'us-east-1';
     this.modelId = process.env.BEDROCK_EMBEDDING_MODEL_ID || 'amazon.titan-embed-text-v2:0';
-
-    this.client = new BedrockRuntimeClient({
-      region,
-      ...(process.env.AWS_ACCESS_KEY_ID && {
-        credentials: {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-          ...(process.env.AWS_SESSION_TOKEN && {
-            sessionToken: process.env.AWS_SESSION_TOKEN,
-          }),
-        },
-      }),
-    });
   }
 
   async embed(text: string): Promise<number[]> {
+    const client = getBedrockRuntimeClient();
     const payload = {
       inputText: text,
       dimensions: 1024,
@@ -109,7 +96,7 @@ export class BedrockTitanEmbeddingProvider implements IEmbeddingProvider {
       body: JSON.stringify(payload),
     });
 
-    const response = await this.client.send(command);
+    const response = await client.send(command);
     const body = JSON.parse(new TextDecoder().decode(response.body));
     return body.embedding as number[];
   }

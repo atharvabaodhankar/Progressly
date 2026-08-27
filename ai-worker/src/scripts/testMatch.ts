@@ -1,4 +1,4 @@
-import { extractEvents } from '../extractor';
+import { extractEvents, getExtractionProvider } from '../extractor';
 import { matchEventToSchedule } from '../matcher';
 import { SAMPLE_REPORTS } from '../sample-reports';
 import { getEmbeddingProvider } from '../embeddingProvider';
@@ -8,8 +8,10 @@ async function runMatchingTests() {
   console.log('       BridgeIQ AI Worker — End-to-End Extraction & Matching Pipeline');
   console.log('================================================================\n');
 
+  const extractProvider = getExtractionProvider();
   const embedProvider = getEmbeddingProvider();
-  console.log(`[Embedder] Active Model: ${embedProvider.name} (${embedProvider.dimension} dim)`);
+  console.log(`[Extraction Engine] Active: ${extractProvider.name}`);
+  console.log(`[Embedding Engine]  Active: ${embedProvider.name} (${embedProvider.dimension} dim)`);
   console.log('----------------------------------------------------------------\n');
 
   for (const report of SAMPLE_REPORTS) {
