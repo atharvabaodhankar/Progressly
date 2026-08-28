@@ -57,13 +57,27 @@ resource "aws_ecs_task_definition" "backend" {
         { name = "NODE_ENV", value = "production" },
         { name = "PORT", value = "4000" },
         { name = "S3_BUCKET_NAME", value = aws_s3_bucket.reports.id },
-        { name = "AWS_REGION", value = var.infra_aws_region }
+        { name = "AWS_REGION", value = var.infra_aws_region },
+        { name = "BEDROCK_EMBEDDING_MODEL_ID", value = "amazon.titan-embed-text-v2:0" },
+        { name = "BEDROCK_SYNTHESIS_MODEL_ID", value = "apac.amazon.nova-pro-v1:0" }
       ]
 
       secrets = [
         {
           name      = "DATABASE_URL"
           valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:DATABASE_URL::"
+        },
+        {
+          name      = "BEDROCK_AWS_ACCESS_KEY_ID"
+          valueFrom = "${aws_secretsmanager_secret.bedrock_credentials.arn}:AWS_ACCESS_KEY_ID::"
+        },
+        {
+          name      = "BEDROCK_AWS_SECRET_ACCESS_KEY"
+          valueFrom = "${aws_secretsmanager_secret.bedrock_credentials.arn}:AWS_SECRET_ACCESS_KEY::"
+        },
+        {
+          name      = "BEDROCK_AWS_REGION"
+          valueFrom = "${aws_secretsmanager_secret.bedrock_credentials.arn}:AWS_REGION::"
         }
       ]
 

@@ -107,7 +107,7 @@ interface ToastMessage {
 }
 
 export default function BridgeIQApp() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'review' | 'upload'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'review' | 'upload' | 'memory'>('dashboard');
 
   // Screen 1: Upload State
   const [uploadMode, setUploadMode] = useState<'file' | 'text'>('text');
@@ -137,6 +137,28 @@ export default function BridgeIQApp() {
   const [disciplineFilter, setDisciplineFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [expandedAuditId, setExpandedAuditId] = useState<string | null>(null);
+
+  // Screen 4: Project Memory (Institutional RAG) State
+  const [memoryQuery, setMemoryQuery] = useState('What caused piping delays in past projects?');
+  const [isQueryingMemory, setIsQueryingMemory] = useState(false);
+  const [memoryResult, setMemoryResult] = useState<{
+    query: string;
+    answer: string;
+    sources: string[];
+    computed_stats: {
+      totalRetrieved: number;
+      delayedCount: number;
+      averageDelayDays: number;
+      causeBreakdown: Record<string, number>;
+      maxDelayDays: number;
+    };
+    model_used: string;
+    retrieved_records: any[];
+  } | null>(null);
+  const [memoryError, setMemoryError] = useState<string | null>(null);
+  const [historicalRecords, setHistoricalRecords] = useState<any[]>([]);
+  const [isLoadingHistorical, setIsLoadingHistorical] = useState(false);
+  const [showAllHistorical, setShowAllHistorical] = useState(false);
 
   // Toast State
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -271,6 +293,48 @@ export default function BridgeIQApp() {
       showToast(msg, 'error');
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  // Handle Project Memory RAG Queries
+  const handleMemoryQuery = async (queryText?: string) => {
+    const q = queryText !== undefined ? queryText : memoryQuery;
+    if (!q || !q.trim()) return;
+    setIsQueryingMemory(true);
+    setMemoryError(null);
+    try {
+      const res = await fetch(`${API_BASE}/memory/query`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: q.trim(), topK: 6 }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to query institutional memory');
+      }
+      setMemoryResult(data);
+      showToast('Institutional memory synthesized successfully!', 'success');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error querying memory';
+      setMemoryError(msg);
+      showToast(msg, 'error');
+    } finally {
+      setIsQueryingMemory(false);
+    }
+  };
+
+  const fetchHistoricalRecords = async () => {
+    setIsLoadingHistorical(true);
+    try {
+      const res = await fetch(`${API_BASE}/memory/records`);
+      const data = await res.json();
+      if (res.ok && data.records) {
+        setHistoricalRecords(data.records);
+      }
+    } catch (err) {
+      console.error('Failed to fetch historical records:', err);
+    } finally {
+      setIsLoadingHistorical(false);
     }
   };
 
@@ -476,6 +540,21 @@ export default function BridgeIQApp() {
             >
               <Upload className="w-4 h-4" />
               <span>Upload Report</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setActiveTab('memory');
+                if (historicalRecords.length === 0) fetchHistoricalRecords();
+              }}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
+                activeTab === 'memory'
+                  ? 'bg-emerald-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              }`}
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Project Memory</span>
             </button>
           </nav>
         </div>
@@ -1320,6 +1399,266 @@ export default function BridgeIQApp() {
                 )}
               </button>
             </form>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* SCREEN 4: PROJECT MEMORY (INSTITUTIONAL RAG)                              */}
+        {/* ========================================================================= */}
+        {activeTab === 'memory' && (
+          <div className="space-y-8 max-w-5xl mx-auto">
+            {/* Header */}
+            <div className="bg-slate-900/80 border border-slate-800 p-6 sm:p-8 rounded-2xl shadow-xl relative overflow-hidden">
+              <div className="absolute -top-16 -right-16 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+                      <Sparkles className="w-6 h-6 text-emerald-400" />
+                      <span>Project Memory & Historical RAG</span>
+                    </h2>
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-300 border border-purple-500/30 font-medium">
+                      Titan V2 + Nova Pro
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-400">
+                    Query institutional memory across 40 past capital energy projects to prevent recurring schedule delays.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowAllHistorical(!showAllHistorical)}
+                  className="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5 self-start sm:self-auto"
+                >
+                  <History className="w-4 h-4 text-emerald-400" />
+                  <span>{showAllHistorical ? 'Hide Seeded Dataset' : 'Browse All 40 Seeded Records'}</span>
+                </button>
+              </div>
+
+              {/* Search Form */}
+              <div className="mt-6 space-y-3">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={memoryQuery}
+                      onChange={(e) => setMemoryQuery(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleMemoryQuery()}
+                      placeholder="Ask any question about past project delays, piping risks, material shortages..."
+                      className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
+                    />
+                  </div>
+                  <button
+                    onClick={() => handleMemoryQuery()}
+                    disabled={isQueryingMemory || !memoryQuery.trim()}
+                    className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-600 text-white font-semibold text-sm shadow-lg shadow-emerald-950/50 flex items-center justify-center gap-2 transition shrink-0"
+                  >
+                    {isQueryingMemory ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>Synthesizing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4" />
+                        <span>Query Memory</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Preset Prompt Suggestions */}
+                <div className="flex flex-wrap items-center gap-2 pt-2">
+                  <span className="text-xs text-slate-500 font-medium">Try asking:</span>
+                  {[
+                    'What caused piping delays in past projects?',
+                    'What are the common risks in civil foundation works?',
+                    'How long did substation cable tray installation take?',
+                    'Show safety and HSE incident patterns.',
+                  ].map((preset, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        setMemoryQuery(preset);
+                        handleMemoryQuery(preset);
+                      }}
+                      className="px-2.5 py-1 text-xs rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition"
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Error Message */}
+            {memoryError && (
+              <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
+                <p>{memoryError}</p>
+              </div>
+            )}
+
+            {/* Synthesized Answer Result */}
+            {memoryResult && (
+              <div className="space-y-6">
+                {/* Quantitative Stats Bar */}
+                {memoryResult.computed_stats && (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-xl">
+                      <p className="text-xs text-slate-400 uppercase font-semibold">Records Analyzed</p>
+                      <p className="text-2xl font-bold text-white mt-1">
+                        {memoryResult.computed_stats.totalRetrieved}
+                      </p>
+                    </div>
+                    <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-xl">
+                      <p className="text-xs text-slate-400 uppercase font-semibold">Delayed Activities</p>
+                      <p className="text-2xl font-bold text-amber-400 mt-1">
+                        {memoryResult.computed_stats.delayedCount}
+                      </p>
+                    </div>
+                    <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-xl">
+                      <p className="text-xs text-slate-400 uppercase font-semibold">Avg Delay Days</p>
+                      <p className="text-2xl font-bold text-rose-400 mt-1">
+                        +{memoryResult.computed_stats.averageDelayDays}d
+                      </p>
+                    </div>
+                    <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-xl">
+                      <p className="text-xs text-slate-400 uppercase font-semibold">Synthesis Model</p>
+                      <p className="text-xs font-mono font-semibold text-purple-300 mt-2 truncate" title={memoryResult.model_used}>
+                        {memoryResult.model_used.replace('apac.amazon.', '').replace(':0', '')}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Synthesized Narrative */}
+                <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xl space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-emerald-400" />
+                      <h3 className="font-bold text-lg text-white">Synthesized Institutional Memory</h3>
+                    </div>
+                    <span className="text-xs px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">
+                      Grounded via pgvector
+                    </span>
+                  </div>
+
+                  <div className="prose prose-invert max-w-none text-slate-200 text-sm leading-relaxed whitespace-pre-line">
+                    {memoryResult.answer}
+                  </div>
+                </div>
+
+                {/* Retrieved Source Records */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-emerald-400" />
+                      <span>Verified Retrieved Grounding Sources ({memoryResult.retrieved_records?.length || 0})</span>
+                    </h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {memoryResult.retrieved_records?.map((record, idx) => (
+                      <div
+                        key={record.id || idx}
+                        className="bg-slate-900/50 border border-slate-800/80 hover:border-slate-700 p-4 rounded-xl space-y-2 transition"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-300 uppercase">
+                              {record.discipline}
+                            </span>
+                            <h4 className="font-semibold text-sm text-slate-100 mt-1">
+                              {record.project_name}
+                            </h4>
+                          </div>
+                          {record.similarity_score && (
+                            <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                              {(record.similarity_score * 100).toFixed(1)}% match
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="text-xs text-slate-300 font-medium">
+                          {record.activity_description}
+                        </p>
+
+                        <div className="flex items-center gap-3 text-xs text-slate-400 pt-1 border-t border-slate-800/60">
+                          <span>Planned: {record.planned_duration_days}d</span>
+                          <span>Actual: {record.actual_duration_days}d</span>
+                          <span className={record.delay_days > 0 ? 'text-amber-400 font-medium' : 'text-emerald-400'}>
+                            {record.delay_days > 0 ? `+${record.delay_days}d delay` : 'On Schedule'}
+                          </span>
+                        </div>
+
+                        {record.notes && (
+                          <p className="text-xs text-slate-400 italic bg-slate-950/60 p-2 rounded-lg border border-slate-800/40">
+                            &quot;{record.notes}&quot;
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Seeded Dataset Explorer (40 records) */}
+            {showAllHistorical && (
+              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-bold text-white text-base">Historical Knowledge Base (40 Records)</h3>
+                    <p className="text-xs text-slate-400">All records embedded with 1024-dimensional Titan V2 vectors</p>
+                  </div>
+                  {isLoadingHistorical && <RefreshCw className="w-4 h-4 animate-spin text-emerald-400" />}
+                </div>
+
+                <div className="overflow-x-auto max-h-96 overflow-y-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead className="sticky top-0 bg-slate-950 text-slate-400 font-semibold border-b border-slate-800">
+                      <tr>
+                        <th className="p-3">Project</th>
+                        <th className="p-3">Discipline</th>
+                        <th className="p-3">Activity</th>
+                        <th className="p-3">Delay</th>
+                        <th className="p-3">Primary Cause</th>
+                        <th className="p-3">Embedding</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/50">
+                      {historicalRecords.map((hr, idx) => (
+                        <tr key={hr.id || idx} className="hover:bg-slate-800/30">
+                          <td className="p-3 font-medium text-slate-200">{hr.project_name}</td>
+                          <td className="p-3">
+                            <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 uppercase font-mono text-[10px]">
+                              {hr.discipline}
+                            </span>
+                          </td>
+                          <td className="p-3 text-slate-300 max-w-xs truncate" title={hr.activity_description}>
+                            {hr.activity_description}
+                          </td>
+                          <td className="p-3">
+                            {hr.delay_days > 0 ? (
+                              <span className="text-amber-400 font-semibold">+{hr.delay_days}d</span>
+                            ) : (
+                              <span className="text-emerald-400">0d</span>
+                            )}
+                          </td>
+                          <td className="p-3 text-slate-400">{hr.delay_cause || 'None'}</td>
+                          <td className="p-3">
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-mono">
+                              1024d ✓
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>
