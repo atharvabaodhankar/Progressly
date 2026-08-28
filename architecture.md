@@ -1,353 +1,139 @@
-# Intelligent Data Capture & Schedule-Linking Layer
+# Progressly (BridgeIQ) — Final Production Architecture Specification
+
 ### SIH Problem Statement 26122 — Oil India Limited
-
-**Category:** Software | **Theme:** Smart Automation
-
----
-
-## 1. Problem Summary
-
-Infrastructure project schedules cascade from macro milestones (L1) down to micro executable activities (L5/L6) across disciplines — civil, piping, static/rotating equipment, electrical, instrumentation, HSE. Actual execution data comes back through daily reports, site diaries, and spreadsheets, each in its own format, disconnected from the plan's L5/L6 activity IDs.
-
-**Core problem:** No reliable, low-friction way to capture actual start/end times of activities and auto-link them back to the baseline schedule, across inconsistent terminology and granularity (e.g. "spool erected" vs. plan's "Erect Line 24-XX").
-
-**What we're building:** A pipeline that ingests heterogeneous field inputs, extracts structured activity events, semantically matches them to the correct schedule node with a confidence score, routes low-confidence matches to human review, updates the schedule/PMIS with a full audit trail, and builds a queryable institutional memory of real project execution patterns.
+**Theme:** Smart Automation & AI for Mega Capital Projects | **Region:** `ap-south-1` (Mumbai)
 
 ---
 
-## 2. Product Shape
+## 1. Executive Summary & Live Production Endpoints
 
-- **Web app** (primary product) — for Project Managers, Planners, HSE, Discipline Leads, Management
-- **Lightweight mobile-web / PWA view** — for Site Supervisors and Field Engineers only. Minimal surface:
-  - "What happened?" → Record Voice / Type Update
-  - Attach photo
-  - Submit
+Progressly is an enterprise-grade, event-driven data capture and schedule-linking layer that bridges unstructured daily site reports with baseline project schedules (e.g. Primavera P6 / Oracle WBS).
 
-No standalone native mobile app for the MVP — that's explicitly scoped as a future step.
+### Live Production Endpoints
 
----
-
-## 3. Final Locked Architecture
-
-```
-                    ┌───────────────┐
-                    │    Vercel     │
-                    │ React/Next.js │
-                    └───────┬───────┘
-                            │ HTTPS
-                            ▼
-                     ┌─────────────┐
-                     │   AWS ALB   │
-                     └──────┬──────┘
-                            ▼
-                    ┌───────────────┐
-                    │  ECS Fargate  │
-                    │  Express API  │
-                    └───┬───────┬───┘
-                        │       │
-              ┌─────────┘       └─────────┐
-              ▼                           ▼
-             S3                     PostgreSQL (RDS)
-        raw reports/                source of truth
-        evidence files              + pgvector embeddings
-              │                           ▲
-              ▼                           │
-           Lambda                         │
-              │                           │
-              ▼                           │
-             SQS                          │
-              │                           │
-              ▼                           │
-         AI Worker                        │
-         (Fargate task / Lambda)          │
-              │                           │
-      ┌───────┴────────┐                  │
-      ▼                ▼                  │
-   Bedrock          Bedrock                │
-   Nova Micro       Titan Embeddings V2    │
-   Extraction       → query vector         │
-   (Flex tier)                             │
-      │                │                  │
-      └───────┬────────┘                  │
-              ▼                           │
-     pgvector cosine similarity ──────────┘
-     search (top-N candidates)
-              │
-              ▼
-     Business-rule filtering
-     (discipline / line / location)
-              │
-              ▼
-     Optional reranker (top 3, Nova Micro)
-              │
-              ▼
-        Confidence Score
-              │
-     ┌────────┴─────────┐
-     ▼                   ▼
-Auto-approve         Human Review
-(≥95%, logged)       (70–95% planner,
-     │                <70% manual)
-     └───────┬─────────┘
-              ▼
-       PostgreSQL (audit_log)
-              │
-              ▼
-         Live Dashboard
-```
-
-**Project Memory (separate subsystem — genuine RAG):**
-
-```
-Historical reports + events
-            │
-            ▼
-       Embeddings (Titan V2)
-            │
-            ▼
-   pgvector store (or OpenSearch later)
-            │
-            ▼
-   Query: "What caused piping
-   delays in past projects?"
-            │
-            ▼
-    Retrieve relevant historical
-    records + source evidence
-             │
-             ▼
-    Bedrock — Amazon Nova Pro
-    (Standard tier)
-             │
-             ▼
-   Evidence-backed answer,
-   sources shown (not invented)
-```
-
----
-
-## 4. Component Breakdown
-
-| Layer | Service | Notes |
+| Component | Provider / Service | Live Endpoint / Identifier |
 |---|---|---|
-| Frontend hosting | **Vercel** | Web app; faster iteration than S3+CloudFront |
-| Edge / Load balancing | **AWS ALB** | Fronts Fargate; visible scaling demo point |
-| Core API | **ECS Fargate** (containerized Express) | Always-on, no cold starts, real request/response — better for live demo and conversational "time agent" interactions than raw Lambda |
-| File ingestion | **S3** | Raw daily reports, spreadsheets, scanned diaries, evidence |
-| Event trigger | **S3 → Lambda** | Fires on new file upload |
-| Job buffering | **SQS** | Decouples ingestion bursts (e.g. 50 supervisors uploading at once) from AI processing; gives retry/failure handling |
-| AI processing worker | **Fargate task or Lambda**, pulling from SQS | Runs extraction + matching pipeline |
-| LLM extraction + reranking | **Amazon Bedrock — Nova Micro** | Free text/spreadsheet → structured JSON event; also reranks top candidate matches |
-| Embeddings | **Amazon Bedrock — Titan Text Embeddings V2** | Converts activity descriptions (schedule + field reports) into vectors |
-| Vector similarity | **pgvector extension on RDS Postgres** | Cosine similarity search for MVP — no separate vector DB needed |
-| Source of truth DB | **RDS PostgreSQL** | Relational: Project → WBS → Discipline → Area → L5/L6 Activity → Actual Events → Reports → Matches → Audit Log |
-| Project Memory / RAG | **Amazon Bedrock — Nova Pro** (`apac.amazon.nova-pro-v1:0`) | Synthesizes evidence-backed answers from retrieved historical records; low call volume, reasoning-critical |
-| Auth | **Cognito or JWT** with role-based access | Supervisor / Planner / Manager views gated by role |
-| Secrets | **AWS Secrets Manager** | DB credentials, API keys — never hardcoded |
-| Observability | **CloudWatch** | Logs/metrics across Fargate + Lambda |
-| Local dev | **Docker Compose** | Express container + Postgres+pgvector container — full dev/prod parity, no AWS needed for day-to-day coding |
+| **Production Frontend** | Next.js 14 on Vercel | **[`https://progressly-frontend-amber.vercel.app/`](https://progressly-frontend-amber.vercel.app/)** |
+| **Application Load Balancer** | AWS ALB (Public Internet-Facing) | **`http://progressly-alb-prod-1551208303.ap-south-1.elb.amazonaws.com`** |
+| **Core Express Backend API** | AWS ECS Fargate (0.5 vCPU / 1GB RAM) | `progressly-backend-service-prod` |
+| **AI Ingestion Worker** | AWS ECS Fargate (1.0 vCPU / 2GB RAM) | `progressly-ai-worker-service-prod` |
+| **Relational & Vector Store** | AWS RDS PostgreSQL 16.9 + `pgvector` | `progressly-db-prod.crmgo2iui1dy.ap-south-1.rds.amazonaws.com:5432` |
+| **Raw Ingestion S3 Bucket** | Amazon S3 (AES256 Encrypted) | `progressly-raw-reports-prod-dd9a3996` |
+| **Event Trigger Lambda** | AWS Lambda (Node.js 20.x, 256MB) | `progressly-s3-to-sqs-prod` |
+| **Job Buffering SQS** | Amazon SQS (Standard + DLQ) | `https://sqs.ap-south-1.amazonaws.com/736969242498/progressly-reports-queue-prod` |
+| **Bedrock Event Extraction** | Amazon Bedrock Nova Micro | `apac.amazon.nova-micro-v1:0` |
+| **Bedrock Semantic Vectors** | Amazon Bedrock Titan Text Embeddings V2 | `amazon.titan-embed-text-v2:0` (1024-dim) |
+| **Bedrock Memory Synthesis** | Amazon Bedrock Nova Pro | `apac.amazon.nova-pro-v1:0` |
 
 ---
 
-## 5. AI Pipeline (Detailed)
+## 2. Complete End-to-End System Architecture
 
-**Not a single "LLM does everything" call.** Structured as:
+```mermaid
+flowchart TD
+    subgraph ClientLayer ["1. Presentation Layer (Vercel)"]
+        Browser["User Browser<br/>(Desktop / Mobile)"]
+        NextProxy["Next.js Edge Reverse Proxy (/api-proxy/*)<br/>100% HTTPS • Same-Origin"]
+    end
 
+    subgraph AWSAccountB ["2. Account B: Production Infrastructure (736969242498, ap-south-1)"]
+        ALB["Application Load Balancer (ALB)<br/>Public Subnets • Direct Internet Gateway"]
+        ECS_Backend["ECS Fargate: Express API<br/>(512 CPU / 1024 MB)"]
+        S3["Amazon S3 Raw Reports Bucket<br/>(force_destroy, AES256)"]
+        Lambda["AWS Lambda (s3-to-sqs)<br/>(Node.js 20.x, 256 MB)"]
+        SQS["Amazon SQS Queue<br/>(Decoupled Ingestion Buffer)"]
+        ECS_Worker["ECS Fargate: AI Worker<br/>(1024 CPU / 2048 MB)"]
+        RDS["Amazon RDS PostgreSQL 16.9<br/>(pgvector + SSL Encryption)"]
+        Secrets["AWS Secrets Manager<br/>(DB & Bedrock Credentials)"]
+    end
+
+    subgraph AWSAccountA ["3. Account A: Amazon Bedrock Foundation Models (ap-south-1)"]
+        NovaMicro["Amazon Nova Micro<br/>(apac.amazon.nova-micro-v1:0)<br/>Fast Construction Event Extraction"]
+        TitanV2["Amazon Titan Embeddings V2<br/>(amazon.titan-embed-text-v2:0)<br/>1024-dim Vector Similarity Search"]
+        NovaPro["Amazon Nova Pro<br/>(apac.amazon.nova-pro-v1:0)<br/>Institutional Memory RAG Synthesis"]
+    end
+
+    Browser -->|HTTPS| NextProxy
+    NextProxy -->|Server-to-Server Tunnel| ALB
+    ALB --> ECS_Backend
+    ECS_Backend -->|PutObject| S3
+    ECS_Backend -->|SQL Read/Write| RDS
+    ECS_Backend -.->|Read Secrets| Secrets
+    ECS_Backend -->|InvokeModel / Converse| NovaPro
+    ECS_Backend -->|InvokeModel| TitanV2
+
+    S3 -->|s3:ObjectCreated Event| Lambda
+    Lambda -->|SendMessage| SQS
+    SQS -->|Long-Poll Receive| ECS_Worker
+    ECS_Worker -->|Download Object| S3
+    ECS_Worker -.->|Read Secrets| Secrets
+    ECS_Worker -->|1. Extract Technical Events| NovaMicro
+    ECS_Worker -->|2. Generate 1024d Query Vector| TitanV2
+    ECS_Worker -->|3. Cosine Vector Search & Rules| RDS
+    ECS_Worker -->|4. Write Matches & Audit Log| RDS
 ```
-Raw field input
-      ↓
-Preprocessing
-      ↓
-LLM extraction (Nova Micro) → structured event
-      ↓
-Candidate retrieval (pgvector similarity search)
-      ↓
-Business-rule filtering (discipline, line, location, equipment)
-      ↓
-Optional reranker on shortlisted candidates (Nova Micro)
-      ↓
-Confidence score
-      ↓
-Policy-gated approval (auto / review / manual)
-```
-
-**Worked example:**
-
-Input: *"Three spools for Line 24 were erected near Tank Farm today."*
-
-Extracted JSON:
-```json
-{
-  "discipline": "Piping",
-  "activity_description": "spool erection",
-  "line": "24",
-  "location": "Tank Farm",
-  "quantity": 3,
-  "event": "progress"
-}
-```
-
-Candidate matches (embedding similarity):
-```
-L6-PIP-0241  Erect Line 24-XX     → 0.96
-L6-PIP-0242  Erect Line 25-XX     → 0.71
-L6-CIV-0112  Construct Tank Farm  → 0.13
-             Foundation
-```
-
-After rule filtering (discipline=Piping, line=24, location=Tank Farm):
-```
-L6-PIP-0241 → final confidence 98.7%
-```
-
-### Embeddings vs. RAG — kept distinct on purpose
-
-- **Embeddings** (Titan V2 + pgvector) power the **schedule-matching engine** — turning text into vectors for similarity search. This is the core of the product, runs on every report, and needs to be cheap.
-- **RAG** (retrieval + LLM generation) is used **only** in the separate **Project Memory** assistant, where a manager asks a natural-language question and gets an evidence-backed answer built from retrieved historical records. This runs rarely and needs to be high-quality, not cheap.
-
-Conflating the two would be architecturally sloppy — matching doesn't need generative answers, and Project Memory does.
-
-### Confidence policy
-
-| Confidence | Action |
-|---|---|
-| ≥ 95% | Auto-approved (still fully logged) |
-| 70–95% | Routed to planner review queue |
-| < 70% | Flagged for manual resolution |
-
-Every entry — auto-approved or not — writes to `audit_log`: source report, extracted event, matched activity, confidence score, model version, approver (AI or human), timestamp.
 
 ---
 
-## 6. Model Selection & Cost Rationale
+## 3. Key Architectural Decisions & Trade-Offs
 
-Two distinct workloads, two distinct model choices — picked on fit, not on a single "best model" default.
+### 3.1 Multi-Account Credential Separation
+* **Account B (`736969242498`)**: Dedicated infrastructure account containing VPC, ALB, ECS cluster, RDS database, S3 bucket, Lambda, and SQS queue.
+* **Account A**: Foundation Model account hosting Amazon Bedrock model access.
+* **Security & Isolation**: Bedrock access keys are stored in AWS Secrets Manager (`progressly/bedrock-credentials-prod-*`) and injected into ECS task environments as `BEDROCK_AWS_ACCESS_KEY_ID`. S3 and SQS interactions continue using native IAM roles, preventing credential confusion.
 
-### Extraction + Matching (high-volume, simple bounded task)
+### 3.2 Public Subnet & NAT Gateway Elimination (Cost Optimization)
+* **The Decision**: Standard enterprise VPC blueprints deploy NAT Gateways across private subnets, costing **~$32.40/month per NAT Gateway** before any traffic flows.
+* **The Optimization**: ECS tasks are deployed across two public subnets with direct Internet Gateway routing and strict security group ingress rules (only allowing ALB traffic on port 4000). RDS PostgreSQL sits in isolated DB subnets accessible strictly from ECS security groups (`sg-0db7c...` and `sg-0239a...`).
+* **Savings**: **100% elimination of NAT Gateway fees ($0.00/mo vs $64.80/mo for Multi-AZ NAT)**.
 
-| Model | Input $/1M | Output $/1M | Cost per 1,000 reports* |
-|---|---|---|---|
-| **Nova Micro (chosen)** | $0.041 | $0.164 | **$0.037** |
-| Nova Lite | $0.071 | $0.284 | $0.064 |
-| gpt-oss-20b | $0.08 | $0.35 | $0.077 |
-| Claude Haiku 4.5 | $1.00 | $5.00 | $1.05 |
-| Claude Sonnet 5 | $2.00 | $10.00 | $2.10 |
+### 3.3 Next.js Reverse Proxy for Mixed Content & Zero-Cost SSL
+* **The Challenge**: Vercel serves the web application over HTTPS (`https://progressly-frontend-amber.vercel.app/`). The AWS ALB operates on HTTP port 80, triggering browser Mixed Content blocks.
+* **The Solution**: Configured `rewrites()` in `next.config.mjs` to proxy `/api-proxy/*` to the ALB server-to-server.
+* **Benefits**: 
+  1. Browser executes 100% HTTPS same-origin requests.
+  2. Eliminates CORS configuration overhead.
+  3. Eliminates the requirement to purchase custom domain names and configure AWS ACM SSL certificates.
 
-*assuming ~300 input / ~150 output tokens per report
+---
 
-**Why Nova Micro:** structured JSON extraction and candidate reranking are bounded, well-specified tasks — they don't need frontier reasoning. Nova Micro is AWS-native (no third-party integration overhead), effectively free at any realistic report volume, and fully sufficient for this step. Paying for Claude here would add cost with no quality gain on this specific task.
+## 4. AI Pipeline & Model Selection
 
-### Project Memory / RAG (low-volume, judge-facing, reasoning-critical)
+| Workload | Model ID | Input $/1M | Output $/1M | Rationale |
+|---|---|---|---|---|
+| **Event Extraction** | `apac.amazon.nova-micro-v1:0` | **$0.035** | **$0.140** | High-volume, structured extraction of technical entities (discipline, line number, location, quantity). Ultra-fast (sub-second) and effectively free (~$0.03 per 1,000 reports). |
+| **Vector Embeddings** | `amazon.titan-embed-text-v2:0` | **$0.020** | — | High-precision 1024-dimensional normalized vector representations for schedule activities and field notes. Outperforms 384-dim open-source models with minimal footprint. |
+| **Institutional Memory (RAG)** | `apac.amazon.nova-pro-v1:0` | **$0.800** | **$3.200** | Reasoning-critical knowledge synthesis over 40 historical capital project delay records. 300,000 token context window, strict negative constraints, zero hallucination. |
 
-| Model | Status | Input $/1M | Output $/1M | Cost per 200 queries* | Context Window |
-|---|---|---|---|---|---|
-| **Amazon Nova Pro** (`apac.amazon.nova-pro-v1:0`) | **Committed Production Model** | $0.80 | $3.20 | **$0.48** | 300,000 tokens |
-| Nova Micro | Baseline | $0.041 | $0.164 | $0.033 | 128,000 tokens |
-| Claude 3.7 Sonnet | Alternative Option | $3.00 | $15.00 | $2.10 | 200,000 tokens |
+---
 
-*assuming ~2,000 input / ~500 output tokens per query
+## 5. Policy Gating & Matching Hierarchy
 
-**Why Amazon Nova Pro (`apac.amazon.nova-pro-v1:0`):**
-- **Reasoning & Context Depth:** 300k token context window easily accommodates multiple retrieved project execution records and computed grounding statistics with zero risk of truncation.
-- **Unified AWS Architecture:** A clean, 100% first-party AWS stack on Amazon Bedrock (`Nova Micro` for extraction/reranking + `Titan Embeddings V2` for vector representations + `Nova Pro` for RAG synthesis) without external marketplace or billing dependencies.
-- **Strict Factual Grounding:** Follows system-level prompt constraints meticulously, quoting exact project names and activity descriptions, attributing claims directly to database records, and respecting computed mathematical averages without hallucinations.
-- **Cost Efficiency:** At $0.48 per 200 executive queries, total monthly spend for institutional memory retrieval remains under $1.
+```mermaid
+flowchart TD
+    A["Extracted Construction Event<br/>(Discipline, Line, Location, Work)"] --> B["Titan V2 Embedding (1024d)"]
+    B --> C["pgvector Cosine Search <=> (Top 5 Candidates)"]
+    C --> D["Deterministic Rule Engine<br/>• Discipline Match (+15%)<br/>• Line Number Exact Match (+25%)<br/>• Location Exact Match (+15%)"]
+    D --> E{"Calibrated Confidence Score"}
+    E -->|Score ≥ 95%| F["🟢 Auto-Approved<br/>Schedule Progress Updated Instantly"]
+    E -->|Score 70%–94%| G["🟡 Planner Review Queue<br/>Human Approval via UI Button"]
+    E -->|Score < 70%| H["🔴 Manual Resolution<br/>Flagged for Investigation / WBS Addition"]
+    F --> I["Immutable Audit Trail (PostgreSQL audit_log)"]
+    G --> I
+    H --> I
+```
 
-**Net effect:** the AI pipeline uses a bounded, cost-effective model (`Nova Micro`) for high-volume automated matching and an advanced reasoning model (`Nova Pro`) for institutional memory synthesis, keeping total AI spend for the whole system under $1.
+---
 
-### Service tiers used
+## 6. Real Production Cost & Sizing Breakdown
 
-| Call | Tier | Why |
+| Component | Production Configuration | Monthly Run Rate (`ap-south-1`) |
 |---|---|---|
-| Extraction + matching (async, SQS worker) | **Flex** (~50% of Standard rate) | Not latency-critical — user already got "upload successful" before this runs |
-| Project Memory (live, manager waiting on screen) | **Standard** | Latency-sensitive, judge-facing — don't trade responsiveness for a negligible cost saving here |
-
-Reserved/Priority tiers are not used — Reserved only pays off at sustained high volume, Priority is unnecessary for a demo with no strict SLA.
-
----
-
-## 7. Why SQS
-
-Without it, concurrent uploads (e.g. 50 site supervisors submitting around the same time) hammer the processing pipeline directly. SQS decouples ingestion from processing:
-
-```
-50 uploads → 50 jobs queued → workers process safely → failures retry
-```
-
-Not required to get a basic MVP working (`Upload → Express → AI → DB` works fine at low volume), but included in the locked architecture because it's what makes the burst-absorption and reliability story genuinely defensible to a technical judge — and it's cheap to add.
-
----
-
-## 8. Why pgvector, Not OpenSearch, for the MVP
-
-Amazon OpenSearch Serverless is the correct **production-scale** vector store (k-NN, designed for large indexes). But for a schedule with roughly 1,000–10,000 activities, brute-force cosine similarity inside Postgres via `pgvector` is:
-
-- One fewer service to configure, secure, and pay for
-- Running in the *same* database as the relational schedule data — no sync problem
-- Fully sufficient at this scale
-
-**Stated migration path** (mention in the pitch, don't build): `pgvector` → OpenSearch Serverless k-NN as schedule size and query volume grow.
-
----
-
-## 9. Why Fargate, Not Pure Lambda, for the Core API
-
-| | Lambda | Fargate |
-|---|---|---|
-| Cold starts | Yes — can lag during a live demo | None |
-| Long-lived connections (conversational "time agent") | Awkward | Natural fit |
-| Scaling visibility for demo | Invisible | Visible — ALB + task count scaling is a literal demo prop |
-| Enterprise/PSU familiarity | Less standard | More standard, service-based model |
-
-Lambda is still used, but only for the event-driven side task of reacting to S3 uploads and enqueuing jobs — not for the core request/response API.
-
----
-
-## 10. MVP Scope (What We're Actually Demoing)
-
-**In scope:**
-- 2–3 input formats: free-text daily report, CSV/Excel spreadsheet, one PDF/text report
-- Extraction → embedding-based matching → confidence scoring
-- Review / approve / reject workflow
-- Full audit trail
-- Updated schedule + planned-vs-actual dashboard
-- Project Memory query (RAG) with cited sources
-
-**Explicitly out of scope for MVP** (roadmap only):
-- Production-grade OCR/ASR (problem statement explicitly says this isn't required)
-- Native mobile app
-- Photo-based evidence analysis
-- Predictive risk/delay forecasting
-- OpenSearch migration
-
----
-
-## 11. Local Development
-
-- `docker compose up` — runs Express API container + Postgres (with pgvector) container
-- Entire team codes against real Postgres locally, no AWS dependency for day-to-day work
-- AWS is only touched when testing S3 triggers, Bedrock calls, or deploying
-- Same container image ships to Fargate — dev/prod parity
-
----
-
-## 12. Demo Narrative (Order Matters)
-
-1. Submit a messy free-text report + upload a spreadsheet (2 input formats)
-2. Show live extraction → structured JSON
-3. Show embedding match → ranked candidates → confidence score
-4. One high-confidence entry auto-updates the schedule; one low-confidence entry routes to the review queue
-5. Show the dashboard reflecting planned-vs-actual
-6. Click into the audit trail — "why did this change happen"
-7. Query Project Memory — *"What caused piping delays in past projects?"* → evidence-backed answer with sources
-8. **Only if asked:** show the architecture diagram, mention containerization + horizontal scalability on AWS, mention model-tiering cost strategy
-
-The workflow story is the centerpiece. The infrastructure story is a closing note, not the opener.
-
----
-
-## 13. Open Items Before Build
-
-- Confirm Bedrock model access (Nova Micro, Titan Embeddings V2, Nova Pro) is enabled in the target AWS region before relying on it in dev
-- Finalize RBAC roles (Supervisor / Planner / Discipline Lead / Manager) and what each can see/approve
-- Decide exact schema for `audit_log` and `matches` tables (next step)
+| **VPC & Internet Gateway** | 2 Public Subnets, 2 Private DB Subnets, Direct IGW | **$0.00** |
+| **Application Load Balancer** | 1 Internet-Facing ALB | ~$16.20 |
+| **RDS PostgreSQL 16.9** | `db.t4g.micro` (Single-AZ, 20GB GP3 Storage) | ~$15.44 |
+| **ECS Backend API** | 512 CPU (0.5 vCPU) / 1024 MB RAM (Fargate) | ~$17.80 |
+| **ECS AI Worker** | 1024 CPU (1.0 vCPU) / 2048 MB RAM (Fargate) | ~$35.50 |
+| **Serverless Services** | S3, SQS, Lambda, CloudWatch, Secrets Manager | ~$1.50 |
+| **Amazon Bedrock AI** | Nova Micro, Titan V2, Nova Pro (Pay-per-token) | ~$0.50 |
+| **Total Production Cost** | **Fully Managed Enterprise Stack** | **~$86.94 / month (~$2.85 / day)** |
