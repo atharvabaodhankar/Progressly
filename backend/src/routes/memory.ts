@@ -415,11 +415,11 @@ router.post('/import', upload.single('file'), async (req: Request, res: Response
       const insertQuery = `
         INSERT INTO historical_records (
           project_name, discipline, activity_description,
-          planned_duration_days, actual_duration_days, delay_days,
+          planned_duration_days, actual_duration_days,
           delay_cause, notes, embedding
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        RETURNING id, project_name, activity_description;
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING id, project_name, activity_description, delay_days;
       `;
 
       const dbRes = await pool.query(insertQuery, [
@@ -428,7 +428,6 @@ router.post('/import', upload.single('file'), async (req: Request, res: Response
         activityDesc,
         plannedDays,
         actualDays,
-        delayDays,
         delayCause,
         notes,
         vectorSql,
@@ -515,17 +514,16 @@ router.post('/archive-project/:projectId', async (req: Request, res: Response): 
       await pool.query(
         `INSERT INTO historical_records (
            project_name, discipline, activity_description,
-           planned_duration_days, actual_duration_days, delay_days,
+           planned_duration_days, actual_duration_days,
            delay_cause, notes, embedding
          )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
         [
           project.name,
           act.discipline,
           act.description,
           plannedDays,
           actualDays,
-          delayDays,
           delayCause,
           notes,
           vectorSql,
