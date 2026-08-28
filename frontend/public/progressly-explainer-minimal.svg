@@ -1,0 +1,142 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 1080" width="100%" height="100%" fill="none" style="background:#FFFFFF; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <defs>
+    <!-- Arrowhead marker -->
+    <marker id="arr" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 2 L 7 5 L 0 8 z" fill="#334155"/>
+    </marker>
+    <filter id="card-sh" x="-4%" y="-4%" width="108%" height="112%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#0F172A" flood-opacity="0.04"/>
+    </filter>
+  </defs>
+
+  <!-- HEADER -->
+  <g transform="translate(48, 48)">
+    <rect x="0" y="0" width="36" height="36" rx="8" fill="#4648D4"/>
+    <path d="M12 18 L16 22 L24 14" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="48" y="24" font-size="22" font-weight="700" fill="#0F172A" letter-spacing="-0.5">Progressly</text>
+    <text x="0" y="58" font-size="13" font-weight="500" fill="#64748B">How Progressly Bridges Field Reality to Master Schedule (Executive Overview)</text>
+  </g>
+
+  <!-- STEP 1: FIELD DATA CAPTURE -->
+  <g transform="translate(48, 130)">
+    <rect width="624" height="155" rx="16" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1.5" filter="url(#card-sh)"/>
+    
+    <rect x="24" y="20" width="28" height="28" rx="6" fill="#0F172A"/>
+    <text x="33" y="39" font-size="13" font-weight="700" fill="#FFFFFF">1</text>
+
+    <text x="64" y="39" font-size="16" font-weight="700" fill="#0F172A">Field Ground Reality (Unstructured Capture)</text>
+    
+    <g transform="translate(24, 62)">
+      <rect width="180" height="72" rx="10" fill="#FFFFFF" stroke="#E2E8F0"/>
+      <text x="14" y="28" font-size="12" font-weight="600" fill="#334155">Site Diaries</text>
+      <text x="14" y="48" font-size="10" fill="#64748B">Handwritten or voice notes</text>
+    </g>
+    
+    <g transform="translate(216, 62)">
+      <rect width="180" height="72" rx="10" fill="#FFFFFF" stroke="#E2E8F0"/>
+      <text x="14" y="28" font-size="12" font-weight="600" fill="#334155">Contractor Logs</text>
+      <text x="14" y="48" font-size="10" fill="#64748B">Daily spreadsheets &amp; CSVs</text>
+    </g>
+
+    <g transform="translate(408, 62)">
+      <rect width="192" height="72" rx="10" fill="#FFFFFF" stroke="#E2E8F0"/>
+      <text x="14" y="28" font-size="12" font-weight="600" fill="#334155">Progress Claims</text>
+      <text x="14" y="48" font-size="10" fill="#64748B">Messy field descriptions</text>
+    </g>
+  </g>
+
+  <!-- ARROW 1 -->
+  <path d="M 360 285 L 360 325" stroke="#334155" stroke-width="2" fill="none" marker-end="url(#arr)"/>
+
+  <!-- STEP 2: AI REASONING & EXTRACTION -->
+  <g transform="translate(48, 330)">
+    <rect width="624" height="155" rx="16" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1.5" filter="url(#card-sh)"/>
+    
+    <rect x="24" y="20" width="28" height="28" rx="6" fill="#4648D4"/>
+    <text x="33" y="39" font-size="13" font-weight="700" fill="#FFFFFF">2</text>
+
+    <text x="64" y="39" font-size="16" font-weight="700" fill="#0F172A">Progressly AI Intelligence Engine</text>
+    
+    <g transform="translate(24, 62)">
+      <rect width="275" height="72" rx="10" fill="#FFFFFF" stroke="#E2E8F0"/>
+      <text x="14" y="26" font-size="12" font-weight="600" fill="#0F172A">Entity &amp; Progress Extraction</text>
+      <text x="14" y="46" font-size="10" fill="#64748B">Extracts discipline, line number,</text>
+      <text x="14" y="60" font-size="10" fill="#64748B">location, and installed quantities.</text>
+    </g>
+    
+    <g transform="translate(315, 62)">
+      <rect width="285" height="72" rx="10" fill="#FFFFFF" stroke="#E2E8F0"/>
+      <text x="14" y="26" font-size="12" font-weight="600" fill="#0F172A">Semantic Schedule Matching</text>
+      <text x="14" y="46" font-size="10" fill="#64748B">Vector search aligns field notes to</text>
+      <text x="14" y="60" font-size="10" fill="#64748B">exact master WBS activity nodes.</text>
+    </g>
+  </g>
+
+  <!-- ARROW 2 -->
+  <path d="M 360 485 L 360 525" stroke="#334155" stroke-width="2" fill="none" marker-end="url(#arr)"/>
+
+  <!-- STEP 3: 3-TIER POLICY GATING -->
+  <g transform="translate(48, 530)">
+    <rect width="624" height="175" rx="16" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1.5" filter="url(#card-sh)"/>
+    
+    <rect x="24" y="20" width="28" height="28" rx="6" fill="#0F172A"/>
+    <text x="33" y="39" font-size="13" font-weight="700" fill="#FFFFFF">3</text>
+
+    <text x="64" y="39" font-size="16" font-weight="700" fill="#0F172A">Calibrated 3-Tier Policy Validation</text>
+    
+    <g transform="translate(24, 62)">
+      <rect width="180" height="92" rx="10" fill="#ECFDF5" stroke="#A7F3D0"/>
+      <text x="12" y="24" font-size="11" font-weight="700" fill="#065F46">≥ 95% Confidence</text>
+      <text x="12" y="44" font-size="12" font-weight="700" fill="#0F172A">Auto-Approved</text>
+      <text x="12" y="64" font-size="9" fill="#047857">High confidence sync to baseline schedule</text>
+    </g>
+    
+    <g transform="translate(216, 62)">
+      <rect width="180" height="92" rx="10" fill="#FFFBEB" stroke="#FDE68A"/>
+      <text x="12" y="24" font-size="11" font-weight="700" fill="#92400E">70% – 94% Confidence</text>
+      <text x="12" y="44" font-size="12" font-weight="700" fill="#0F172A">Review Queue</text>
+      <text x="12" y="64" font-size="9" fill="#B45309">Planner verifies with single-click</text>
+    </g>
+
+    <g transform="translate(408, 62)">
+      <rect width="192" height="92" rx="10" fill="#FFF1F2" stroke="#FECDD3"/>
+      <text x="12" y="24" font-size="11" font-weight="700" fill="#9F1239">&lt; 70% Confidence</text>
+      <text x="12" y="44" font-size="12" font-weight="700" fill="#0F172A">Manual Resolution</text>
+      <text x="12" y="64" font-size="9" fill="#BE123C">Zero false schedule modifications</text>
+    </g>
+  </g>
+
+  <!-- ARROW 3 -->
+  <path d="M 360 705 L 360 745" stroke="#334155" stroke-width="2" fill="none" marker-end="url(#arr)"/>
+
+  <!-- STEP 4: OUTCOME & INSTITUTIONAL MEMORY -->
+  <g transform="translate(48, 750)">
+    <rect width="624" height="155" rx="16" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1.5" filter="url(#card-sh)"/>
+    
+    <rect x="24" y="20" width="28" height="28" rx="6" fill="#4648D4"/>
+    <text x="33" y="39" font-size="13" font-weight="700" fill="#FFFFFF">4</text>
+
+    <text x="64" y="39" font-size="16" font-weight="700" fill="#0F172A">Single Source of Truth &amp; Institutional Memory</text>
+    
+    <g transform="translate(24, 62)">
+      <rect width="275" height="72" rx="10" fill="#FFFFFF" stroke="#E2E8F0"/>
+      <text x="14" y="26" font-size="12" font-weight="600" fill="#0F172A">Live Milestone Timeline</text>
+      <text x="14" y="46" font-size="10" fill="#64748B">Immediate visibility on S-Curve,</text>
+      <text x="14" y="60" font-size="10" fill="#64748B">critical path, &amp; delay overruns.</text>
+    </g>
+    
+    <g transform="translate(315, 62)">
+      <rect width="285" height="72" rx="10" fill="#FFFFFF" stroke="#E2E8F0"/>
+      <text x="14" y="26" font-size="12" font-weight="600" fill="#0F172A">Institutional Memory (RAG)</text>
+      <text x="14" y="46" font-size="10" fill="#64748B">Synthesizes historical project delays</text>
+      <text x="14" y="60" font-size="10" fill="#64748B">with verifiable grounding citations.</text>
+    </g>
+  </g>
+
+  <!-- FOOTER -->
+  <g transform="translate(48, 935)">
+    <rect width="624" height="60" rx="12" fill="#F1F5F9"/>
+    <text x="24" y="35" font-size="11" font-weight="600" fill="#334155">Summary:</text>
+    <text x="90" y="35" font-size="11" fill="#475569">Progressly replaces weeks of manual schedule reconciliation with instant, calibrated AI linking.</text>
+  </g>
+</svg>
