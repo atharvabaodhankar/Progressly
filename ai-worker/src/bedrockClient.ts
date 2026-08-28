@@ -8,7 +8,10 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
 
 export function getBedrockRuntimeClient(): BedrockRuntimeClient {
-  const region = process.env.AWS_REGION || 'ap-south-1';
+  const region = process.env.BEDROCK_AWS_REGION || process.env.AWS_REGION || 'ap-south-1';
+  const accessKeyId = process.env.BEDROCK_AWS_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.BEDROCK_AWS_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY;
+  const sessionToken = process.env.BEDROCK_AWS_SESSION_TOKEN || process.env.AWS_SESSION_TOKEN;
 
   const clientConfig: {
     region: string;
@@ -21,12 +24,12 @@ export function getBedrockRuntimeClient(): BedrockRuntimeClient {
     region,
   };
 
-  if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+  if (accessKeyId && secretAccessKey) {
     clientConfig.credentials = {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-      ...(process.env.AWS_SESSION_TOKEN && {
-        sessionToken: process.env.AWS_SESSION_TOKEN,
+      accessKeyId,
+      secretAccessKey,
+      ...(sessionToken && {
+        sessionToken,
       }),
     };
   }

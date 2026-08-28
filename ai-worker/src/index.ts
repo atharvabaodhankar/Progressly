@@ -4,7 +4,8 @@ import { Client } from 'pg';
 import dotenv from 'dotenv';
 import path from 'path';
 import { extractEvents } from './extractionProvider';
-import { matchEvent } from './matcher';
+import { matchEventToSchedule } from './matcher';
+import { ensureBaselineSeeds } from './seeder';
 
 dotenv.config();
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
@@ -94,11 +95,7 @@ async function processMessage(bodyText: string) {
     console.log(`[BridgeIQ AI-Worker] Extracting events for Report ID: ${reportId || 'ad-hoc'}`);
     
     // 3. Extract events via LLM
-    const extractionResult = await extractEvents(rawText, {
-      reportId: reportId || undefined,
-      uploadedBy: 'ai-worker',
-      fileType: 'free-text',
-    });
+    const extractionResult = await extractEvents(rawText);
 
     console.log(`[BridgeIQ AI-Worker] Extracted ${extractionResult.events.length} event(s)`);
 
@@ -127,11 +124,11 @@ async function processMessage(bodyText: string) {
       }
 
       // Run Matching Engine
-      const matchResult = await matchEvent(event);
-      console.log(`[BridgeIQ AI-Worker] Event matched: Top activity ${matchResult.topMatch?.activity_code || 'none'} (Score: ${matchResult.topMatch?.final_confidence || 0})`);
+      const matchResult = await matchEventToSchedule(event);
+      console.log(`[BridgeIQ AI-Worker] Event matched: Top activity ${matchResult.matched_candidate?.activity_code || 'none'} (Score: ${matchResult.confidence_score || 0})`);
 
-      if (eventId && matchResult.topMatch) {
-        const matchStatus = matchResult.topMatch.final_confidence >= 0.85 ? 'auto_approved' : 'pending';
+      if (eventId && matchResult.matched_candidate) {
+        const matchStatus = matchResult.status;
         
         const mInsert = await db.query(
           `INSERT INTO matches (
@@ -140,8 +137,8 @@ async function processMessage(bodyText: string) {
           RETURNING id;`,
           [
             eventId,
-            matchResult.topMatch.activity_id,
-            matchResult.topMatch.final_confidence,
+            matchResult.matched_candidate.activity_id,
+            matchResult.confidence_score,
             matchStatus,
             'amazon.titan-embed-text-v2:0 + rule-engine-v1',
           ]
@@ -158,10 +155,10 @@ async function processMessage(bodyText: string) {
             matchId,
             matchStatus === 'auto_approved' ? 'auto_match_approved' : 'match_suggested',
             reportId,
-            matchResult.topMatch.final_confidence,
+            matchResult.confidence_score,
             'amazon.titan-embed-text-v2:0',
             'ai',
-            JSON.stringify(matchResult.topMatch),
+            JSON.stringify(matchResult.matched_candidate),
           ]
         );
       }
@@ -182,8 +179,6 @@ async function processMessage(bodyText: string) {
     await db.end();
   }
 }
-
-import { ensureBaselineSeeds } from './seeder';
 
 async function startWorker() {
   console.log('[BridgeIQ AI-Worker] Starting AI Worker service...');

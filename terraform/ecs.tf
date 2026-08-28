@@ -148,15 +148,15 @@ resource "aws_ecs_task_definition" "ai_worker" {
           valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:DATABASE_URL::"
         },
         {
-          name      = "AWS_ACCESS_KEY_ID"
+          name      = "BEDROCK_AWS_ACCESS_KEY_ID"
           valueFrom = "${aws_secretsmanager_secret.bedrock_credentials.arn}:AWS_ACCESS_KEY_ID::"
         },
         {
-          name      = "AWS_SECRET_ACCESS_KEY"
+          name      = "BEDROCK_AWS_SECRET_ACCESS_KEY"
           valueFrom = "${aws_secretsmanager_secret.bedrock_credentials.arn}:AWS_SECRET_ACCESS_KEY::"
         },
         {
-          name      = "AWS_REGION"
+          name      = "BEDROCK_AWS_REGION"
           valueFrom = "${aws_secretsmanager_secret.bedrock_credentials.arn}:AWS_REGION::"
         }
       ]

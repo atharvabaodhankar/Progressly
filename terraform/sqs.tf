@@ -53,6 +53,20 @@ resource "aws_sqs_queue_policy" "reports_queue_policy" {
             ]
           }
         }
+      },
+      {
+        Sid       = "AllowCrossAccountWorker"
+        Effect    = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::469876202785:root"
+        }
+        Action = [
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes",
+          "sqs:GetQueueUrl"
+        ]
+        Resource = aws_sqs_queue.reports_queue.arn
       }
     ]
   })
