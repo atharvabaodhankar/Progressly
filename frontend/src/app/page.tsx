@@ -38,6 +38,8 @@ import {
   ZoomIn,
   ZoomOut,
   CalendarDays,
+  Tag,
+  ListChecks,
 } from 'lucide-react';
 
 const API_BASE = '/api-proxy';
@@ -111,6 +113,326 @@ interface ToastMessage {
   message: string;
 }
 
+// =========================================================================
+// CUSTOM DISCIPLINE DROPDOWN COMPONENT (POLISHED UI)
+// =========================================================================
+function DisciplineDropdown({
+  value,
+  onChange,
+  disciplines,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  disciplines: string[];
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const getDisciplineDot = (disc: string) => {
+    switch (disc.toLowerCase()) {
+      case 'piping':
+        return 'bg-blue-500';
+      case 'civil':
+        return 'bg-amber-500';
+      case 'electrical':
+        return 'bg-purple-500';
+      case 'instrumentation':
+        return 'bg-indigo-500';
+      case 'hse':
+        return 'bg-emerald-500';
+      case 'static-rotating':
+      case 'static equipment':
+      case 'rotating equipment':
+        return 'bg-rose-500';
+      default:
+        return 'bg-slate-400';
+    }
+  };
+
+  const selectedLabel = value === 'all' ? 'All Disciplines' : value.toUpperCase();
+
+  return (
+    <div className="relative inline-block text-left" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="h-10 px-4 rounded-xl bg-white border border-[#C7C4D7]/50 hover:border-[#4648D4] text-xs sm:text-sm font-semibold text-[#1B1B23] focus:outline-none focus:ring-2 focus:ring-[#4648D4]/20 shadow-xs flex items-center gap-2.5 transition"
+      >
+        <span className={`w-2 h-2 rounded-full ${getDisciplineDot(value)}`} />
+        <span>{selectedLabel}</span>
+        <ChevronDown
+          className={`w-4 h-4 text-[#64748B] transition-transform duration-200 ${
+            isOpen ? 'rotate-180 text-[#4648D4]' : ''
+          }`}
+        />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-white shadow-xl border border-[#C7C4D7]/30 py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
+          <button
+            onClick={() => {
+              onChange('all');
+              setIsOpen(false);
+            }}
+            className={`w-full flex items-center justify-between px-4 py-2.5 text-xs sm:text-sm text-left font-medium hover:bg-[#F5F2FE] transition ${
+              value === 'all' ? 'text-[#4648D4] font-bold bg-[#F5F2FE]/60' : 'text-[#1B1B23]'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="w-2 h-2 rounded-full bg-slate-400" />
+              <span>All Disciplines</span>
+            </div>
+            {value === 'all' && <Check className="w-4 h-4 text-[#4648D4]" />}
+          </button>
+
+          <div className="my-1 border-t border-[#C7C4D7]/20" />
+
+          {disciplines.map((d) => (
+            <button
+              key={d}
+              onClick={() => {
+                onChange(d);
+                setIsOpen(false);
+              }}
+              className={`w-full flex items-center justify-between px-4 py-2 text-xs sm:text-sm text-left font-medium hover:bg-[#F5F2FE] transition ${
+                value.toLowerCase() === d.toLowerCase()
+                  ? 'text-[#4648D4] font-bold bg-[#F5F2FE]/60'
+                  : 'text-[#1B1B23]'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <span className={`w-2 h-2 rounded-full ${getDisciplineDot(d)}`} />
+                <span>{d.toUpperCase()}</span>
+              </div>
+              {value.toLowerCase() === d.toLowerCase() && (
+                <Check className="w-4 h-4 text-[#4648D4]" />
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =========================================================================
+// RICH INLINE MARKDOWN & CITATION FORMATTER
+// =========================================================================
+function FormattedInlineText({ text }: { text: string }) {
+  const parts = [];
+  const regex = /(\[[^\]]+\]|\*\*[^*]+\*\*)/g;
+  let lastIdx = 0;
+  let match;
+  let key = 0;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIdx) {
+      parts.push(
+        <span key={key++}>{text.substring(lastIdx, match.index)}</span>
+      );
+    }
+    const token = match[0];
+    if (token.startsWith('[') && token.endsWith(']')) {
+      const citationContent = token.slice(1, -1);
+      const isRecordTag = citationContent.toUpperCase().startsWith('RECORD');
+      parts.push(
+        <span
+          key={key++}
+          className={`inline-flex items-center gap-1 mx-1 px-2.5 py-0.5 rounded-lg text-xs font-semibold shadow-xs transition-all cursor-default ${
+            isRecordTag
+              ? 'bg-purple-100 text-purple-900 border border-purple-300 font-mono font-bold'
+              : 'bg-indigo-50 text-[#4648D4] border border-indigo-200 hover:bg-indigo-100'
+          }`}
+          title={`Verified Grounding Source: ${citationContent}`}
+        >
+          <FileText className="w-3 h-3 text-indigo-500 shrink-0 inline" />
+          <span>{citationContent}</span>
+        </span>
+      );
+    } else if (token.startsWith('**') && token.endsWith('**')) {
+      const boldContent = token.slice(2, -2);
+      parts.push(
+        <strong key={key++} className="font-bold text-[#1B1B23]">
+          {boldContent}
+        </strong>
+      );
+    }
+    lastIdx = regex.lastIndex;
+  }
+  if (lastIdx < text.length) {
+    parts.push(<span key={key++}>{text.substring(lastIdx)}</span>);
+  }
+
+  return <>{parts}</>;
+}
+
+// =========================================================================
+// SYNTHESIZED INSTITUTIONAL MEMORY RENDERER (SECTION-BASED RICH UI)
+// =========================================================================
+function SynthesizedAnswerViewer({ rawAnswer }: { rawAnswer: string }) {
+  const lines = rawAnswer.split('\n');
+  const sections: {
+    title: string;
+    content: string[];
+    type: 'summary' | 'drivers' | 'takeaways' | 'general';
+  }[] = [];
+
+  let currentSection: {
+    title: string;
+    content: string[];
+    type: 'summary' | 'drivers' | 'takeaways' | 'general';
+  } = {
+    title: 'Executive Summary',
+    content: [],
+    type: 'summary',
+  };
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    if (/^\*{0,2}Executive Summary\*{0,2}:?$/i.test(trimmed)) {
+      if (currentSection.content.length > 0) sections.push(currentSection);
+      currentSection = { title: 'Executive Summary', content: [], type: 'summary' };
+    } else if (/^\*{0,2}Key Root Cause Drivers\*{0,2}:?$/i.test(trimmed)) {
+      if (currentSection.content.length > 0) sections.push(currentSection);
+      currentSection = { title: 'Key Root Cause Drivers', content: [], type: 'drivers' };
+    } else if (
+      /^\*{0,2}Institutional Takeaways & Mitigation\*{0,2}:?$/i.test(trimmed) ||
+      /^\*{0,2}Takeaways & Mitigation\*{0,2}:?$/i.test(trimmed)
+    ) {
+      if (currentSection.content.length > 0) sections.push(currentSection);
+      currentSection = {
+        title: 'Institutional Takeaways & Mitigation',
+        content: [],
+        type: 'takeaways',
+      };
+    } else {
+      currentSection.content.push(trimmed);
+    }
+  }
+  if (currentSection.content.length > 0) sections.push(currentSection);
+
+  return (
+    <div className="space-y-6">
+      {sections.map((sec, sIdx) => {
+        if (sec.type === 'summary') {
+          return (
+            <div
+              key={sIdx}
+              className="bg-gradient-to-r from-purple-500/5 via-indigo-500/5 to-transparent border-l-4 border-[#4648D4] p-5 rounded-2xl bg-white border border-[#C7C4D7]/30 space-y-2"
+            >
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-[#4648D4]" />
+                <h4 className="font-bold text-sm text-[#4648D4] uppercase tracking-wider">
+                  Executive Summary
+                </h4>
+              </div>
+              <div className="text-slate-800 text-sm leading-relaxed space-y-2">
+                {sec.content.map((c, cIdx) => (
+                  <p key={cIdx} className="leading-relaxed">
+                    <FormattedInlineText text={c} />
+                  </p>
+                ))}
+              </div>
+            </div>
+          );
+        }
+
+        if (sec.type === 'drivers') {
+          return (
+            <div
+              key={sIdx}
+              className="bg-white border border-[#C7C4D7]/30 p-6 rounded-2xl shadow-xs space-y-4"
+            >
+              <div className="flex items-center gap-2 border-b border-[#C7C4D7]/20 pb-3">
+                <AlertTriangle className="w-4 h-4 text-amber-500" />
+                <h4 className="font-bold text-sm text-[#1B1B23] uppercase tracking-wider">
+                  Key Root Cause Drivers
+                </h4>
+              </div>
+              <div className="space-y-3">
+                {sec.content.map((c, cIdx) => {
+                  const isBullet = c.startsWith('-') || c.startsWith('*');
+                  const isNumbered = /^\d+\./.test(c);
+                  const cleanText = isBullet ? c.substring(1).trim() : c;
+
+                  return (
+                    <div
+                      key={cIdx}
+                      className={`text-sm leading-relaxed p-3.5 rounded-xl transition ${
+                        isNumbered
+                          ? 'bg-[#F5F2FE]/70 border border-[#C7C4D7]/30 font-medium'
+                          : isBullet
+                          ? 'ml-3 sm:ml-5 bg-white border-l-2 border-amber-400 pl-3.5 py-2 my-1.5'
+                          : 'bg-white'
+                      }`}
+                    >
+                      <FormattedInlineText text={cleanText} />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        }
+
+        if (sec.type === 'takeaways') {
+          return (
+            <div
+              key={sIdx}
+              className="bg-white border border-[#C7C4D7]/30 p-6 rounded-2xl shadow-xs space-y-4"
+            >
+              <div className="flex items-center gap-2 border-b border-[#C7C4D7]/20 pb-3">
+                <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                <h4 className="font-bold text-sm text-[#1B1B23] uppercase tracking-wider">
+                  Institutional Takeaways & Recommendations
+                </h4>
+              </div>
+              <div className="grid grid-cols-1 gap-2.5">
+                {sec.content.map((c, cIdx) => {
+                  const cleanText = c.replace(/^[-*•]\s*/, '');
+                  return (
+                    <div
+                      key={cIdx}
+                      className="flex items-start gap-3 p-3.5 rounded-xl bg-emerald-50/40 border border-emerald-100 text-sm text-slate-800"
+                    >
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <div className="leading-relaxed">
+                        <FormattedInlineText text={cleanText} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div key={sIdx} className="text-sm text-slate-800 leading-relaxed space-y-2">
+            {sec.content.map((c, cIdx) => (
+              <p key={cIdx}>
+                <FormattedInlineText text={c} />
+              </p>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function ProgresslyApp() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'review' | 'upload' | 'memory'>('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -130,10 +452,13 @@ export default function ProgresslyApp() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Screen 2: Review Queue State
+  // Screen 2: Review Queue State with Rich Filters
   const [matches, setMatches] = useState<MatchItem[]>([]);
   const [isLoadingMatches, setIsLoadingMatches] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<'pending' | 'manual_resolution' | 'all'>('pending');
+  const [reviewStatusFilter, setReviewStatusFilter] = useState<'pending' | 'all' | 'auto_approved' | 'planner_approved' | 'rejected'>('pending');
+  const [reviewTierFilter, setReviewTierFilter] = useState<'all' | 'tier1' | 'tier2' | 'tier3'>('all');
+  const [reviewDisciplineFilter, setReviewDisciplineFilter] = useState<string>('all');
+  const [reviewSearchQuery, setReviewSearchQuery] = useState<string>('');
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
 
   // Screen 3: Dashboard State
@@ -143,7 +468,6 @@ export default function ProgresslyApp() {
   const [timelineStatusFilter, setTimelineStatusFilter] = useState<'all' | 'delayed' | 'in_progress' | 'completed'>('all');
   const [disciplineFilter, setDisciplineFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [expandedAuditId, setExpandedAuditId] = useState<string | null>(null);
 
   // Screen 4: Project Memory (Institutional RAG) State
   const [memoryQuery, setMemoryQuery] = useState('What caused piping delays in past projects?');
@@ -182,11 +506,7 @@ export default function ProgresslyApp() {
   const fetchMatches = useCallback(async () => {
     setIsLoadingMatches(true);
     try {
-      const url =
-        statusFilter === 'all'
-          ? `${API_BASE}/matches`
-          : `${API_BASE}/matches?status=${statusFilter}`;
-      const res = await fetch(url);
+      const res = await fetch(`${API_BASE}/matches`);
       const data = await res.json();
       if (res.ok) {
         setMatches(data.matches || []);
@@ -198,7 +518,7 @@ export default function ProgresslyApp() {
     } finally {
       setIsLoadingMatches(false);
     }
-  }, [statusFilter]);
+  }, []);
 
   // Fetch Dashboard & Audit Log
   const fetchDashboardData = useCallback(async () => {
@@ -348,7 +668,9 @@ export default function ProgresslyApp() {
         throw new Error(data.error || `Failed to ${action} match`);
       }
 
-      setMatches((prev) => prev.filter((m) => m.id !== matchId));
+      setMatches((prev) =>
+        prev.map((m) => (m.id === matchId ? { ...m, status: action } : m))
+      );
       const actionText = action === 'planner_approved' ? 'approved & schedule linked' : 'rejected';
       showToast(`Match for ${activityCode} was ${actionText}.`, 'success');
       fetchDashboardData();
@@ -395,7 +717,7 @@ export default function ProgresslyApp() {
   const completedActivitiesCount = activities.filter((a) => (a.progress_pct ?? 0) >= 100).length;
   const inProgressActivitiesCount = activities.filter((a) => (a.progress_pct ?? 0) > 0 && (a.progress_pct ?? 0) < 100).length;
   
-  // Real On-Track Calculation: activities with no end date overrun or progress on track
+  // Real On-Track Calculation: activities with no end date overrun
   const delayedActivities = activities.filter((a) => {
     if (!a.planned_end || !a.actual_end) return false;
     return new Date(a.actual_end) > new Date(a.planned_end);
@@ -407,7 +729,6 @@ export default function ProgresslyApp() {
 
   // Filtered Activities for Operational Timeline
   const filteredActivities = activities.filter((act) => {
-    // Status tab filter
     if (timelineStatusFilter === 'delayed') {
       const isDelayed = act.planned_end && act.actual_end && new Date(act.actual_end) > new Date(act.planned_end);
       if (!isDelayed) return false;
@@ -419,12 +740,10 @@ export default function ProgresslyApp() {
       if (!isCompleted) return false;
     }
 
-    // Discipline dropdown filter
     const matchesDiscipline =
       disciplineFilter === 'all' ||
       act.discipline.toLowerCase() === disciplineFilter.toLowerCase();
 
-    // Search query
     const matchesSearch =
       searchQuery === '' ||
       act.activity_code.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -432,6 +751,42 @@ export default function ProgresslyApp() {
       (act.location && act.location.toLowerCase().includes(searchQuery.toLowerCase()));
 
     return matchesDiscipline && matchesSearch;
+  });
+
+  // Filtered Matches for Review Queue
+  const filteredMatches = matches.filter((m) => {
+    // Status Filter
+    if (reviewStatusFilter === 'pending' && m.status !== 'pending') return false;
+    if (reviewStatusFilter === 'auto_approved' && m.status !== 'auto_approved') return false;
+    if (reviewStatusFilter === 'planner_approved' && m.status !== 'planner_approved') return false;
+    if (reviewStatusFilter === 'rejected' && m.status !== 'rejected') return false;
+
+    // Discipline Filter
+    if (
+      reviewDisciplineFilter !== 'all' &&
+      m.activity_discipline.toLowerCase() !== reviewDisciplineFilter.toLowerCase()
+    ) {
+      return false;
+    }
+
+    // Confidence Tier Filter
+    const scoreNum = typeof m.confidence_score === 'string' ? parseFloat(m.confidence_score) : m.confidence_score;
+    const pct = Math.round(scoreNum > 1 ? scoreNum : scoreNum * 100);
+    if (reviewTierFilter === 'tier1' && pct < 95) return false;
+    if (reviewTierFilter === 'tier2' && (pct < 70 || pct >= 95)) return false;
+    if (reviewTierFilter === 'tier3' && pct >= 70) return false;
+
+    // Search Query
+    if (reviewSearchQuery) {
+      const q = reviewSearchQuery.toLowerCase();
+      const matchCode = m.activity_code.toLowerCase().includes(q);
+      const matchDesc = m.activity_description.toLowerCase().includes(q);
+      const matchEvent = m.event_description.toLowerCase().includes(q);
+      const matchLoc = m.activity_location && m.activity_location.toLowerCase().includes(q);
+      if (!matchCode && !matchDesc && !matchEvent && !matchLoc) return false;
+    }
+
+    return true;
   });
 
   const uniqueDisciplines = Array.from(new Set(activities.map((a) => a.discipline)));
@@ -668,7 +1023,7 @@ export default function ProgresslyApp() {
         {/* Main Content Area */}
         <main className="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto space-y-8">
           {/* ========================================================================= */}
-          {/* SCREEN 1: OPERATIONAL TIMELINE DASHBOARD (REFERENCE DESIGN)               */}
+          {/* SCREEN 1: OPERATIONAL TIMELINE DASHBOARD                                  */}
           {/* ========================================================================= */}
           {activeTab === 'dashboard' && (
             <div className="space-y-8">
@@ -683,7 +1038,7 @@ export default function ProgresslyApp() {
                   </p>
                 </div>
 
-                {/* Filter Tabs Header */}
+                {/* Filter Tabs Header with Custom Dropdown */}
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="flex items-center bg-[#F5F2FE] rounded-xl p-1 shadow-sm border border-[#C7C4D7]/20">
                     <button
@@ -728,19 +1083,12 @@ export default function ProgresslyApp() {
                     </button>
                   </div>
 
-                  {/* Discipline Dropdown */}
-                  <select
+                  {/* Custom Polished Discipline Dropdown */}
+                  <DisciplineDropdown
                     value={disciplineFilter}
-                    onChange={(e) => setDisciplineFilter(e.target.value)}
-                    className="h-10 px-3.5 rounded-xl bg-white border border-[#C7C4D7]/40 text-xs sm:text-sm font-medium text-[#1B1B23] focus:outline-none focus:ring-2 focus:ring-[#4648D4]/20 shadow-sm"
-                  >
-                    <option value="all">All Disciplines</option>
-                    {uniqueDisciplines.map((d) => (
-                      <option key={d} value={d}>
-                        {d.toUpperCase()}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setDisciplineFilter}
+                    disciplines={uniqueDisciplines}
+                  />
                 </div>
               </div>
 
@@ -859,7 +1207,6 @@ export default function ProgresslyApp() {
 
                     {/* Timeline Rows */}
                     <div className="relative divide-y divide-[#C7C4D7]/15">
-                      {/* Background dashed grid lines */}
                       <div className="absolute inset-0 grid grid-cols-[320px_1fr_1fr_1fr] pointer-events-none">
                         <div />
                         <div className="border-l border-[#C7C4D7]/20 border-dashed" />
@@ -867,7 +1214,7 @@ export default function ProgresslyApp() {
                         <div className="border-l border-[#C7C4D7]/20 border-dashed" />
                       </div>
 
-                      {filteredActivities.map((act, index) => {
+                      {filteredActivities.map((act) => {
                         const progress = act.progress_pct ?? 0;
                         const isComplete = progress >= 100;
                         const isInProgress = progress > 0 && progress < 100;
@@ -877,7 +1224,6 @@ export default function ProgresslyApp() {
                             key={act.id}
                             className="grid grid-cols-[320px_1fr_1fr_1fr] hover:bg-[#F5F2FE]/40 transition-colors relative z-10 items-center min-h-[72px]"
                           >
-                            {/* Task Column */}
                             <div className="p-4 flex flex-col justify-center">
                               <div className="flex items-center gap-2">
                                 <span className="font-mono font-bold text-xs text-[#4648D4]">
@@ -895,10 +1241,8 @@ export default function ProgresslyApp() {
                               </p>
                             </div>
 
-                            {/* Gantt Bar Visualization Columns */}
                             <div className="p-4 relative col-span-3 flex items-center">
                               <div className="w-full h-8 bg-[#E9E6F3] rounded-xl relative overflow-hidden flex items-center">
-                                {/* Completed Bar */}
                                 {isComplete && (
                                   <div className="w-full h-full bg-[#10B981] rounded-xl flex items-center justify-between px-3 text-white shadow-sm">
                                     <span className="font-semibold text-xs">100% Complete</span>
@@ -906,7 +1250,6 @@ export default function ProgresslyApp() {
                                   </div>
                                 )}
 
-                                {/* In Progress Bar */}
                                 {isInProgress && (
                                   <div
                                     className="h-full bg-[#F59E0B] rounded-xl flex items-center px-3 text-white shadow-sm transition-all duration-500 whitespace-nowrap"
@@ -918,7 +1261,6 @@ export default function ProgresslyApp() {
                                   </div>
                                 )}
 
-                                {/* Pending Bar */}
                                 {!isComplete && !isInProgress && (
                                   <div className="w-full h-full flex items-center justify-center text-xs font-semibold text-slate-400">
                                     Pending Execution (0%)
@@ -1023,25 +1365,42 @@ export default function ProgresslyApp() {
           )}
 
           {/* ========================================================================= */}
-          {/* SCREEN 2: REVIEW QUEUE (CONFIDENCE POLICY GATING)                         */}
+          {/* SCREEN 2: REVIEW QUEUE (WITH ADVANCED FILTERS)                           */}
           {/* ========================================================================= */}
           {activeTab === 'review' && (
             <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              {/* Header Title Section */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                   <h2 className="text-2xl font-bold tracking-tight text-[#1B1B23]">
                     Matching & Verification Queue
                   </h2>
                   <p className="text-sm text-[#64748B] mt-1">
-                    Review and verify AI-extracted field events against the baseline WBS schedule
+                    Review, filter, and verify AI-extracted field events against the baseline WBS schedule
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2 bg-[#F5F2FE] p-1 rounded-xl border border-[#C7C4D7]/20">
+                {/* Quick Search */}
+                <div className="relative w-full md:w-72">
+                  <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={reviewSearchQuery}
+                    onChange={(e) => setReviewSearchQuery(e.target.value)}
+                    placeholder="Search matches or codes..."
+                    className="w-full h-10 pl-10 pr-4 rounded-xl bg-white border border-[#C7C4D7]/50 text-xs sm:text-sm text-[#1B1B23] focus:ring-2 focus:ring-[#4648D4]/20 shadow-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Review Filter Bar */}
+              <div className="bg-white p-4 rounded-2xl border border-[#C7C4D7]/30 shadow-xs flex flex-wrap items-center justify-between gap-3">
+                {/* Status Tabs */}
+                <div className="flex flex-wrap items-center gap-1.5 bg-[#F5F2FE] p-1 rounded-xl border border-[#C7C4D7]/20">
                   <button
-                    onClick={() => setStatusFilter('pending')}
+                    onClick={() => setReviewStatusFilter('pending')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                      statusFilter === 'pending'
+                      reviewStatusFilter === 'pending'
                         ? 'bg-white shadow-sm text-[#4648D4]'
                         : 'text-[#64748B] hover:text-[#1B1B23]'
                     }`}
@@ -1049,15 +1408,91 @@ export default function ProgresslyApp() {
                     Pending Review ({matches.filter((m) => m.status === 'pending').length})
                   </button>
                   <button
-                    onClick={() => setStatusFilter('all')}
+                    onClick={() => setReviewStatusFilter('all')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                      statusFilter === 'all'
+                      reviewStatusFilter === 'all'
                         ? 'bg-white shadow-sm text-[#4648D4]'
                         : 'text-[#64748B] hover:text-[#1B1B23]'
                     }`}
                   >
-                    All Matches
+                    All Matches ({matches.length})
                   </button>
+                  <button
+                    onClick={() => setReviewStatusFilter('auto_approved')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                      reviewStatusFilter === 'auto_approved'
+                        ? 'bg-white shadow-sm text-[#4648D4]'
+                        : 'text-[#64748B] hover:text-[#1B1B23]'
+                    }`}
+                  >
+                    Auto-Approved
+                  </button>
+                  <button
+                    onClick={() => setReviewStatusFilter('planner_approved')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                      reviewStatusFilter === 'planner_approved'
+                        ? 'bg-white shadow-sm text-[#4648D4]'
+                        : 'text-[#64748B] hover:text-[#1B1B23]'
+                    }`}
+                  >
+                    Planner Approved
+                  </button>
+                  <button
+                    onClick={() => setReviewStatusFilter('rejected')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                      reviewStatusFilter === 'rejected'
+                        ? 'bg-white shadow-sm text-[#4648D4]'
+                        : 'text-[#64748B] hover:text-[#1B1B23]'
+                    }`}
+                  >
+                    Rejected
+                  </button>
+                </div>
+
+                {/* Tier & Discipline Filters */}
+                <div className="flex flex-wrap items-center gap-2.5">
+                  {/* Tier Filter Pills */}
+                  <div className="flex items-center gap-1 bg-[#F5F2FE] p-1 rounded-xl border border-[#C7C4D7]/20 text-xs">
+                    <button
+                      onClick={() => setReviewTierFilter('all')}
+                      className={`px-2.5 py-1 rounded-lg font-semibold transition ${
+                        reviewTierFilter === 'all' ? 'bg-white shadow-sm text-[#4648D4]' : 'text-[#64748B]'
+                      }`}
+                    >
+                      All Tiers
+                    </button>
+                    <button
+                      onClick={() => setReviewTierFilter('tier2')}
+                      className={`px-2.5 py-1 rounded-lg font-semibold transition ${
+                        reviewTierFilter === 'tier2' ? 'bg-white shadow-sm text-amber-600' : 'text-[#64748B]'
+                      }`}
+                    >
+                      Tier 2 (70-94%)
+                    </button>
+                    <button
+                      onClick={() => setReviewTierFilter('tier1')}
+                      className={`px-2.5 py-1 rounded-lg font-semibold transition ${
+                        reviewTierFilter === 'tier1' ? 'bg-white shadow-sm text-emerald-600' : 'text-[#64748B]'
+                      }`}
+                    >
+                      Tier 1 (≥95%)
+                    </button>
+                    <button
+                      onClick={() => setReviewTierFilter('tier3')}
+                      className={`px-2.5 py-1 rounded-lg font-semibold transition ${
+                        reviewTierFilter === 'tier3' ? 'bg-white shadow-sm text-rose-600' : 'text-[#64748B]'
+                      }`}
+                    >
+                      Tier 3 (&lt;70%)
+                    </button>
+                  </div>
+
+                  {/* Discipline Dropdown for Review Queue */}
+                  <DisciplineDropdown
+                    value={reviewDisciplineFilter}
+                    onChange={setReviewDisciplineFilter}
+                    disciplines={uniqueDisciplines}
+                  />
                 </div>
               </div>
 
@@ -1066,19 +1501,19 @@ export default function ProgresslyApp() {
                   <RefreshCw className="w-6 h-6 animate-spin mx-auto text-[#4648D4]" />
                   <p className="mt-2 text-sm font-medium">Loading match queue...</p>
                 </div>
-              ) : matches.length === 0 ? (
+              ) : filteredMatches.length === 0 ? (
                 <div className="bg-white rounded-[24px] border border-[#C7C4D7]/30 p-12 text-center">
                   <div className="w-16 h-16 rounded-full bg-emerald-50 text-[#10B981] flex items-center justify-center mx-auto mb-4">
                     <CheckCircle2 className="w-8 h-8" />
                   </div>
-                  <h3 className="font-bold text-lg text-[#1B1B23]">Verification Queue Clear</h3>
+                  <h3 className="font-bold text-lg text-[#1B1B23]">No Matches Found</h3>
                   <p className="text-sm text-[#64748B] max-w-sm mx-auto mt-1">
-                    All submitted field reports have been linked and verified against the schedule.
+                    No items match the selected filter criteria or the review queue is currently clear.
                   </p>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {matches.map((match) => {
+                  {filteredMatches.map((match) => {
                     const badge = getConfidenceBadge(match.confidence_score);
                     const isPending = match.status === 'pending';
 
@@ -1088,7 +1523,7 @@ export default function ProgresslyApp() {
                         className="bg-white rounded-[24px] border border-[#C7C4D7]/30 p-6 shadow-sm hover:shadow-md transition space-y-4"
                       >
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#C7C4D7]/20 pb-4">
-                          <div className="flex items-center gap-3">
+                          <div className="flex flex-wrap items-center gap-3">
                             <span className="font-mono font-bold text-[#4648D4] text-base">
                               {match.activity_code}
                             </span>
@@ -1097,6 +1532,9 @@ export default function ProgresslyApp() {
                             </span>
                             <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${badge.bg}`}>
                               {badge.label} • {badge.tier}
+                            </span>
+                            <span className="text-xs px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium capitalize">
+                              Status: {match.status.replace('_', ' ')}
                             </span>
                           </div>
 
@@ -1214,7 +1652,7 @@ export default function ProgresslyApp() {
                       rows={6}
                       value={reportText}
                       onChange={(e) => setReportText(e.target.value)}
-                      placeholder="e.g., Welded 14 spool joints on 24-inch crude header line 24-XX at Tank Farm area today..."
+                      placeholder="e.g., Welded 14 spool joints on 24-inch crude header line 24-XX at Tank Farm 3 area today..."
                       className="w-full p-4 rounded-xl bg-[#F5F2FE] border-none text-sm text-[#1B1B23] focus:ring-2 focus:ring-[#4648D4]/20 resize-y"
                       required
                     />
@@ -1262,7 +1700,7 @@ export default function ProgresslyApp() {
           )}
 
           {/* ========================================================================= */}
-          {/* SCREEN 4: PROJECT MEMORY (INSTITUTIONAL RAG)                              */}
+          {/* SCREEN 4: PROJECT MEMORY (INSTITUTIONAL RAG WITH RICH RENDERING)          */}
           {/* ========================================================================= */}
           {activeTab === 'memory' && (
             <div className="space-y-8 max-w-5xl mx-auto">
@@ -1375,24 +1813,25 @@ export default function ProgresslyApp() {
                     </div>
                   )}
 
-                  {/* Synthesized Narrative */}
-                  <div className="bg-white border border-[#C7C4D7]/30 rounded-[24px] p-8 shadow-sm space-y-4">
+                  {/* Synthesized Narrative Card with Rich Section & Citation Parser */}
+                  <div className="bg-white border border-[#C7C4D7]/30 rounded-[24px] p-8 shadow-sm space-y-6">
                     <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                       <div className="flex items-center gap-2">
                         <Sparkles className="w-5 h-5 text-purple-600" />
-                        <h3 className="font-bold text-lg text-[#1B1B23]">Synthesized Institutional Memory</h3>
+                        <h3 className="font-bold text-lg text-[#1B1B23]">
+                          Synthesized Institutional Memory
+                        </h3>
                       </div>
                       <span className="text-xs px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-700 font-mono font-semibold border border-purple-200">
                         Grounded via pgvector
                       </span>
                     </div>
 
-                    <div className="text-slate-800 text-sm leading-relaxed whitespace-pre-line">
-                      {memoryResult.answer}
-                    </div>
+                    {/* Rich Formatted Answer */}
+                    <SynthesizedAnswerViewer rawAnswer={memoryResult.answer} />
                   </div>
 
-                  {/* Verified Sources */}
+                  {/* Verified Sources Grid */}
                   <div className="space-y-4">
                     <h3 className="text-sm font-semibold uppercase tracking-wider text-[#64748B]">
                       Verified Retrieved Grounding Sources ({memoryResult.retrieved_records?.length || 0})
@@ -1401,7 +1840,7 @@ export default function ProgresslyApp() {
                       {memoryResult.retrieved_records?.map((record, idx) => (
                         <div
                           key={record.id || idx}
-                          className="bg-white border border-[#C7C4D7]/30 p-5 rounded-2xl space-y-2 shadow-sm"
+                          className="bg-white border border-[#C7C4D7]/30 p-5 rounded-2xl space-y-2 shadow-sm hover:border-[#4648D4]/40 transition"
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div>
