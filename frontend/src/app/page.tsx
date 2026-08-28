@@ -30,7 +30,7 @@ import {
   Search,
 } from 'lucide-react';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api-proxy';
+const API_BASE = '/api-proxy';
 
 interface ActivityItem {
   id: string;
