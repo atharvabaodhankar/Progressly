@@ -1,0 +1,37 @@
+# =============================================================================
+# BridgeIQ Multi-Account Terraform Variables Example
+# Copy this file to `terraform.tfvars` and populate with actual credentials.
+# WARNING: NEVER commit `terraform.tfvars` to source control.
+# =============================================================================
+
+project_name = "bridgeiq"
+environment  = "prod"
+
+# -----------------------------------------------------------------------------
+# Account B: Infrastructure Account (Teammate's Account)
+# Hosts: VPC, ECS Fargate, ALB, RDS PostgreSQL, S3, SQS, Lambda, IAM, CloudWatch
+# -----------------------------------------------------------------------------
+infra_aws_region     = "ap-south-1"
+infra_aws_access_key = "AKIA..."
+infra_aws_secret_key = "..."
+
+# -----------------------------------------------------------------------------
+# Account A: Bedrock AI Account (Your Account)
+# Provides Bedrock foundation models (Nova Micro, Titan V2, Nova Pro)
+# -----------------------------------------------------------------------------
+bedrock_aws_region     = "ap-south-1"
+bedrock_aws_access_key = "AKIA..."
+bedrock_aws_secret_key = "..."
+
+# -----------------------------------------------------------------------------
+# Database Configuration
+# -----------------------------------------------------------------------------
+db_name     = "bridgeiq_db"
+db_username = "bridgeiq_admin"
+db_password = "ChangeMeToAStrongPassword2026!"
+
+# -----------------------------------------------------------------------------
+# Container Image URIs (ECR or Docker Hub)
+# -----------------------------------------------------------------------------
+backend_container_image   = "123456789012.dkr.ecr.ap-south-1.amazonaws.com/bridgeiq-backend:latest"
+ai_worker_container_image = "123456789012.dkr.ecr.ap-south-1.amazonaws.com/bridgeiq-ai-worker:latest"

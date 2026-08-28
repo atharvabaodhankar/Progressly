@@ -35,4 +35,8 @@ logs/
 .terraform/
 *.tfstate
 *.tfstate.backup
+*.tfstate.*
 .terraform.lock.hcl
+*.tfvars
+!terraform.tfvars.example
+*.zip
