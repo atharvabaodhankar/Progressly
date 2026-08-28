@@ -471,7 +471,12 @@ router.post('/archive-project/:projectId', async (req: Request, res: Response): 
          a.id, a.activity_code, a.description, a.discipline, a.location,
          a.planned_start, a.planned_end, a.actual_start, a.actual_end, a.progress_pct,
          COALESCE(
-           (SELECT STRING_AGG(m.event_description, ' | ') FROM matches m WHERE m.activity_id = a.id),
+           (
+             SELECT STRING_AGG(ae.description, ' | ') 
+             FROM matches m 
+             JOIN actual_events ae ON m.event_id = ae.id 
+             WHERE m.activity_id = a.id
+           ),
            a.description
          ) AS match_summary
        FROM activities a
