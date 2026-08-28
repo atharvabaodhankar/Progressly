@@ -101,27 +101,34 @@ flowchart TD
 
 | Workload | Model ID | Input $/1M | Output $/1M | Rationale |
 |---|---|---|---|---|
-| **Event Extraction** | `apac.amazon.nova-micro-v1:0` | **$0.035** | **$0.140** | High-volume, structured extraction of technical entities (discipline, line number, location, quantity). Ultra-fast (sub-second) and effectively free (~$0.03 per 1,000 reports). |
+| **Event Extraction** | `apac.amazon.nova-micro-v1:0` | **$0.041** | **$0.164** | High-volume, structured extraction of technical entities (discipline, line number, location, quantity). Ultra-fast (sub-second) and cost-optimized (~$0.04 per 1,000 reports). |
 | **Vector Embeddings** | `amazon.titan-embed-text-v2:0` | **$0.020** | — | High-precision 1024-dimensional normalized vector representations for schedule activities and field notes. Outperforms 384-dim open-source models with minimal footprint. |
 | **Institutional Memory (RAG)** | `apac.amazon.nova-pro-v1:0` | **$0.800** | **$3.200** | Reasoning-critical knowledge synthesis over 40 historical capital project delay records. 300,000 token context window, strict negative constraints, zero hallucination. |
 
 ---
 
-## 5. Policy Gating & Matching Hierarchy
+## 5. Policy Gating & Matching Hierarchy (Semantic-Gated Rule Engine)
 
 ```mermaid
 flowchart TD
     A["Extracted Construction Event<br/>(Discipline, Line, Location, Work)"] --> B["Titan V2 Embedding (1024d)"]
     B --> C["pgvector Cosine Search <=> (Top 5 Candidates)"]
-    C --> D["Deterministic Rule Engine<br/>• Discipline Match (+15%)<br/>• Line Number Exact Match (+25%)<br/>• Location Exact Match (+15%)"]
-    D --> E{"Calibrated Confidence Score"}
-    E -->|Score ≥ 95%| F["🟢 Auto-Approved<br/>Schedule Progress Updated Instantly"]
-    E -->|Score 70%–94%| G["🟡 Planner Review Queue<br/>Human Approval via UI Button"]
-    E -->|Score < 70%| H["🔴 Manual Resolution<br/>Flagged for Investigation / WBS Addition"]
+    C --> D["Semantic-Gated Rule Engine (matcher.ts)<br/>• Base Semantic Gate: Bonuses ONLY apply if base_sim ≥ 0.70<br/>• Multiplicative Scaling: Line (+15%), Discipline (+10%), Location (+5%)<br/>• Line Asymmetry Penalty: -8% if field report specifies line but WBS line is NULL<br/>• Hard Conflict Penalties: Line Conflict (-30%), Discipline Mismatch (-35%)"]
+    D --> E{"Calibrated Confidence Score<br/>final = clamp(base_sim * multiplier - penalties)"}
+    E -->|Score ≥ 95%| F["🟢 Auto-Approved (Tier 1)<br/>Schedule Progress Updated Instantly"]
+    E -->|Score 70%–94%| G["🟡 Planner Review Queue (Tier 2)<br/>Human Verification via Single Click"]
+    E -->|Score < 70%| H["🔴 Manual Resolution (Tier 3)<br/>Flagged for Investigation / Scope Addition"]
     F --> I["Immutable Audit Trail (PostgreSQL audit_log)"]
     G --> I
     H --> I
 ```
+
+### 5.1 The Report 6 Calibration Fix: Semantic Gating & Line Asymmetry Penalty
+During real-world calibration testing against complex field reports (e.g. Daily Report 6: partial underground piping progress alongside coating delay), flat percentage addition was found to over-inflate unrelated activities containing common keywords. The production engine was upgraded to a defensive, constraint-aware design:
+1. **Semantic Viability Gate (`base_sim >= 0.70`)**: Positive attribute bonuses (line, discipline, location) are strictly suppressed unless base vector similarity first proves semantic relevance.
+2. **Multiplicative Bonus Scaling**: Bonuses scale proportionally with the underlying semantic confidence rather than adding arbitrary flat scores.
+3. **Line Asymmetry Penalty (`-0.08`)**: If a field engineer specifies a specific physical line tag (e.g., `FW-001`) but the candidate WBS activity leaves line as `NULL`, Progressly penalizes the match for an unverified physical dimension.
+4. **Hard Conflict Penalties**: Direct line conflicts (`-0.30`) and discipline mismatches (`-0.35`) decisively push ambiguous records into the human Planner Review Queue or Manual Resolution tiers.
 
 ---
 

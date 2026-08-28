@@ -62,7 +62,7 @@ PostgreSQL 16 with pgvector HNSW Index (<10ms cosine search across 1,000,000 act
 
 | Pipeline Step | Model Chosen | Cost per 1M Tokens | Why Not a Frontier Model? |
 |---|---|---|---|
-| **High-Volume Event Extraction** | **Amazon Bedrock Nova Micro** (`apac.amazon.nova-micro-v1:0`) | **$0.035 in / $0.140 out** | Extracting JSON entities (`discipline`, `line`, `location`, `quantity`) is a bounded, structured task. Nova Micro runs sub-second and costs **~$0.03 per 1,000 reports**. Paying $3.00/1M for Claude adds 85x cost with 0% accuracy gain. |
+| **High-Volume Event Extraction** | **Amazon Bedrock Nova Micro** (`apac.amazon.nova-micro-v1:0`) | **$0.041 in / $0.164 out** | Extracting JSON entities (`discipline`, `line`, `location`, `quantity`) is a bounded, structured task. Nova Micro runs sub-second and costs **~$0.04 per 1,000 reports**. Paying $3.00/1M for Claude adds 75x cost with 0% accuracy gain. |
 | **Vector Similarity Search** | **Amazon Bedrock Titan Embeddings V2** (`amazon.titan-embed-text-v2:0`) | **$0.020 in** | 1024-dimensional normalized dense vectors. Outperforms older 384d open-source models in domain-specific technical jargon with zero server management. |
 | **Reasoning-Critical Project Memory** | **Amazon Bedrock Nova Pro** (`apac.amazon.nova-pro-v1:0`) | **$0.800 in / $3.200 out** | Only called on interactive user inquiries. 300k token context window accommodates all retrieved records and statistical matrices with zero truncation. |
 
@@ -94,21 +94,21 @@ PostgreSQL 16 with pgvector HNSW Index (<10ms cosine search across 1,000,000 act
 ### Q5: "How do you handle ambiguous human input, site slang, and unstructured text?"
 
 > **Quick Answer:**
-> *"We use a two-stage hybrid matching pipeline: Stage 1 handles semantic tolerance via dense vector embeddings; Stage 2 enforces deterministic physical engineering constraints via rule gating."*
+> *"We use a two-stage hybrid matching pipeline: Stage 1 handles semantic tolerance via dense vector embeddings; Stage 2 enforces deterministic physical engineering constraints via a semantic-gated rule engine with line-asymmetry penalties."*
 
 #### The 2-Stage Matching Proof:
 * **Stage 1 (Semantic Normalization):**
   * Titan V2 embeddings understand semantic synonyms across construction jargon (e.g., *"hydrotested"* = *"pressure hold test"*, *"shuttering"* = *"formwork"*, *"lay underground main"* = *"trench piping erection"*).
-* **Stage 2 (Deterministic Heuristic Gating):**
-  * The AI output is passed through our deterministic rule engine in `ruleMatcher.ts`:
-    * Discipline Match: **+15% weight**
-    * Line Number Exact Match (e.g. `24-XX`): **+25% weight**
-    * Spatial Location Match (e.g. `Tank Farm`): **+15% weight**
-    * Equipment Tag Match (e.g. `P-101`): **+25% weight**
+* **Stage 2 (Semantic-Gated Rule Engine & Line Asymmetry Penalty):**
+  * The candidate matches from pgvector are evaluated through our business rule engine (`matcher.ts`):
+    * **Semantic Gate:** Positive bonuses only activate if base vector similarity is viable (`baseSim >= 0.70`), preventing unrelated tasks from getting boosted by shared generic terms.
+    * **Multiplicative Scaling:** Line match (`+15%`), Discipline match (`+10%`), Location match (`+5%`).
+    * **Line Asymmetry Penalty (`-0.08`):** If a report specifies a specific line number (e.g., `FW-001`) but the candidate WBS activity leaves line as `NULL`, Progressly penalizes the match for unverified physical scope.
+    * **Hard Conflict Penalties:** Direct line conflicts (`-0.30`) and discipline mismatches (`-0.35`) instantly demote invalid matches.
 * **The Fail-Safe (3-Tier Confidence Policy):**
-  * **$\ge 95\%$:** Auto-Approved (high semantic + exact physical match).
-  * **$70\%–94\%$:** Routed to the human planner review queue with single-click Approve/Reject buttons.
-  * **$< 70\%$:** Flagged for manual investigation or new WBS activity creation.
+  * **$\ge 95\%$ (Tier 1):** Auto-Approved (high semantic + exact physical constraint match).
+  * **$70\%–94\%$ (Tier 2):** Routed to the human planner review queue with single-click Approve/Reject buttons.
+  * **$< 70\%$ (Tier 3):** Flagged for manual investigation or new WBS activity creation.
   * **Zero schedule baselines are ever modified without meeting confidence thresholds or human sign-off.**
 
 ---

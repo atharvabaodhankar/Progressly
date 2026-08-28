@@ -74,7 +74,7 @@ export default function ArchitecturePage() {
       title: 'Nova Micro Parsing',
       badge: 'Entity Extraction',
       desc: 'ECS AI Worker polls SQS and extracts technical entities (discipline, line number, location, qty).',
-      highlight: '$0.035 / 1M Tokens',
+      highlight: '$0.041 / 1M Tokens',
     },
     {
       step: '05',
@@ -584,7 +584,7 @@ export default function ArchitecturePage() {
                   STAGE 4
                 </span>
                 <p className="font-bold text-xs text-[#1B1B23]">Rule Engine</p>
-                <p className="text-[11px] text-[#64748B]">+25% Line match, +15% discipline, +15% location.</p>
+                <p className="text-[11px] text-[#64748B]">Semantic gate (≥0.70), +15% line, +10% disc, -8% line asymmetry.</p>
               </div>
 
               <div className="bg-[#F8FAFF] p-4 rounded-2xl border border-[#C7C4D7]/30 space-y-1.5">
@@ -737,7 +737,7 @@ export default function ArchitecturePage() {
                 { name: 'Amazon SQS Queue', role: 'Job Buffering Decoupling', tier: 'Standard Queue' },
                 { name: 'AWS Lambda Router', role: 'S3 to SQS Trigger', tier: 'Node.js 20.x' },
                 { name: 'AWS Secrets Manager', role: 'Encrypted Credential Store', tier: 'KMS Encrypted' },
-                { name: 'Amazon Nova Micro', role: 'Entity Extraction Engine', tier: '$0.035 / 1M' },
+                { name: 'Amazon Nova Micro', role: 'Entity Extraction Engine', tier: '$0.041 / 1M' },
                 { name: 'Amazon Titan Embeddings V2', role: '1024d Dense Vector Search', tier: '$0.020 / 1M' },
                 { name: 'Amazon Nova Pro', role: 'Institutional Memory RAG', tier: '300k Context' },
               ].map((tech, idx) => (
