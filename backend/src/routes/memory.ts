@@ -51,6 +51,20 @@ export function computeHistoricalStats(records: HistoricalRecord[]) {
   };
 }
 
+function cosineSimilarity(a: number[], b: number[]): number {
+  if (!a || !b || a.length !== b.length) return 0;
+  let dot = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  if (normA === 0 || normB === 0) return 0;
+  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
 const SYNTHESIS_SYSTEM_PROMPT = `You are BridgeIQ's Institutional Memory & Knowledge Synthesis AI for capital infrastructure projects.
 Your job is to answer project management and engineering inquiries STRICTLY based on the provided historical project records.
 
@@ -135,31 +149,77 @@ router.post('/query', async (req: Request, res: Response): Promise<void> => {
       throw new Error(`Invalid Titan V2 vector returned. Expected 1024 dimensions, got ${queryVector?.length}`);
     }
 
-    // 2. Query top-K from pgvector
-    console.log(`[BridgeIQ Memory] 2. Querying top ${topK} records via pgvector cosine distance`);
-    const sql = `
-      SELECT 
-        id,
-        project_name,
-        discipline,
-        activity_description,
-        planned_duration_days,
-        actual_duration_days,
-        delay_days,
-        delay_cause,
-        notes,
-        1 - (embedding <=> $1::vector) AS similarity_score
-      FROM historical_records
-      ORDER BY embedding <=> $1::vector ASC
-      LIMIT $2;
-    `;
-    const formattedVector = `[${queryVector.join(',')}]`;
-    const dbRes = await pool.query(sql, [formattedVector, topK]);
+    // 2. Query top-K via pgvector or in-memory vector math fallback
+    console.log(`[BridgeIQ Memory] 2. Querying top ${topK} records via vector cosine distance`);
+    let retrievedRecords: HistoricalRecord[] = [];
 
-    const retrievedRecords: HistoricalRecord[] = dbRes.rows.map((row) => ({
-      ...row,
-      similarity_score: parseFloat(row.similarity_score),
-    }));
+    try {
+      const sql = `
+        SELECT 
+          id,
+          project_name,
+          discipline,
+          activity_description,
+          planned_duration_days,
+          actual_duration_days,
+          delay_days,
+          delay_cause,
+          notes,
+          1 - (embedding <=> $1::vector) AS similarity_score
+        FROM historical_records
+        WHERE embedding IS NOT NULL
+        ORDER BY embedding <=> $1::vector ASC
+        LIMIT $2;
+      `;
+      const formattedVector = `[${queryVector.join(',')}]`;
+      const dbRes = await pool.query(sql, [formattedVector, topK]);
+      retrievedRecords = dbRes.rows.map((row) => ({
+        ...row,
+        similarity_score: parseFloat(row.similarity_score),
+      }));
+    } catch {
+      // In-memory cosine similarity fallback if pgvector extension/type is not registered
+      const allRes = await pool.query(`
+        SELECT 
+          id,
+          project_name,
+          discipline,
+          activity_description,
+          planned_duration_days,
+          actual_duration_days,
+          delay_days,
+          delay_cause,
+          notes,
+          embedding
+        FROM historical_records
+        WHERE embedding IS NOT NULL;
+      `);
+
+      retrievedRecords = allRes.rows
+        .map((r: any) => {
+          let vec: number[] = [];
+          try {
+            vec = typeof r.embedding === 'string' ? JSON.parse(r.embedding) : r.embedding;
+          } catch {
+            vec = [];
+          }
+          const sim = vec && vec.length > 0 ? cosineSimilarity(queryVector, vec) : 0;
+          return {
+            id: r.id,
+            project_name: r.project_name,
+            discipline: r.discipline,
+            activity_description: r.activity_description,
+            planned_duration_days: r.planned_duration_days,
+            actual_duration_days: r.actual_duration_days,
+            delay_days: r.delay_days,
+            delay_cause: r.delay_cause,
+            notes: r.notes,
+            similarity_score: sim,
+          };
+        })
+        .sort((a, b) => b.similarity_score - a.similarity_score)
+        .slice(0, topK);
+    }
 
     const stats = computeHistoricalStats(retrievedRecords);
     const sources = retrievedRecords.map((r) => `${r.project_name} — ${r.activity_description}`);
