@@ -183,11 +183,25 @@ async function processMessage(bodyText: string) {
   }
 }
 
+import { ensureBaselineSeeds } from './seeder';
+
 async function startWorker() {
   console.log('[BridgeIQ AI-Worker] Starting AI Worker service...');
   console.log(`[BridgeIQ AI-Worker] Region: ${AWS_REGION}`);
   console.log(`[BridgeIQ AI-Worker] SQS Queue: ${SQS_QUEUE_URL || 'None configured (heartbeat mode)'}`);
   console.log(`[BridgeIQ AI-Worker] S3 Bucket: ${S3_BUCKET_NAME || 'None configured'}`);
+
+  // Auto-seed baseline schedule and historical records if database is fresh
+  try {
+    const seedClient = await getDbClient();
+    try {
+      await ensureBaselineSeeds(seedClient);
+    } finally {
+      await seedClient.end();
+    }
+  } catch (seedErr) {
+    console.error('[BridgeIQ AI-Worker] Seeder error during startup:', seedErr);
+  }
 
   const sqsClient = SQS_QUEUE_URL ? new SQSClient({ region: AWS_REGION }) : null;
 
