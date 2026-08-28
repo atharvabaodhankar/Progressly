@@ -51,3 +51,13 @@ output "ecs_cluster_name" {
   description = "Name of the ECS Fargate cluster"
   value       = aws_ecs_cluster.main.name
 }
+
+output "billing_alarm_name" {
+  description = "Name of the CloudWatch billing alarm in us-east-1"
+  value       = aws_cloudwatch_metric_alarm.billing_alarm.alarm_name
+}
+
+output "billing_sns_topic_arn" {
+  description = "ARN of the SNS topic for billing alerts in us-east-1"
+  value       = aws_sns_topic.billing_alerts.arn
+}

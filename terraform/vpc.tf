@@ -1,6 +1,18 @@
 # -----------------------------------------------------------------------------
 # VPC & Network Infrastructure (Account B - infra-account)
 # -----------------------------------------------------------------------------
+# ARCHITECTURE NOTE:
+# ECS Fargate tasks (Backend API and AI Worker) are placed directly in public
+# subnets with public IP assignment and hardened security groups, routing
+# outbound internet traffic directly via the Internet Gateway.
+#
+# This is a deliberate cost/simplicity tradeoff for a hackathon-duration demo
+# that eliminates the AWS NAT Gateway ($32.40/month + hourly data processing),
+# while maintaining strict security group isolation:
+# - ecs_backend allows ingress ONLY from the ALB on port 4000 (no direct internet access)
+# - ecs_worker has ZERO ingress rules (purely outbound SQS consumer)
+# - RDS PostgreSQL remains strictly isolated in private subnets with NO internet route
+# -----------------------------------------------------------------------------
 
 data "aws_availability_zones" "available" {
   state = "available"
@@ -25,7 +37,7 @@ resource "aws_internet_gateway" "gw" {
 }
 
 # -----------------------------------------------------------------------------
-# Public Subnets (For ALB and NAT Gateway)
+# Public Subnets (For ALB, ECS Backend API, and ECS AI Worker)
 # -----------------------------------------------------------------------------
 resource "aws_subnet" "public" {
   count                   = length(var.public_subnet_cidrs)
@@ -60,29 +72,7 @@ resource "aws_route_table_association" "public" {
 }
 
 # -----------------------------------------------------------------------------
-# NAT Gateway (For Private Subnet Outbound Internet Egress)
-# -----------------------------------------------------------------------------
-resource "aws_eip" "nat" {
-  domain = "vpc"
-
-  tags = {
-    Name = "${var.project_name}-nat-eip-${var.environment}"
-  }
-}
-
-resource "aws_nat_gateway" "nat" {
-  allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.public[0].id
-
-  tags = {
-    Name = "${var.project_name}-nat-gw-${var.environment}"
-  }
-
-  depends_on = [aws_internet_gateway.gw]
-}
-
-# -----------------------------------------------------------------------------
-# Private Subnets (For ECS Fargate Tasks & RDS PostgreSQL)
+# Private Subnets (Isolated - Exclusively for RDS PostgreSQL Database)
 # -----------------------------------------------------------------------------
 resource "aws_subnet" "private" {
   count             = length(var.private_subnet_cidrs)
@@ -92,20 +82,16 @@ resource "aws_subnet" "private" {
 
   tags = {
     Name = "${var.project_name}-private-subnet-${count.index + 1}-${var.environment}"
-    Type = "Private"
+    Type = "Private-Isolated"
   }
 }
 
+# Purely local VPC route table for RDS (no default internet gateway route)
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.main.id
 
-  route {
-    cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.nat.id
-  }
-
   tags = {
-    Name = "${var.project_name}-private-rt-${var.environment}"
+    Name = "${var.project_name}-private-isolated-rt-${var.environment}"
   }
 }
 
@@ -116,10 +102,10 @@ resource "aws_route_table_association" "private" {
 }
 
 # -----------------------------------------------------------------------------
-# Security Groups
+# Hardened Security Groups
 # -----------------------------------------------------------------------------
 
-# 1. ALB Security Group (Public Web Traffic)
+# 1. ALB Security Group (Public Web Ingress)
 resource "aws_security_group" "alb" {
   name        = "${var.project_name}-alb-sg-${var.environment}"
   description = "Controls HTTP/HTTPS ingress to BridgeIQ Application Load Balancer"
@@ -142,7 +128,7 @@ resource "aws_security_group" "alb" {
   }
 
   egress {
-    description = "Allow all outbound traffic"
+    description = "Allow all outbound traffic to ECS target group"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -154,14 +140,14 @@ resource "aws_security_group" "alb" {
   }
 }
 
-# 2. ECS Backend API Security Group (Private, accessible from ALB)
+# 2. ECS Backend API Security Group (Inbound from ALB ONLY)
 resource "aws_security_group" "ecs_backend" {
   name        = "${var.project_name}-ecs-backend-sg-${var.environment}"
-  description = "Allows incoming traffic to Express API from ALB only"
+  description = "Allows incoming traffic to Express API from ALB only - no direct internet access"
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    description     = "Allow HTTP port 4000 from ALB only"
+    description     = "Allow HTTP port 4000 exclusively from ALB security group"
     from_port       = 4000
     to_port         = 4000
     protocol        = "tcp"
@@ -169,7 +155,7 @@ resource "aws_security_group" "ecs_backend" {
   }
 
   egress {
-    description = "Allow all outbound traffic (RDS, S3, Secrets Manager)"
+    description = "Allow outbound to RDS, S3, Secrets Manager, ECR"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -181,14 +167,17 @@ resource "aws_security_group" "ecs_backend" {
   }
 }
 
-# 3. ECS AI Worker Security Group (Private SQS Consumer)
+# 3. ECS AI Worker Security Group (ZERO Inbound Rules - Outbound Only)
 resource "aws_security_group" "ecs_worker" {
   name        = "${var.project_name}-ecs-worker-sg-${var.environment}"
-  description = "Security group for BridgeIQ SQS AI Worker tasks"
+  description = "Zero-ingress security group for SQS AI Worker tasks"
   vpc_id      = aws_vpc.main.id
 
+  # Note: Explicitly NO ingress blocks defined.
+  # The AI Worker is a consumer that polls SQS, calls Bedrock APIs, and writes to RDS.
+
   egress {
-    description = "Allow outbound to Bedrock, RDS, S3, SQS, Secrets Manager"
+    description = "Allow outbound to SQS, S3, Bedrock APIs, RDS, Secrets Manager"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -200,10 +189,10 @@ resource "aws_security_group" "ecs_worker" {
   }
 }
 
-# 4. RDS PostgreSQL Security Group (Accessible from Backend and AI Worker)
+# 4. RDS PostgreSQL Security Group (Private DB - Inbound from ECS Services ONLY)
 resource "aws_security_group" "rds" {
   name        = "${var.project_name}-rds-sg-${var.environment}"
-  description = "Controls access to RDS PostgreSQL instance from ECS services"
+  description = "Controls access to private RDS PostgreSQL instance from ECS security groups only"
   vpc_id      = aws_vpc.main.id
 
   ingress {

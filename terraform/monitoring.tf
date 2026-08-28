@@ -33,7 +33,7 @@ resource "aws_cloudwatch_log_group" "lambda_s3" {
 }
 
 # =============================================================================
-# 2. CloudWatch Metric Alarms
+# 2. CloudWatch Metric Alarms (Resource Health)
 # =============================================================================
 
 # Alarm: Dead Letter Queue has messages (poison messages / unhandled processing errors)
@@ -78,5 +78,52 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx_alarm" {
 
   tags = {
     Name = "${var.project_name}-alb-5xx-alarm-${var.environment}"
+  }
+}
+
+# =============================================================================
+# 3. CloudWatch Billing Alarm & Cost Guardrail (us-east-1)
+# =============================================================================
+# AWS Billing metrics (EstimatedCharges) are exclusively published in us-east-1.
+
+resource "aws_sns_topic" "billing_alerts" {
+  provider = aws.us_east_1
+  name     = "${var.project_name}-billing-alerts-${var.environment}"
+
+  tags = {
+    Name        = "${var.project_name}-billing-alerts-${var.environment}"
+    Description = "SNS topic for AWS estimated monthly billing alerts"
+  }
+}
+
+resource "aws_sns_topic_subscription" "billing_email" {
+  count     = var.billing_alert_email != "" ? 1 : 0
+  provider  = aws.us_east_1
+  topic_arn = aws_sns_topic.billing_alerts.arn
+  protocol  = "email"
+  endpoint  = var.billing_alert_email
+}
+
+resource "aws_cloudwatch_metric_alarm" "billing_alarm" {
+  provider            = aws.us_east_1
+  alarm_name          = "${var.project_name}-billing-alarm-${var.environment}"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 1
+  metric_name         = "EstimatedCharges"
+  namespace           = "AWS/Billing"
+  period              = 21600 # 6 hours (standard billing metric frequency)
+  statistic           = "Maximum"
+  threshold           = var.billing_alert_threshold_usd
+  alarm_description   = "Triggers when total estimated AWS monthly charges in Account B exceed $${var.billing_alert_threshold_usd}"
+  alarm_actions       = [aws_sns_topic.billing_alerts.arn]
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    Currency = "USD"
+  }
+
+  tags = {
+    Name        = "${var.project_name}-billing-alarm-${var.environment}"
+    Description = "Cost guardrail alarm in us-east-1 for Account B"
   }
 }

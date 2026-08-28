@@ -152,3 +152,18 @@ variable "worker_memory" {
   type        = number
   default     = 2048
 }
+
+# -----------------------------------------------------------------------------
+# Cost Guardrail & Billing Configuration (us-east-1)
+# -----------------------------------------------------------------------------
+variable "billing_alert_threshold_usd" {
+  description = "Monthly estimated AWS charges threshold in USD to trigger the billing alarm"
+  type        = number
+  default     = 25
+}
+
+variable "billing_alert_email" {
+  description = "Optional email address to receive SNS notifications when billing alarm triggers"
+  type        = string
+  default     = ""
+}
