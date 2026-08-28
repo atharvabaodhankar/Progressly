@@ -12,6 +12,7 @@
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1120.0",
     "@aws-sdk/client-s3": "^3.1120.0",
+    "@aws-sdk/client-sqs": "^3.1120.0",
     "@electric-sql/pglite": "^0.5.8",
     "@types/pg": "^8.23.1",
     "cors": "^2.8.5",

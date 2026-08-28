@@ -22,6 +22,7 @@
     "@aws-sdk/client-s3": "^3.750.0",
     "@aws-sdk/client-secrets-manager": "^3.750.0",
     "@aws-sdk/client-sqs": "^3.750.0",
+    "@electric-sql/pglite": "^0.5.8",
     "@xenova/transformers": "^2.17.2",
     "csv-parser": "^3.0.0",
     "dotenv": "^16.4.7",
