@@ -47,7 +47,7 @@
 0:45 - 1:30 ── Scene 2: Live Operational Timeline, Gantt Variety & Multi-Project Isolation
 1:30 - 2:25 ── Scene 3: Ingesting Heterogeneous Daily Reports (Nova Micro + S3 + SQS)
 2:25 - 3:15 ── Scene 4: 3-Tier Policy Review Queue & Real-Time Schedule Linking
-3:15 - 4:15 ── Scene 5: Institutional Memory (RAG, CSV Ingestion & Closed-Loop Learning)
+3:15 - 4:15 ── Scene 5: Institutional Memory (RAG with Nova Pro + CSV Ingestion + Closed Loop)
 4:15 - 4:45 ── Scene 6: Production AWS Architecture & Cost Optimization ($0.038 / 1k reports)
 4:45 - 5:00 ── Scene 7: Impact & Closing
 ```
@@ -141,45 +141,46 @@ Date: 28-Aug-2026 | Submitter: Site Supervisor - Tank Farm
 ### 📍 Scene 4: 3-Tier Policy Review Queue & Real-Time Schedule Linking (2:25 – 3:15)
 * **Screen:** Click **`Review Queue`** in the left sidebar.
 * **Visual Action:**
-  1. Highlight the extracted match card:
-     - Show **Nova Micro's extracted entity** (*Line: 24-XX, Location: Tank Farm 3, Qty: 14 joints*).
-     - Show **Titan V2's matched schedule node** (*Activity: L6-PIP-0243 — Erect 24-inch crude header spools / Weld Spool Joints*).
-     - Point out the **Confidence Badge** (*92.4% • Tier 2 Verification*).
-  2. Click **`Approve & Update Schedule`**.
-  3. Switch back to the **Timeline Dashboard** to show the live progress update and the new audit log entry!
+  1. Highlight the extracted match cards:
+     - Show **Piping Card (`L6-PIP-0243`)**: Point to **`95% • Auto-Approved (Tier 1)`** (Green badge).
+     - Show **Civil Card (`L6-CIV-0120`)**: Point to **`70% • Planner Review (Tier 2)`** (Amber badge).
+  2. Click **`Approve & Update Schedule`** on the civil card (`L6-CIV-0120`).
+  3. Switch back to the **Timeline Dashboard**:
+     - Scroll to the Gantt chart to show the updated green bar.
+     - Scroll down to the **Schedule Update Lineage** table to show the new permanent audit log row!
 
 > **🗣️ Voiceover Script:**
-> *"To ensure enterprise governance, Progressly enforces a strict 3-tier confidence policy:*
-> - *Tier 1 (≥95%): Auto-approved into the schedule with zero manual intervention.*
-> - *Tier 2 (70–94%): Routed here to the human Review Queue for planner verification.*
-> - *Tier 3 (<70%): Flagged for supervisor clarification — preventing silent drops or bad data.*
+> *"Here in the Review Queue, you can see Progressly's 3-tier confidence policy in action:*
 > 
-> *Notice how Nova Micro extracted the physical evidence while Titan V2 resolved the terminology mismatch, linking 'welded 14 spool joints on line 24-XX' to activity code `L6-PIP-0243`.*
+> *First, look at our piping report at the bottom: Amazon Titan V2 matched 'welding spool joints on line 24-XX' to activity code `L6-PIP-0243` with a **95% confidence score**, automatically approving it into the schedule under **Tier 1** with zero manual friction.*
 > 
-> *As the Planning Engineer, I click **'Approve & Update Schedule'**.*
+> *Second, look at our civil report at the top: Because 'compressor foundation pit' had a minor location nuance, it scored **70%**, correctly routing it to **Tier 2 Planner Review** for human verification instead of guessing.*
 > 
-> *Instantly, the schedule progress bar updates in PostgreSQL, and a permanent entry with model metadata is written to the audit log."*
+> *As the Lead Planning Engineer, I review the extracted evidence and click **'Approve & Update Schedule'**.*
+> 
+> *Switching back to the Timeline Dashboard, we can see the schedule has updated in real time, and an immutable audit log entry is permanently recorded with model versions, confidence scores, and timestamps."*
 
 ---
 
-### 📍 Scene 5: Institutional Memory — RAG, CSV Import & Closed-Loop Learning (3:15 – 4:15)
+### 📍 Scene 5: Institutional Memory — Grounded RAG, CSV Ingestion & Closed-Loop Learning (3:15 – 4:15)
 * **Screen:** Click **`Project Memory (RAG)`** in the left sidebar.
-* **Visual Action 1 (RAG Search):**
-  - Click the preset prompt pill: *"What caused piping delays in past projects?"* (or copy and paste the prompt below into the search bar and press Enter).
+* **Visual Action 1 (RAG Inquiry):**
+  - Copy and paste the realistic inquiry below into the search bar and press **Enter** (or click the search button).
   - Show the **Bedrock Nova Pro synthesis**:
-    - Point out the mathematical dataset summary (*Average delay: 10.3 days, Material shortages: 50%*).
-    - Click a source citation in brackets (e.g. `[Mumbai High Offshore — Underwater Spool Tie-In]`) to open the **Grounding Verification Modal**.
+    - Point to the mathematical statistics (*Average delay: 5.4 days, Weather & utility root causes*).
+    - Point to the specific grounded citations (*[Duliajan Phase 2 Expansion — Deep excavation and sheet piling for crude tank foundation TK-02]*, *[Moran Gas Gathering Station Upgrade — Cast-in-situ concrete pipe sleeper foundations]*).
+    - Click any citation in brackets to open the **Grounding Verification Modal** proving zero hallucination!
 
 ---
 
-#### 📋 [COPY THIS] Memory RAG Query #1:
+#### 📋 [COPY THIS] Memory RAG Query:
 ```text
-What caused piping delays in past projects?
+Why did past civil foundation and excavation activities suffer major schedule overruns?
 ```
 
 ---
 
-* **Visual Action 2 (Importing Past Archives - Way 1):**
+* **Visual Action 2 (Importing Past Company Archives - Way 1):**
   - Click the purple **`+ Import Past CSV`** button in the top right.
   - Click **"Paste Sample Data"** (or copy and paste the CSV block below).
   - Click **"Embed & Ingest to Memory"**.
@@ -201,13 +202,16 @@ Jamnagar Refinery Phase 3,Civil,Furnace Concrete Pour,8,17,Excavation waterloggi
   - Show the green confirmation toast: *"Closed-loop learning complete: successfully archived activities from active project into Institutional Memory!"*
 
 > **🗣️ Voiceover Script:**
-> *"Now for the final requirement of Problem 26122: **Institutional Memory Building**.*
+> *"Now for the final core capability of Problem 26122: **Institutional Memory Building**.*
 > 
-> *When a project finishes, lessons learned are usually lost in paper archives. Progressly transforms historical records into an active RAG knowledge base across 40 capital projects.*
+> *When a capital project closes, lessons learned are usually lost in paper archives. Progressly transforms company history into an active RAG intelligence layer across 40 mega-projects.*
 > 
-> *When we ask: 'What caused piping delays in past projects?', our backend retrieves relevant past records via pgvector cosine distance, computes verified mathematical statistics, and uses **Amazon Bedrock Nova Pro** to generate a grounded, cited synthesis.*
+> *Instead of simple canned questions, let's ask a complex engineering inquiry:  
+> **'Why did past civil foundation and excavation activities suffer major schedule overruns?'***
 > 
-> *Every single finding cites the exact historical record — clicking any citation reveals the full grounding details.*
+> *Our backend retrieves relevant historical records via pgvector cosine distance, computes verified mathematical statistics, and uses **Amazon Bedrock Nova Pro** to generate a deeply grounded answer.*
+> 
+> *Notice how Nova Pro strictly cites every claim — pointing to monsoon flooding at Duliajan Phase 2 and unmapped buried telecom lines at Moran Gas Station. Clicking any citation opens our **Grounding Verification Modal**, proving every insight is backed by real enterprise records.*
 > 
 > *Furthermore, Progressly supports two live ingestion loops:*
 > *1. **Spreadsheet Ingestion**: Planners can click '+ Import Past CSV' to embed years of historical company archives with Titan V2.*
@@ -247,4 +251,4 @@ Jamnagar Refinery Phase 3,Civil,Furnace Concrete Pour,8,17,Excavation waterloggi
 1. **Highlight the Live URL:** Mention *"Everything you see is live on our production deployment at progressly-frontend-amber.vercel.app connected to AWS ECS and RDS"* right at the beginning and end.
 2. **Keep this document open side-by-side or on a tablet:** Each scene has its own exact copy-paste box right above the script.
 3. **Mention Problem ID 26122 and Oil India Limited:** State both clearly in the first 15 seconds.
-4. **Click Grounding Modal:** Click on `[Mumbai High Offshore — Underwater Spool Tie-In]` in Project Memory to prove zero hallucination to judges.
+4. **Click Grounding Modal:** Click on `[Duliajan Phase 2 Expansion — Deep excavation and sheet piling...]` in Project Memory to prove zero hallucination to judges.
