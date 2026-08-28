@@ -4,8 +4,10 @@
 **Problem Statement Title:** Intelligent Data Capture & Schedule-Linking Layer for Infrastructure Project Management: Real-Time Actual Progress Tracking (Planning-to-Execution Bridge)  
 **Organization / Department:** Oil India Limited  
 **Category:** Software | **Theme:** Smart Automation  
+**Deployment Status:** 🟢 **100% Live & Production-Ready on AWS Cloud (Not Localhost / Not a Mockup)**  
 **Target Video Duration:** 3:30 to 5:00 Minutes  
 **Live Production URL:** [https://progressly-frontend-amber.vercel.app/](https://progressly-frontend-amber.vercel.app/)  
+**Live Production ALB API:** `http://progressly-alb-prod-1551208303.ap-south-1.elb.amazonaws.com`  
 **YouTube Pitch Video:** `[INSERT_YOUTUBE_LINK_HERE]`
 
 ---
@@ -18,7 +20,7 @@
 | **Low-Friction 'Time Agent' Capture** for site supervisors across Civil, Piping, Electrical, Equipment, HSE | Free-text and voice-ready natural language submission box that eliminates rigid forms while preserving structured entity extraction. | **Scene 3** |
 | **Fuzzy-Matching & Terminology Resolution** ('spool erected' vs plan's 'Erect Line 24-XX') | **Amazon Bedrock Nova Micro** entity extraction + **Titan Embeddings V2** 1024-dimensional semantic similarity matching against L5/L6 nodes. | **Scene 3 & 4** |
 | **3-Tier Policy Gating & No Silent Drops** (Auto-approve high confidence, flag unmatched for review) | **Tier 1 (≥95%):** Instant schedule update.<br>**Tier 2 (70–94%):** Human-in-the-loop Review Queue.<br>**Tier 3 (<70%):** Flagged for planner clarification. | **Scene 4** |
-| **Real-Time PMIS Schedule Update & Immutable Audit Trail** | Live Gantt chart updates in PostgreSQL with audit log capturing exact timestamp, model version, and confidence score. | **Scene 2 & 4** |
+| **Real-Time PMIS Schedule Update & Immutable Audit Trail** | Live Gantt chart updates in production PostgreSQL with audit log capturing exact timestamp, model version, and confidence score. | **Scene 2 & 4** |
 | **Institutional Memory & Closed-Loop Learning** (Preventing lost project knowledge, queryable delay root causes) | **Project Memory (RAG)** powered by **Amazon Bedrock Nova Pro** + pgvector with strict citations, CSV archive import (Way 1), and 1-click active project learning (Way 2). | **Scene 5** |
 
 ---
@@ -30,7 +32,9 @@
    - Set zoom to **100% or 110%** for crisp presentation typography.
    - Hide bookmarks bar (`Ctrl + Shift + B` on Windows / `Cmd + Shift + B` on Mac).
    - Close all unnecessary tabs.
-2. **Recording Quality:**
+2. **Emphasize Live Production Environment:**
+   - Notice that the URL in the address bar is the **live public production URL (`progressly-frontend-amber.vercel.app`)**, powered by a live AWS ALB and Amazon RDS cluster — make sure judges see this is a real deployed cloud application, not `localhost:3000`.
+3. **Recording Quality:**
    - 1080p (1920x1080) at 60 FPS.
    - Clear voice recording with energetic, professional delivery.
 
@@ -39,12 +43,12 @@
 ## ⏱️ Master Recording Timeline
 
 ```
-0:00 - 0:45 ── Scene 1: Team Intro, Problem Statement 26122 & Platform Overview
-0:45 - 1:30 ── Scene 2: Live Operational Timeline & Multi-Project Isolation
+0:00 - 0:45 ── Scene 1: Team Intro, Problem Statement 26122 & Live Production Cloud System
+0:45 - 1:30 ── Scene 2: Live Operational Timeline & Multi-Project Cloud Isolation
 1:30 - 2:25 ── Scene 3: Ingesting Heterogeneous Daily Reports (Nova Micro + S3 + SQS)
 2:25 - 3:15 ── Scene 4: 3-Tier Policy Review Queue & Real-Time Schedule Linking
 3:15 - 4:15 ── Scene 5: Institutional Memory (RAG, CSV Ingestion & Closed-Loop Learning)
-4:15 - 4:45 ── Scene 6: Production Architecture & Cost Optimization ($0.038 / 1k reports)
+4:15 - 4:45 ── Scene 6: Production AWS Architecture & Cost Optimization ($0.038 / 1k reports)
 4:45 - 5:00 ── Scene 7: Impact & Closing
 ```
 
@@ -56,10 +60,12 @@
 
 ### 📍 Scene 1: Team Intro & Problem Statement 26122 (0:00 – 0:45)
 * **Screen:** Open on the **Progressly Dashboard** (`https://progressly-frontend-amber.vercel.app/`).
-* **Visual Action:** Move cursor across the top header displaying *Oil India Limited • Baghjan Gas Gathering Station Project*.
+* **Visual Action:** Move cursor across the top header displaying *Oil India Limited • Baghjan Gas Gathering Station Project* and the live browser URL bar.
 
 > **🗣️ Voiceover Script:**
 > *"Hello judges. We are **Team Consensus Labs**, presenting our solution for **Problem Statement 26122: Intelligent Data Capture & Schedule-Linking Layer for Infrastructure Project Management** for **Oil India Limited**.*
+> 
+> *Everything you are seeing today is running on a **100% live, production-ready AWS cloud deployment** — with containerized microservices on AWS ECS Fargate, Amazon RDS PostgreSQL with pgvector, and Amazon Bedrock — not a local demo or prototype.*
 > 
 > *In mega-capital projects, master schedules cascade into thousands of micro L5 and L6 engineering activities across Civil, Piping, Electrical, and HSE. While baseline plans are structured in Primavera or MS Project, actual progress comes back through fragmented daily reports, site diaries, and WhatsApp messages.*
 > 
@@ -79,7 +85,7 @@
   3. Scroll down through the **Gantt Schedule Bars** and the **Schedule Update Lineage (Audit Log)**.
 
 > **🗣️ Voiceover Script:**
-> *"Here on the Progressly Operational Dashboard, we are connected to our live AWS RDS PostgreSQL production database.*
+> *"Here on the Progressly Operational Dashboard, we are connected directly to our live AWS RDS PostgreSQL production database in the cloud.*
 > 
 > *Progressly provides strict enterprise multi-project scoping: planners can switch seamlessly between projects — from Oil India's Baghjan Station to the Paradip Pipeline Extension.*
 > 
@@ -115,7 +121,7 @@ Date: 28-Aug-2026 | Submitter: Site Supervisor - Tank Farm
 > 
 > *Instead of forcing field supervisors to navigate complex Primavera forms, they simply paste their daily text notes, upload a site spreadsheet, or dictate notes into Progressly.*
 > 
-> *When I click 'Upload & Link to Schedule', the payload is encrypted in **Amazon S3**, triggers an event-driven **Amazon SQS** queue, and our **ECS Fargate AI Worker** processes the report.*
+> *When I click 'Upload & Link to Schedule', the payload is encrypted in **Amazon S3**, triggers an event-driven **Amazon SQS** queue, and our **ECS Fargate AI Worker** processes the report in the cloud.*
 > 
 > *We use **Amazon Bedrock Nova Micro** for sub-second extraction of line numbers, disciplines, and quantities, and **Amazon Titan Embeddings V2** to vectorize the activity into 1024 dimensions for semantic cosine matching against our schedule WBS nodes."*
 
@@ -141,7 +147,7 @@ Date: 28-Aug-2026 | Submitter: Site Supervisor - Tank Farm
 > 
 > *As the Planning Engineer, I click **'Approve & Update Schedule'**.*
 > 
-> *Instantly, the schedule progress bar updates on the dashboard, and a permanent entry with model metadata is written to the audit log."*
+> *Instantly, the schedule progress bar updates in PostgreSQL, and a permanent entry with model metadata is written to the audit log."*
 
 ---
 
@@ -192,24 +198,24 @@ Jamnagar Refinery Phase 3,Civil,Furnace Concrete Pour,8,17,Excavation waterloggi
 > 
 > *Every single finding cites the exact historical record — clicking any citation reveals the full grounding details.*
 > 
-> *Furthermore, Progressly supports two ingestion loops:*
+> *Furthermore, Progressly supports two live ingestion loops:*
 > *1. **Spreadsheet Ingestion**: Planners can click '+ Import Past CSV' to embed years of historical company archives with Titan V2.*
 > *2. **Closed-Loop Learning**: Planners can click 'Archive Active Project' to automatically vectorize completed project execution data, ensuring future projects learn from current field performance."*
 
 ---
 
-### 📍 Scene 6: Production Architecture & Cost Breakdown (4:15 – 4:45)
+### 📍 Scene 6: Production AWS Architecture & Cost Breakdown (4:15 – 4:45)
 * **Screen:** Click **`System Architecture`** in the left sidebar (`/architecture`).
 * **Visual Action:** Scroll through the **AWS Architecture Topology Diagram** and the **Cost Optimization Matrix**.
 
 > **🗣️ Voiceover Script:**
-> *"Under the hood, Progressly is deployed on enterprise AWS infrastructure:*
-> - * **AWS ECS Fargate** for containerized, scalable microservices with zero cold starts,*
-> - * **Amazon SQS** for absorbing peak 5:00 PM shift report upload spikes,*
-> - * **Amazon RDS PostgreSQL 16 with pgvector** for ACID schedule integrity and vector similarity,*
+> *"Under the hood, Progressly is deployed on fully managed, enterprise-grade AWS cloud infrastructure:*
+> - * **AWS ECS Fargate** for containerized, auto-scaling microservices with zero server maintenance,*
+> - * **Amazon SQS** for absorbing peak 5:00 PM shift report upload spikes without dropping requests,*
+> - * **Amazon RDS PostgreSQL 16 with pgvector** for ACID schedule integrity and sub-second vector similarity,*
 > - * And a cost-tiered Bedrock architecture: **Nova Micro** for report extraction at $0.000035 per report, **Titan V2** for embeddings, and **Nova Pro** for deep institutional reasoning.*
 > 
-> *The entire ingestion pipeline runs at under **$0.04 per 1,000 daily reports**."*
+> *The entire ingestion pipeline runs at under **$0.04 per 1,000 daily reports** in production."*
 
 ---
 
@@ -219,13 +225,15 @@ Jamnagar Refinery Phase 3,Civil,Furnace Concrete Pour,8,17,Excavation waterloggi
 > **🗣️ Voiceover Script:**
 > *"By bridging the gap between field execution and master schedules, Progressly eliminates schedule lag, protects critical paths, and ensures Oil India never repeats past project mistakes.*
 > 
+> *Everything shown is live, scalable, and production-ready in the AWS cloud.*
+> 
 > *We are **Team Consensus Labs**. Thank you!"*
 
 ---
 
 ## 🎯 Pro Tips for Recording
 
-1. **Keep this document open side-by-side or on a tablet:** Each scene has its own exact copy-paste box right above the script.
-2. **Mention Problem ID 26122 and Oil India Limited:** State both in the first 15 seconds.
-3. **Click Grounding Modal:** Click on `[Mumbai High Offshore — Underwater Spool Tie-In]` in Project Memory to prove zero hallucination to judges.
-4. **End on Live Dashboard:** Conclude on the clean operational view.
+1. **Highlight the Live URL:** Mention *"Everything you see is live on our production deployment at progressly-frontend-amber.vercel.app connected to AWS ECS and RDS"* right at the beginning and end.
+2. **Keep this document open side-by-side or on a tablet:** Each scene has its own exact copy-paste box right above the script.
+3. **Mention Problem ID 26122 and Oil India Limited:** State both clearly in the first 15 seconds.
+4. **Click Grounding Modal:** Click on `[Mumbai High Offshore — Underwater Spool Tie-In]` in Project Memory to prove zero hallucination to judges.
