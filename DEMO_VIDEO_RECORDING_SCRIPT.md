@@ -44,7 +44,7 @@
 
 ```
 0:00 - 0:45 ── Scene 1: Team Intro, Problem Statement 26122 & Live Production Cloud System
-0:45 - 1:30 ── Scene 2: Live Operational Timeline & Multi-Project Cloud Isolation
+0:45 - 1:30 ── Scene 2: Live Operational Timeline, Gantt Variety & Multi-Project Isolation
 1:30 - 2:25 ── Scene 3: Ingesting Heterogeneous Daily Reports (Nova Micro + S3 + SQS)
 2:25 - 3:15 ── Scene 4: 3-Tier Policy Review Queue & Real-Time Schedule Linking
 3:15 - 4:15 ── Scene 5: Institutional Memory (RAG, CSV Ingestion & Closed-Loop Learning)
@@ -75,21 +75,32 @@
 
 ---
 
-### 📍 Scene 2: Live Operational Timeline & Multi-Project Scoping (0:45 – 1:30)
+### 📍 Scene 2: Live Operational Timeline, Gantt Variety & Multi-Project Scoping (0:45 – 1:30)
 * **Screen:** Stay on the **Timeline Dashboard** (`/`).
 * **Visual Action:**
-  1. Hover over the **Metric Cards** (*15 Total Activities, 73.3% On-Track, 1 Critical Delay*).
-  2. Click the **Project Dropdown Switcher** in the top right to demonstrate multi-tenant project isolation:
-     - `Baghjan Gas Gathering Station Project` (Oil India Ltd)
-     - `Paradip-Hyderabad Pipeline Extension` (IOCL)
-  3. Scroll down through the **Gantt Schedule Bars** and the **Schedule Update Lineage (Audit Log)**.
+  1. Hover over the **4 Metric Cards**:
+     - **Total Activities: 15** *(100% Titan V2 embedded)*
+     - **On Track Rate: 93%** *(Authentic execution metric calculated directly from PostgreSQL)*
+     - **Review Queue: 2** *(Items requiring planner sign-off)*
+     - **Project Memory: 40** *(Active historical project records)*
+  2. Click through the **Status Filter Tabs** above the Gantt chart:
+     - Click **`All Tasks (15)`** $\rightarrow$ Click **`In Progress (5)`** $\rightarrow$ Click **`Completed (2)`** $\rightarrow$ Click back to **`All Tasks (15)`**.
+  3. Scroll down through the **Execution Schedule & Gantt Tracking**:
+     - Show the **Completed activities in green** (*Construct Tank Farm Foundation Pad, Pour Concrete Pedestal C-12*).
+     - Show the **In-Progress activities in amber/progress bars** (*Align Pump Skid P-101 at 90%, Backfill Foundation Area B at 80%, Erect Line 24-XX at 65%, Install Cable Tray Section 4 at 40%, Install Pressure Transmitter at 25%*).
+     - Show **Pending activities in grey** (*Weld Line 24-XX Spool Joints at 0% — ready to be updated live in Scene 4!*).
+  4. Click the **Project Dropdown Switcher** in the top right:
+     - Show `Baghjan Gas Gathering Station Project` (Oil India Ltd) and `Paradip-Hyderabad Pipeline Extension` (IOCL) to prove multi-tenant project isolation.
+  5. Scroll down to show the **Schedule Update Lineage (Audit Log)**.
 
 > **🗣️ Voiceover Script:**
 > *"Here on the Progressly Operational Dashboard, we are connected directly to our live AWS RDS PostgreSQL production database in the cloud.*
 > 
-> *Progressly provides strict enterprise multi-project scoping: planners can switch seamlessly between projects — from Oil India's Baghjan Station to the Paradip Pipeline Extension.*
+> *At the top, we see our real WBS activity metrics: 15 active engineering activities, a 93% On-Track execution rate, and live pending review alerts.*
 > 
-> *Below, our live Gantt timeline visualizes baseline planned schedules against actual physical progress percentages.*
+> *Below, our Execution Schedule and Gantt Tracking gives planners complete visual transparency across all disciplines — showing completed foundations in green, active equipment alignment and piping erection in progress, and upcoming welding activities pending execution.*
+> 
+> *Progressly also provides strict enterprise multi-project scoping: planners can switch seamlessly between projects — from Oil India's Baghjan Station to the Paradip Pipeline Extension.*
 > 
 > *And at the bottom, our **Schedule Update Lineage** maintains an immutable audit trail of every automated and engineer-approved change, capturing model versions, submitter identities, and confidence scores."*
 
@@ -132,7 +143,7 @@ Date: 28-Aug-2026 | Submitter: Site Supervisor - Tank Farm
 * **Visual Action:**
   1. Highlight the extracted match card:
      - Show **Nova Micro's extracted entity** (*Line: 24-XX, Location: Tank Farm 3, Qty: 14 joints*).
-     - Show **Titan V2's matched schedule node** (*Activity: L6-PIP-0243 — Erect 24-inch crude header spools*).
+     - Show **Titan V2's matched schedule node** (*Activity: L6-PIP-0243 — Erect 24-inch crude header spools / Weld Spool Joints*).
      - Point out the **Confidence Badge** (*92.4% • Tier 2 Verification*).
   2. Click **`Approve & Update Schedule`**.
   3. Switch back to the **Timeline Dashboard** to show the live progress update and the new audit log entry!
