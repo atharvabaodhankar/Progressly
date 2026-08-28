@@ -6,6 +6,7 @@ import activitiesRouter from './routes/activities';
 import matchesRouter from './routes/matches';
 import auditLogRouter from './routes/auditLog';
 import memoryRouter from './routes/memory';
+import projectsRouter from './routes/projects';
 
 export const createApp = (): Express => {
   const app = express();
@@ -16,6 +17,7 @@ export const createApp = (): Express => {
 
   // API Routes
   app.use('/health', healthRouter);
+  app.use('/projects', projectsRouter);
   app.use('/reports', reportsRouter);
   app.use('/activities', activitiesRouter);
   app.use('/matches', matchesRouter);

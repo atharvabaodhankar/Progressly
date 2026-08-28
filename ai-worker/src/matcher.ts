@@ -243,10 +243,29 @@ export function calculateFinalConfidence(
   }
 }
 
+function cosineSimilarity(a: number[], b: number[]): number {
+  if (!a || !b || a.length !== b.length) return 0;
+  let dot = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  if (normA === 0 || normB === 0) return 0;
+  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
+import { pool } from './db';
+
 /**
  * Full semantic matching pipeline for a single extracted event.
  */
-export async function matchEventToSchedule(event: ExtractedEvent): Promise<MatchResult> {
+export async function matchEventToSchedule(
+  event: ExtractedEvent,
+  projectId?: string | null
+): Promise<MatchResult> {
   const embedProvider = getEmbeddingProvider();
 
   // 1. Build query text and generate vector embedding
@@ -256,34 +275,64 @@ export async function matchEventToSchedule(event: ExtractedEvent): Promise<Match
   const queryVector = await embedProvider.embed(queryText);
   const vectorSql = `[${queryVector.join(',')}]`;
 
-  // 2. Perform pgvector cosine similarity search
-  const isProdDb = DATABASE_URL.includes('rds.amazonaws.com') || DATABASE_URL.includes('amazonaws.com');
-  const client = new Client({
-    connectionString: DATABASE_URL,
-    ssl: isProdDb ? { rejectUnauthorized: false } : undefined,
-  });
-  await client.connect();
-
+  // 2. Perform vector cosine similarity search scoped strictly to project
   let candidates: CandidateMatch[] = [];
 
   try {
-    const res = await client.query(
-      `SELECT 
-        id, 
-        activity_code, 
-        description, 
-        discipline, 
-        line, 
-        location, 
-        1 - (embedding <=> $1::vector) AS vector_similarity
-       FROM activities
-       WHERE embedding IS NOT NULL
-       ORDER BY embedding <=> $1::vector ASC
-       LIMIT 5;`,
-      [vectorSql]
-    );
+    let rawRows: any[] = [];
+    try {
+      const res = await pool.query(
+        `SELECT 
+          a.id, 
+          a.activity_code, 
+          a.description, 
+          a.discipline, 
+          a.line, 
+          a.location, 
+          1 - (a.embedding <=> $1::vector) AS vector_similarity
+         FROM activities a
+         JOIN wbs_nodes w ON w.id = a.wbs_node_id
+         WHERE a.embedding IS NOT NULL
+           AND ($2::uuid IS NULL OR w.project_id = $2::uuid)
+         ORDER BY a.embedding <=> $1::vector ASC
+         LIMIT 5;`,
+        [vectorSql, projectId || null]
+      );
+      rawRows = res.rows;
+    } catch {
+      // Direct vector math fallback if <=> operator is not registered
+      const res = await pool.query(
+        `SELECT 
+          a.id, 
+          a.activity_code, 
+          a.description, 
+          a.discipline, 
+          a.line, 
+          a.location,
+          a.embedding
+         FROM activities a
+         JOIN wbs_nodes w ON w.id = a.wbs_node_id
+         WHERE a.embedding IS NOT NULL
+           AND ($1::uuid IS NULL OR w.project_id = $1::uuid);`,
+        [projectId || null]
+      );
 
-    candidates = res.rows.map((row: Record<string, any>) => {
+      rawRows = res.rows
+        .map((r: any) => {
+          let vec: number[] = [];
+          try {
+            vec = typeof r.embedding === 'string' ? JSON.parse(r.embedding) : r.embedding;
+          } catch {
+            vec = [];
+          }
+          const sim = vec && vec.length > 0 ? cosineSimilarity(queryVector, vec) : 0;
+          return { ...r, vector_similarity: sim };
+        })
+        .sort((a, b) => b.vector_similarity - a.vector_similarity)
+        .slice(0, 5);
+    }
+
+    candidates = rawRows.map((row: Record<string, any>) => {
       const vector_similarity = Number(row.vector_similarity);
       const rule_score = applyBusinessRules(event, {
         discipline: row.discipline,
@@ -304,8 +353,8 @@ export async function matchEventToSchedule(event: ExtractedEvent): Promise<Match
         final_confidence: rule_score,
       };
     });
-  } finally {
-    await client.end();
+  } catch (err) {
+    console.error('[BridgeIQ AI-Worker] Error retrieving candidates:', err);
   }
 
   // Sort candidates by combined rule score

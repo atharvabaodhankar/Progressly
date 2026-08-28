@@ -8,12 +8,18 @@ import { pool } from '../db';
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-// GET /activities - List activities with optional ?discipline= filter
+// GET /activities - List activities with optional ?discipline=, ?wbs_node_id=, and ?project_id= filters
 router.get('/', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { discipline, wbs_node_id } = req.query;
+    const { discipline, wbs_node_id, project_id, projectId } = req.query;
+    const targetProjectId = (project_id || projectId) as string | undefined;
     const conditions: string[] = [];
     const params: (string | number)[] = [];
+
+    if (targetProjectId && typeof targetProjectId === 'string') {
+      params.push(targetProjectId);
+      conditions.push(`w.project_id = $${params.length}`);
+    }
 
     if (discipline && typeof discipline === 'string') {
       params.push(discipline);
@@ -30,6 +36,7 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
       SELECT 
         a.id,
         a.wbs_node_id,
+        w.project_id,
         a.activity_code,
         a.description,
         a.discipline,
@@ -72,6 +79,16 @@ interface CSVActivityRow {
   planned_end?: string;
   wbs_level?: string;
   wbs_name?: string;
+}
+
+function normalizeWbsDiscipline(d: string): string {
+  const lower = (d || '').toLowerCase().trim();
+  if (lower === 'hse') return 'HSE';
+  if (lower.includes('static') || lower.includes('rotat')) return 'static-rotating';
+  if (['civil', 'piping', 'electrical', 'instrumentation', 'management', 'general'].includes(lower)) {
+    return lower;
+  }
+  return 'general';
 }
 
 // POST /activities/seed - Bulk-inserts activities from CSV upload or local seed-data/schedule.csv
@@ -136,6 +153,7 @@ router.post('/seed', upload.single('file'), async (req: Request, res: Response):
         continue;
       }
 
+      const normDisc = normalizeWbsDiscipline(row.discipline);
       // Ensure an L6 WBS node exists for this activity
       const wbsName = row.wbs_name || `${row.discipline.toUpperCase()} Executable Activity`;
       const wbsCheck = await client.query(
@@ -149,38 +167,58 @@ router.post('/seed', upload.single('file'), async (req: Request, res: Response):
           `INSERT INTO wbs_nodes (project_id, level, name, discipline)
            VALUES ($1, 'L6', $2, $3)
            RETURNING id`,
-          [projectId, wbsName, row.discipline.toLowerCase()]
+          [projectId, wbsName, normDisc]
         );
         wbsNodeId = wbsInsert.rows[0].id;
       } else {
         wbsNodeId = wbsCheck.rows[0].id;
       }
 
-      // Upsert activity (leaving embedding NULL for now as required)
-      await client.query(
-        `INSERT INTO activities (
-          wbs_node_id, activity_code, description, discipline,
-          line, location, planned_start, planned_end, embedding
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULL)
-        ON CONFLICT (activity_code) DO UPDATE SET
-          description = EXCLUDED.description,
-          discipline = EXCLUDED.discipline,
-          line = EXCLUDED.line,
-          location = EXCLUDED.location,
-          planned_start = EXCLUDED.planned_start,
-          planned_end = EXCLUDED.planned_end`,
-        [
-          wbsNodeId,
-          row.activity_code.trim(),
-          row.description.trim(),
-          row.discipline.trim().toLowerCase(),
-          row.line ? row.line.trim() : null,
-          row.location ? row.location.trim() : null,
-          row.planned_start ? new Date(row.planned_start) : null,
-          row.planned_end ? new Date(row.planned_end) : null,
-        ]
+      // Check if activity already exists in this WBS node
+      const actCheck = await client.query(
+        'SELECT id FROM activities WHERE wbs_node_id = $1 AND activity_code = $2 LIMIT 1',
+        [wbsNodeId, row.activity_code.trim()]
       );
+
+      if (actCheck.rows.length === 0) {
+        await client.query(
+          `INSERT INTO activities (
+            wbs_node_id, activity_code, description, discipline,
+            line, location, planned_start, planned_end, embedding
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULL)`,
+          [
+            wbsNodeId,
+            row.activity_code.trim(),
+            row.description.trim(),
+            row.discipline.trim().toLowerCase(),
+            row.line ? row.line.trim() : null,
+            row.location ? row.location.trim() : null,
+            row.planned_start ? new Date(row.planned_start) : null,
+            row.planned_end ? new Date(row.planned_end) : null,
+          ]
+        );
+      } else {
+        await client.query(
+          `UPDATE activities SET
+             description = $1,
+             discipline = $2,
+             line = $3,
+             location = $4,
+             planned_start = COALESCE($5, planned_start),
+             planned_end = COALESCE($6, planned_end)
+           WHERE id = $7`,
+          [
+            row.description.trim(),
+            row.discipline.trim().toLowerCase(),
+            row.line ? row.line.trim() : null,
+            row.location ? row.location.trim() : null,
+            row.planned_start ? new Date(row.planned_start) : null,
+            row.planned_end ? new Date(row.planned_end) : null,
+            actCheck.rows[0].id,
+          ]
+        );
+      }
       insertedCount++;
     }
 

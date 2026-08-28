@@ -93,7 +93,7 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
       try {
         const fileContent = fs.readFileSync(filePath);
         const fileName = path.basename(filePath);
-        s3Key = `reports/${Date.now()}-${fileName}`;
+        s3Key = `reports/${project_id}/${Date.now()}-${fileName}`;
         const s3Client = new S3Client({ region: awsRegion });
         await s3Client.send(
           new PutObjectCommand({
@@ -101,9 +101,12 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
             Key: s3Key,
             Body: fileContent,
             ContentType: req.file?.mimetype || 'text/plain',
+            Metadata: {
+              project_id: String(project_id),
+            },
           })
         );
-        console.log(`[BridgeIQ Backend] Successfully uploaded report to s3://${s3Bucket}/${s3Key}`);
+        console.log(`[BridgeIQ Backend] Successfully uploaded report to s3://${s3Bucket}/${s3Key} with project_id=${project_id}`);
       } catch (s3Err) {
         console.error('[BridgeIQ Backend] S3 upload error:', s3Err);
       }
@@ -123,9 +126,34 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
       s3Key,
     ]);
 
+    const createdReport = result.rows[0];
+
+    // Optional SQS dispatch if queue configured
+    const sqsQueueUrl = process.env.SQS_QUEUE_URL;
+    if (sqsQueueUrl) {
+      try {
+        const { SQSClient, SendMessageCommand } = await import('@aws-sdk/client-sqs');
+        const sqs = new SQSClient({ region: awsRegion });
+        await sqs.send(
+          new SendMessageCommand({
+            QueueUrl: sqsQueueUrl,
+            MessageBody: JSON.stringify({
+              reportId: createdReport.id,
+              projectId: createdReport.project_id,
+              s3Key: createdReport.s3_key,
+              uploaded_by: createdReport.uploaded_by,
+            }),
+          })
+        );
+        console.log(`[BridgeIQ Backend] Dispatched processing message to SQS for report ${createdReport.id} (Project: ${createdReport.project_id})`);
+      } catch (sqsErr) {
+        console.error('[BridgeIQ Backend] SQS message dispatch error:', sqsErr);
+      }
+    }
+
     res.status(201).json({
       message: 'Report uploaded successfully',
-      report: result.rows[0],
+      report: createdReport,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to upload report';
@@ -137,18 +165,19 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
 // GET /reports - List reports with optional ?status= filter
 router.get('/', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { status, project_id } = req.query;
+    const { status, project_id, projectId } = req.query;
+    const targetProjectId = (project_id || projectId) as string | undefined;
     const conditions: string[] = [];
     const params: string[] = [];
 
     if (status && typeof status === 'string') {
       params.push(status);
-      conditions.push(`status = $${params.length}`);
+      conditions.push(`r.status = $${params.length}`);
     }
 
-    if (project_id && typeof project_id === 'string') {
-      params.push(project_id);
-      conditions.push(`project_id = $${params.length}`);
+    if (targetProjectId && typeof targetProjectId === 'string') {
+      params.push(targetProjectId);
+      conditions.push(`r.project_id = $${params.length}`);
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';

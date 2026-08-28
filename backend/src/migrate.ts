@@ -1,16 +1,14 @@
-import { pool } from './db';
+import { pool, initializeDatabase } from './db';
 
 const MIGRATIONS = [
   {
     name: '001_create_projects_and_wbs',
     sql: `
-      CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-      CREATE EXTENSION IF NOT EXISTS vector;
-
       CREATE TABLE IF NOT EXISTS projects (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           name VARCHAR(255) NOT NULL,
           org VARCHAR(255) NOT NULL DEFAULT 'Oil India Limited',
+          location VARCHAR(255),
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
 
@@ -35,7 +33,7 @@ const MIGRATIONS = [
       CREATE TABLE IF NOT EXISTS activities (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           wbs_node_id UUID NOT NULL REFERENCES wbs_nodes(id) ON DELETE CASCADE,
-          activity_code VARCHAR(50) NOT NULL UNIQUE,
+          activity_code VARCHAR(50) NOT NULL,
           description TEXT NOT NULL,
           discipline VARCHAR(50) NOT NULL,
           line VARCHAR(100),
@@ -45,7 +43,7 @@ const MIGRATIONS = [
           actual_start TIMESTAMPTZ,
           actual_end TIMESTAMPTZ,
           progress_pct NUMERIC(5, 2) DEFAULT 0.00 CHECK (progress_pct >= 0 AND progress_pct <= 100),
-          embedding vector(1024),
+          embedding TEXT,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
 
@@ -54,7 +52,6 @@ const MIGRATIONS = [
       CREATE INDEX IF NOT EXISTS idx_activities_discipline ON activities(discipline);
       CREATE INDEX IF NOT EXISTS idx_activities_line ON activities(line);
       CREATE INDEX IF NOT EXISTS idx_activities_location ON activities(location);
-      CREATE INDEX IF NOT EXISTS idx_activities_embedding ON activities USING hnsw (embedding vector_cosine_ops);
     `,
   },
   {
@@ -146,17 +143,25 @@ const MIGRATIONS = [
           delay_days INT GENERATED ALWAYS AS (actual_duration_days - planned_duration_days) STORED,
           delay_cause TEXT,
           notes TEXT,
-          embedding vector(1024),
+          embedding TEXT,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
 
       CREATE INDEX IF NOT EXISTS idx_historical_records_discipline ON historical_records(discipline);
-      CREATE INDEX IF NOT EXISTS idx_historical_records_embedding ON historical_records USING hnsw (embedding vector_cosine_ops);
+    `,
+  },
+  {
+    name: '008_enhance_projects_and_activity_uniqueness',
+    sql: `
+      ALTER TABLE projects ADD COLUMN IF NOT EXISTS location VARCHAR(255);
+      ALTER TABLE activities DROP CONSTRAINT IF EXISTS activities_activity_code_key;
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_activities_wbs_code ON activities(wbs_node_id, activity_code);
     `,
   },
 ];
 
 export async function ensureDatabaseSchema(): Promise<void> {
+  await initializeDatabase();
   console.log('[BridgeIQ DB] Checking database schema & migrations...');
 
   try {
@@ -175,17 +180,16 @@ export async function ensureDatabaseSchema(): Promise<void> {
     for (const migration of MIGRATIONS) {
       if (!applied.has(migration.name)) {
         console.log(`[BridgeIQ DB] Applying migration: ${migration.name}...`);
-        await pool.query('BEGIN');
-        try {
-          await pool.query(migration.sql);
-          await pool.query('INSERT INTO schema_migrations (name) VALUES ($1)', [migration.name]);
-          await pool.query('COMMIT');
-          console.log(`[BridgeIQ DB] ✓ Applied migration: ${migration.name}`);
-        } catch (err) {
-          await pool.query('ROLLBACK');
-          console.error(`[BridgeIQ DB] ✗ Migration failed on ${migration.name}:`, err);
-          throw err;
+        const statements = migration.sql
+          .split(';')
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0);
+
+        for (const stmt of statements) {
+          await pool.query(stmt);
         }
+        await pool.query('INSERT INTO schema_migrations (name) VALUES ($1)', [migration.name]);
+        console.log(`[BridgeIQ DB] ✓ Applied migration: ${migration.name}`);
       }
     }
 

@@ -28,6 +28,12 @@ services:
       PORT: 4000
       NODE_ENV: production
       DATABASE_URL: postgresql://postgres:postgrespassword@postgres:5432/bridgeiq_db
+      AWS_REGION: ${AWS_REGION:-ap-south-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      BEDROCK_EMBEDDING_MODEL_ID: ${BEDROCK_EMBEDDING_MODEL_ID:-amazon.titan-embed-text-v2:0}
+      BEDROCK_EXTRACTION_MODEL_ID: ${BEDROCK_EXTRACTION_MODEL_ID:-apac.amazon.nova-micro-v1:0}
+      BEDROCK_SYNTHESIS_MODEL_ID: ${BEDROCK_SYNTHESIS_MODEL_ID:-apac.amazon.nova-pro-v1:0}
     ports:
       - "4000:4000"
     depends_on:

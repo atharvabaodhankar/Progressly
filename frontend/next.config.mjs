@@ -4,7 +4,8 @@ const nextConfig = {
   async rewrites() {
     const backendUrl =
       process.env.BACKEND_API_URL ||
-      'http://progressly-alb-prod-1551208303.ap-south-1.elb.amazonaws.com';
+      process.env.NEXT_PUBLIC_API_URL ||
+      'http://localhost:4000';
     return [
       {
         source: '/api-proxy/:path*',

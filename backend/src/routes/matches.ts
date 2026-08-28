@@ -6,9 +6,15 @@ const router = Router();
 // GET /matches - List matches with joins for activity_code and event details
 router.get('/', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { status, event_id, activity_id } = req.query;
+    const { status, event_id, activity_id, project_id, projectId } = req.query;
+    const targetProjectId = (project_id || projectId) as string | undefined;
     const conditions: string[] = [];
     const params: string[] = [];
+
+    if (targetProjectId && typeof targetProjectId === 'string') {
+      params.push(targetProjectId);
+      conditions.push(`(w.project_id = $${params.length} OR r.project_id = $${params.length})`);
+    }
 
     if (status && typeof status === 'string') {
       params.push(status);
@@ -38,6 +44,7 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
         m.created_at,
         m.resolved_at,
         m.resolved_by,
+        w.project_id,
         a.activity_code,
         a.description AS activity_description,
         a.discipline AS activity_discipline,
@@ -56,6 +63,7 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
         r.uploaded_by AS report_uploaded_by
       FROM matches m
       JOIN activities a ON m.activity_id = a.id
+      JOIN wbs_nodes w ON a.wbs_node_id = w.id
       JOIN actual_events e ON m.event_id = e.id
       LEFT JOIN reports r ON e.report_id = r.id
       ${whereClause}

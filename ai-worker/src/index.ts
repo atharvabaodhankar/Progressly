@@ -98,7 +98,16 @@ async function processMessage(bodyText: string) {
       }
     }
 
-    console.log(`[BridgeIQ AI-Worker] Extracting events for Report ID: ${reportId || 'ad-hoc'}`);
+    // Resolve project_id for this report
+    let projectId: string | null = payload.projectId || payload.project_id || null;
+    if (reportId) {
+      const repCheck = await db.query('SELECT project_id FROM reports WHERE id = $1', [reportId]);
+      if (repCheck.rows.length > 0 && repCheck.rows[0].project_id) {
+        projectId = repCheck.rows[0].project_id;
+      }
+    }
+
+    console.log(`[BridgeIQ AI-Worker] Extracting events for Report ID: ${reportId || 'ad-hoc'} (Project: ${projectId || 'all'})`);
     
     // 3. Extract events via LLM
     const extractionResult = await extractEvents(rawText);
@@ -129,8 +138,8 @@ async function processMessage(bodyText: string) {
         eventId = evInsert.rows[0]?.id;
       }
 
-      // Run Matching Engine
-      const matchResult = await matchEventToSchedule(event);
+      // Run Matching Engine scoped to the report's project
+      const matchResult = await matchEventToSchedule(event, projectId);
       console.log(`[BridgeIQ AI-Worker] Event matched: Top activity ${matchResult.matched_candidate?.activity_code || 'none'} (Score: ${matchResult.confidence_score || 0})`);
 
       if (eventId && matchResult.matched_candidate) {

@@ -42,9 +42,24 @@ import {
   Tag,
   ListChecks,
   Network,
+  FolderPlus,
+  FolderKanban,
+  MapPin,
+  Loader2,
+  CheckCheck,
 } from 'lucide-react';
 
 const API_BASE = '/api-proxy';
+
+interface ProjectItem {
+  id: string;
+  name: string;
+  organization: string;
+  location: string | null;
+  created_at: string;
+  activity_count: number;
+  report_count: number;
+}
 
 interface ActivityItem {
   id: string;
@@ -461,6 +476,32 @@ export default function ProgresslyApp() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'review' | 'upload' | 'memory'>('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Project Management & Switcher State
+  const [projects, setProjects] = useState<ProjectItem[]>([]);
+  const [currentProject, setCurrentProject] = useState<ProjectItem | null>(null);
+  const currentProjectRef = useRef<ProjectItem | null>(null);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
+  const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState(false);
+  const projectDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Keep currentProjectRef in sync with state
+  useEffect(() => {
+    currentProjectRef.current = currentProject;
+  }, [currentProject]);
+
+  // New Project Onboarding Modal State
+  const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectOrg, setNewProjectOrg] = useState('Oil India Limited');
+  const [newProjectLocation, setNewProjectLocation] = useState('');
+  const [newProjectCsvFile, setNewProjectCsvFile] = useState<File | null>(null);
+  const [newProjectCsvText, setNewProjectCsvText] = useState('');
+  const [newProjectInputMode, setNewProjectInputMode] = useState<'file' | 'text'>('file');
+  const [onboardingStage, setOnboardingStage] = useState<'idle' | 'creating' | 'importing' | 'embedding' | 'success' | 'error'>('idle');
+  const [onboardingError, setOnboardingError] = useState<string | null>(null);
+  const [onboardingResult, setOnboardingResult] = useState<{ activitiesCreated: number; embeddingsGenerated: number } | null>(null);
+  const newProjectFileInputRef = useRef<HTMLInputElement | null>(null);
+
   // Screen 1: Upload State
   const [uploadMode, setUploadMode] = useState<'file' | 'text'>('text');
   const [uploadedBy, setUploadedBy] = useState('Site Supervisor - Tank Farm');
@@ -528,11 +569,55 @@ export default function ProgresslyApp() {
     }, 4000);
   };
 
-  // Fetch Matches
-  const fetchMatches = useCallback(async () => {
+  // Close dropdown on click outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (projectDropdownRef.current && !projectDropdownRef.current.contains(e.target as Node)) {
+        setIsProjectDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Fetch Projects
+  const fetchProjects = useCallback(async (autoSelectId?: string): Promise<ProjectItem[]> => {
+    setIsLoadingProjects(true);
+    try {
+      const res = await fetch(`${API_BASE}/projects`);
+      const data = await res.json();
+      if (res.ok && data.projects) {
+        setProjects(data.projects);
+        const storedId = autoSelectId || (typeof window !== 'undefined' ? localStorage.getItem('progressly_active_project_id') : null);
+        let matched = data.projects.find((p: ProjectItem) => p.id === storedId);
+        if (!matched && data.projects.length > 0) {
+          matched = data.projects.find((p: ProjectItem) => p.name.toLowerCase().includes('baghjan')) || data.projects[0];
+        }
+        if (matched) {
+          setCurrentProject(matched);
+          currentProjectRef.current = matched;
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('progressly_active_project_id', matched.id);
+          }
+        }
+        return data.projects;
+      }
+      return [];
+    } catch (err) {
+      console.error('Error fetching projects:', err);
+      return [];
+    } finally {
+      setIsLoadingProjects(false);
+    }
+  }, []);
+
+  // Fetch Matches (Scoped to Project)
+  const fetchMatches = useCallback(async (projId?: string) => {
+    const targetId = projId !== undefined ? projId : currentProjectRef.current?.id;
     setIsLoadingMatches(true);
     try {
-      const res = await fetch(`${API_BASE}/matches`);
+      const url = targetId ? `${API_BASE}/matches?projectId=${targetId}` : `${API_BASE}/matches`;
+      const res = await fetch(url);
       const data = await res.json();
       if (res.ok) {
         setMatches(data.matches || []);
@@ -546,13 +631,16 @@ export default function ProgresslyApp() {
     }
   }, []);
 
-  // Fetch Dashboard & Audit Log
-  const fetchDashboardData = useCallback(async () => {
+  // Fetch Dashboard & Audit Log (Scoped to Project)
+  const fetchDashboardData = useCallback(async (projId?: string) => {
+    const targetId = projId !== undefined ? projId : currentProjectRef.current?.id;
     setIsLoadingDashboard(true);
     try {
+      const actUrl = targetId ? `${API_BASE}/activities?projectId=${targetId}` : `${API_BASE}/activities`;
+      const auditUrl = targetId ? `${API_BASE}/audit-log?limit=25&projectId=${targetId}` : `${API_BASE}/audit-log?limit=25`;
       const [actRes, auditRes] = await Promise.all([
-        fetch(`${API_BASE}/activities`),
-        fetch(`${API_BASE}/audit-log?limit=25`),
+        fetch(actUrl),
+        fetch(auditUrl),
       ]);
 
       const actData = await actRes.json();
@@ -571,7 +659,122 @@ export default function ProgresslyApp() {
     }
   }, []);
 
-  // Fetch Historical Records
+  // Initial Load: Run Once on Mount
+  useEffect(() => {
+    fetchProjects().then((projs) => {
+      const storedId = typeof window !== 'undefined' ? localStorage.getItem('progressly_active_project_id') : null;
+      const initialProj = projs?.find((p: ProjectItem) => p.id === storedId) || projs?.[0];
+      if (initialProj) {
+        fetchDashboardData(initialProj.id);
+        fetchMatches(initialProj.id);
+      }
+    });
+  }, [fetchProjects, fetchDashboardData, fetchMatches]);
+
+  // Switch Project Handler
+  const handleSelectProject = (project: ProjectItem) => {
+    setCurrentProject(project);
+    setIsProjectDropdownOpen(false);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('progressly_active_project_id', project.id);
+    }
+    fetchDashboardData(project.id);
+    fetchMatches(project.id);
+    showToast(`Switched active workspace to "${project.name}"`, 'info');
+  };
+
+  // Create Project & Import Schedule Handler
+  const handleCreateProjectSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newProjectName.trim()) {
+      setOnboardingError('Please enter a Project Name.');
+      return;
+    }
+
+    setOnboardingStage('creating');
+    setOnboardingError(null);
+    setOnboardingResult(null);
+
+    try {
+      // Step 1: POST /projects
+      const createRes = await fetch(`${API_BASE}/projects`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newProjectName.trim(),
+          organization: newProjectOrg.trim() || 'Capital Project Org',
+          location: newProjectLocation.trim() || null,
+        }),
+      });
+
+      const createData = await createRes.json();
+      if (!createRes.ok || !createData.project_id) {
+        throw new Error(createData.error || 'Failed to create project profile.');
+      }
+
+      const newProjId = createData.project_id;
+      setOnboardingStage('importing');
+
+      // Step 2: POST /projects/:projectId/activities/import
+      let importRes: globalThis.Response;
+      if (newProjectInputMode === 'file' && newProjectCsvFile) {
+        const formData = new FormData();
+        formData.append('file', newProjectCsvFile);
+        setOnboardingStage('embedding');
+        importRes = await fetch(`${API_BASE}/projects/${newProjId}/activities/import`, {
+          method: 'POST',
+          body: formData,
+        });
+      } else {
+        const defaultSampleScheduleCsv = `activity_code,description,discipline,line,location,planned_start,planned_end
+NRL-PIP-1001,Erect Crude Feed Overhead Line 12-CS-01,Piping,12-CS-01,CDU Column Area,2026-09-01,2026-09-12
+NRL-ELE-2001,Pull 11kV High Voltage Feeder Cables,Electrical,,Substation 4,2026-09-05,2026-09-10
+NRL-CIV-3001,Cast Concrete Foundation for Reformer Furnace F-101,Civil,,Reformer Unit,2026-08-25,2026-09-02
+NRL-INS-4001,Mount Differential Pressure Transmitter PDT-301,Instrumentation,12-CS-01,CDU Column Area,2026-09-11,2026-09-13`;
+        const csvContent = newProjectCsvText.trim() || defaultSampleScheduleCsv;
+        setOnboardingStage('embedding');
+        importRes = await fetch(`${API_BASE}/projects/${newProjId}/activities/import`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ csv_text: csvContent }),
+        });
+      }
+
+      const importData = await importRes.json();
+      if (!importRes.ok) {
+        throw new Error(importData.error || 'Failed to import activities into project.');
+      }
+
+      setOnboardingStage('success');
+      setOnboardingResult({
+        activitiesCreated: importData.activities_created || 0,
+        embeddingsGenerated: importData.embeddings_generated || 0,
+      });
+
+      showToast(`Successfully onboarded "${newProjectName}" with ${importData.activities_created} activities!`, 'success');
+
+      // Refresh project list & activate the new project
+      await fetchProjects(newProjId);
+      fetchDashboardData(newProjId);
+      fetchMatches(newProjId);
+
+      setTimeout(() => {
+        setIsNewProjectModalOpen(false);
+        setOnboardingStage('idle');
+        setNewProjectName('');
+        setNewProjectLocation('');
+        setNewProjectCsvFile(null);
+        setNewProjectCsvText('');
+      }, 1600);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Project onboarding failed';
+      setOnboardingError(msg);
+      setOnboardingStage('error');
+      showToast(msg, 'error');
+    }
+  };
+
+  // Fetch Historical Records (Institutional RAG — UNSCOPED across all projects)
   const fetchHistoricalRecords = async () => {
     setIsLoadingHistorical(true);
     try {
@@ -587,7 +790,7 @@ export default function ProgresslyApp() {
     }
   };
 
-  // Handle Project Memory RAG Queries
+  // Handle Project Memory RAG Queries (UNSCOPED institutional memory)
   const handleMemoryQuery = async (queryText?: string) => {
     const q = queryText !== undefined ? queryText : memoryQuery;
     if (!q || !q.trim()) return;
@@ -617,8 +820,6 @@ export default function ProgresslyApp() {
   // Handle Citation Click & Open Grounding Modal
   const handleCitationClick = (citationText: string) => {
     const raw = citationText.trim();
-
-    // Check if it's RECORD 1, RECORD 2, etc.
     const recordMatch = raw.match(/RECORD\s*(\d+)/i);
     if (recordMatch && memoryResult?.retrieved_records) {
       const idx = parseInt(recordMatch[1], 10) - 1;
@@ -629,7 +830,6 @@ export default function ProgresslyApp() {
       }
     }
 
-    // Check by project name or description keywords
     const searchPool = memoryResult?.retrieved_records?.length
       ? memoryResult.retrieved_records
       : historicalRecords;
@@ -666,12 +866,7 @@ export default function ProgresslyApp() {
     }
   };
 
-  useEffect(() => {
-    fetchDashboardData();
-    fetchMatches();
-  }, [fetchDashboardData, fetchMatches]);
-
-  // Handle File / Text Upload
+  // Handle File / Text Upload (Attached to active project_id)
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsUploading(true);
@@ -685,6 +880,9 @@ export default function ProgresslyApp() {
         const formData = new FormData();
         formData.append('file', selectedFile);
         formData.append('uploaded_by', uploadedBy);
+        if (currentProject?.id) {
+          formData.append('project_id', currentProject.id);
+        }
         res = await fetch(`${API_BASE}/reports`, {
           method: 'POST',
           body: formData,
@@ -700,6 +898,7 @@ export default function ProgresslyApp() {
             text_content: reportText,
             uploaded_by: uploadedBy,
             file_type: 'free-text',
+            project_id: currentProject?.id || undefined,
           }),
         });
       }
@@ -710,11 +909,13 @@ export default function ProgresslyApp() {
       }
 
       setUploadSuccess(data.report);
-      showToast('Report uploaded & queued for schedule linking!', 'success');
+      showToast(`Report uploaded & linked to project "${currentProject?.name || 'Active'}"!`, 'success');
       setReportText('');
       setSelectedFile(null);
-      fetchDashboardData();
-      fetchMatches();
+      if (currentProject?.id) {
+        fetchDashboardData(currentProject.id);
+        fetchMatches(currentProject.id);
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Upload failed';
       setUploadError(msg);
@@ -902,14 +1103,16 @@ export default function ProgresslyApp() {
               className="w-full h-full object-contain"
             />
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="font-bold text-xl text-[#4648D4] tracking-tight">Progressly</span>
               <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-bold">
                 PROD
               </span>
             </div>
-            <p className="text-xs text-[#64748B] font-medium">Oil India Ltd • Baghjan</p>
+            <p className="text-xs text-[#64748B] font-medium truncate max-w-[170px]" title={`${currentProject?.organization || 'Oil India Ltd'} • ${currentProject?.name || 'Baghjan'}`}>
+              {currentProject?.organization || 'Oil India Ltd'} • {currentProject?.name?.split(' ')[0] || 'Baghjan'}
+            </p>
           </div>
         </div>
 
@@ -1023,32 +1226,173 @@ export default function ProgresslyApp() {
           </div>
 
           {/* Search Bar */}
-          <div className="hidden sm:flex relative w-80 md:w-96">
+          <div className="hidden xl:flex relative w-72 md:w-80">
             <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search tasks, WBS codes, disciplines..."
-              className="w-full h-11 pl-11 pr-4 rounded-xl bg-[#F5F2FE] border-none text-sm text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-[#4648D4]/20 transition"
+              placeholder="Search tasks, WBS, discipline..."
+              className="w-full h-10 pl-11 pr-4 rounded-xl bg-[#F5F2FE] border-none text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-[#4648D4]/20 transition"
             />
           </div>
 
-          {/* Right Header Actions */}
-          <div className="flex items-center gap-3">
+          {/* Project Switcher + Right Header Actions */}
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            {/* Project Switcher Dropdown */}
+            <div className="relative" ref={projectDropdownRef}>
+              {projects.length <= 1 ? (
+                <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#F5F2FE] border border-[#C7C4D7]/40 text-xs font-semibold text-[#1B1B23]">
+                  <Building2 className="w-3.5 h-3.5 text-[#4648D4]" />
+                  <span className="font-bold text-[#4648D4] max-w-[130px] sm:max-w-[160px] truncate">
+                    {currentProject?.name || 'Baghjan Project'}
+                  </span>
+                  <button
+                    onClick={() => setIsNewProjectModalOpen(true)}
+                    className="ml-1 px-2 py-0.5 rounded-lg bg-[#4648D4] text-white hover:bg-[#3B3DC0] font-bold text-[10px] flex items-center gap-1 transition"
+                    title="Onboard New Project"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>New</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsProjectDropdownOpen(!isProjectDropdownOpen)}
+                    className="h-10 px-3.5 rounded-xl bg-white border border-[#C7C4D7]/50 hover:border-[#4648D4] text-xs font-semibold text-[#1B1B23] focus:outline-none focus:ring-2 focus:ring-[#4648D4]/20 shadow-xs flex items-center gap-2.5 transition"
+                  >
+                    <Building2 className="w-4 h-4 text-[#4648D4]" />
+                    <div className="flex flex-col text-left">
+                      <span className="text-[9px] text-[#64748B] uppercase font-bold tracking-wider leading-none">
+                        Active Workspace
+                      </span>
+                      <span className="text-xs font-bold text-[#1B1B23] max-w-[140px] sm:max-w-[190px] truncate leading-tight mt-0.5">
+                        {currentProject?.name || 'Select Project'}
+                      </span>
+                    </div>
+                    <span className="ml-1 px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[10px] font-bold">
+                      {activities.length} acts
+                    </span>
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 text-[#64748B] transition-transform duration-200 ${
+                        isProjectDropdownOpen ? 'rotate-180 text-[#4648D4]' : ''
+                      }`}
+                    />
+                  </button>
+
+                  {isProjectDropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-72 sm:w-80 rounded-2xl bg-white shadow-2xl border border-[#C7C4D7]/40 py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
+                      <div className="px-4 py-2 border-b border-[#C7C4D7]/20 flex items-center justify-between">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-[#64748B]">
+                          Registered Projects ({projects.length})
+                        </span>
+                        <button
+                          onClick={() => {
+                            setIsProjectDropdownOpen(false);
+                            setIsNewProjectModalOpen(true);
+                          }}
+                          className="text-xs font-bold text-[#4648D4] hover:underline flex items-center gap-1"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Onboard New</span>
+                        </button>
+                      </div>
+
+                      <div className="max-h-64 overflow-y-auto py-1 divide-y divide-[#C7C4D7]/10">
+                        {projects.map((proj) => {
+                          const isSelected = currentProject?.id === proj.id;
+                          return (
+                            <button
+                              key={proj.id}
+                              onClick={() => handleSelectProject(proj)}
+                              className={`w-full flex items-start justify-between px-4 py-3 text-left hover:bg-[#F5F2FE] transition ${
+                                isSelected ? 'bg-[#F5F2FE]/80' : ''
+                              }`}
+                            >
+                              <div className="flex items-start gap-2.5 min-w-0">
+                                <div
+                                  className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
+                                    isSelected ? 'bg-[#4648D4] text-white' : 'bg-slate-100 text-slate-600'
+                                  }`}
+                                >
+                                  <Building2 className="w-4 h-4" />
+                                </div>
+                                <div className="min-w-0">
+                                  <p
+                                    className={`text-xs font-bold truncate ${
+                                      isSelected ? 'text-[#4648D4]' : 'text-[#1B1B23]'
+                                    }`}
+                                  >
+                                    {proj.name}
+                                  </p>
+                                  <p className="text-[11px] text-[#64748B] truncate">{proj.organization}</p>
+                                  {proj.location && (
+                                    <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                                      <MapPin className="w-2.5 h-2.5" />
+                                      <span>{proj.location}</span>
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex flex-col items-end shrink-0 ml-2">
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                                  {proj.activity_count} acts
+                                </span>
+                                {isSelected && <Check className="w-4 h-4 text-[#4648D4] mt-1.5" />}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="p-2 border-t border-[#C7C4D7]/20 mt-1">
+                        <button
+                          onClick={() => {
+                            setIsProjectDropdownOpen(false);
+                            setIsNewProjectModalOpen(true);
+                          }}
+                          className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-[#F5F2FE] hover:bg-[#4648D4] text-[#4648D4] hover:text-white font-bold text-xs transition"
+                        >
+                          <FolderPlus className="w-4 h-4" />
+                          <span>+ Onboard New Capital Project</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Quick Onboard Project Button */}
+            <button
+              onClick={() => setIsNewProjectModalOpen(true)}
+              className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#C7C4D7]/50 hover:border-[#4648D4] text-xs font-semibold text-[#1B1B23] bg-white transition shadow-xs"
+              title="Onboard New Project with Schedule CSV"
+            >
+              <FolderPlus className="w-4 h-4 text-[#4648D4]" />
+              <span>+ New Project</span>
+            </button>
+
+            {/* Live Data Refresh Button */}
             <button
               onClick={() => {
-                fetchDashboardData();
-                fetchMatches();
-                showToast('Synchronized with live AWS database.', 'info');
+                if (currentProject?.id) {
+                  fetchDashboardData(currentProject.id);
+                  fetchMatches(currentProject.id);
+                }
+                showToast(`Synchronized with database for "${currentProject?.name || 'Active Project'}".`, 'info');
               }}
               disabled={isLoadingDashboard}
-              className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 transition"
+              className="p-2.5 rounded-xl border border-[#C7C4D7]/50 hover:bg-slate-100 text-slate-600 transition shadow-xs"
               title="Refresh Live Data"
             >
               <RefreshCw className={`w-4 h-4 ${isLoadingDashboard ? 'animate-spin text-[#4648D4]' : ''}`} />
             </button>
 
+            {/* Ingest Report CTA */}
             <button
               onClick={() => setActiveTab('upload')}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#4648D4] hover:bg-[#3B3DC0] text-white text-sm font-semibold shadow-md shadow-[#4648D4]/20 transition"
@@ -1705,6 +2049,22 @@ export default function ProgresslyApp() {
               </div>
 
               <form onSubmit={handleUploadSubmit} className="bg-white p-8 rounded-[24px] shadow-sm border border-[#C7C4D7]/30 space-y-6">
+                {/* Active Project Scope Indicator */}
+                <div className="p-3.5 rounded-xl bg-[#F5F2FE] border border-[#C7C4D7]/30 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Building2 className="w-4 h-4 text-[#4648D4] shrink-0" />
+                    <div className="min-w-0 text-xs">
+                      <span className="text-[#64748B]">Target Project: </span>
+                      <span className="font-bold text-[#1B1B23] truncate">
+                        {currentProject?.name || 'Baghjan Gas Gathering Station'}
+                      </span>
+                    </div>
+                  </div>
+                  <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-700 shrink-0">
+                    Isolated Scope
+                  </span>
+                </div>
+
                 {/* Upload Mode Switcher */}
                 <div className="flex p-1 bg-[#F5F2FE] rounded-xl border border-[#C7C4D7]/20">
                   <button
@@ -2130,6 +2490,291 @@ export default function ProgresslyApp() {
               >
                 Close Evidence
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* NEW PROJECT ONBOARDING MODAL                                              */}
+      {/* ========================================================================= */}
+      {isNewProjectModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-[28px] max-w-xl w-full shadow-2xl border border-[#C7C4D7]/40 overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Modal Header */}
+            <div className="p-6 bg-[#F5F2FE] border-b border-[#C7C4D7]/30 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#4648D4] text-white flex items-center justify-center shadow-md shadow-[#4648D4]/20">
+                  <FolderPlus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg text-[#1B1B23]">
+                    Onboard New Capital Project
+                  </h3>
+                  <p className="text-xs text-[#64748B]">
+                    Register project profile and ingest baseline schedule with Bedrock Titan V2
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  if (onboardingStage === 'creating' || onboardingStage === 'importing' || onboardingStage === 'embedding') return;
+                  setIsNewProjectModalOpen(false);
+                  setOnboardingStage('idle');
+                  setOnboardingError(null);
+                }}
+                disabled={onboardingStage === 'creating' || onboardingStage === 'importing' || onboardingStage === 'embedding'}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition disabled:opacity-30"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body / Form */}
+            <div className="p-6 sm:p-8 space-y-6 overflow-y-auto">
+              {/* Live Onboarding Progress Bar during active submission */}
+              {onboardingStage !== 'idle' && (
+                <div className="p-5 rounded-2xl bg-[#F5F2FE] border border-[#C7C4D7]/40 space-y-3.5 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-[#4648D4] uppercase tracking-wider">
+                      Onboarding Pipeline Status
+                    </span>
+                    {onboardingStage === 'success' ? (
+                      <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center gap-1">
+                        <Check className="w-3.5 h-3.5" /> Ready
+                      </span>
+                    ) : onboardingStage === 'error' ? (
+                      <span className="text-xs px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold">
+                        Failed
+                      </span>
+                    ) : (
+                      <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 font-bold flex items-center gap-1.5 animate-pulse">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Processing
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Step Checklist */}
+                  <div className="space-y-2 text-xs">
+                    <div className="flex items-center gap-2.5">
+                      {onboardingStage === 'creating' ? (
+                        <Loader2 className="w-4 h-4 text-[#4648D4] animate-spin shrink-0" />
+                      ) : ['importing', 'embedding', 'success'].includes(onboardingStage) ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      ) : (
+                        <div className="w-4 h-4 rounded-full border border-slate-300 shrink-0" />
+                      )}
+                      <span className={onboardingStage === 'creating' ? 'font-bold text-[#4648D4]' : 'text-slate-700'}>
+                        1. Creating Project Identity Record & Isolation Boundaries
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2.5">
+                      {onboardingStage === 'importing' ? (
+                        <Loader2 className="w-4 h-4 text-[#4648D4] animate-spin shrink-0" />
+                      ) : ['embedding', 'success'].includes(onboardingStage) ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      ) : (
+                        <div className="w-4 h-4 rounded-full border border-slate-300 shrink-0" />
+                      )}
+                      <span className={onboardingStage === 'importing' ? 'font-bold text-[#4648D4]' : 'text-slate-700'}>
+                        2. Parsing CSV Schedule & Building Project-Scoped WBS Tree
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2.5">
+                      {onboardingStage === 'embedding' ? (
+                        <Loader2 className="w-4 h-4 text-[#4648D4] animate-spin shrink-0" />
+                      ) : onboardingStage === 'success' ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      ) : (
+                        <div className="w-4 h-4 rounded-full border border-slate-300 shrink-0" />
+                      )}
+                      <span className={onboardingStage === 'embedding' ? 'font-bold text-[#4648D4]' : 'text-slate-700'}>
+                        3. Generating Amazon Titan V2 1024-dim Schedule Vector Embeddings
+                      </span>
+                    </div>
+                  </div>
+
+                  {onboardingResult && (
+                    <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 font-medium">
+                      ✓ Initialized {onboardingResult.activitiesCreated} activities with {onboardingResult.embeddingsGenerated} Titan V2 vector embeddings.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {onboardingError && (
+                <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-900 flex items-start gap-2.5">
+                  <XCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold">Onboarding Error</p>
+                    <p className="mt-0.5">{onboardingError}</p>
+                  </div>
+                </div>
+              )}
+
+              <form onSubmit={handleCreateProjectSubmit} className="space-y-4">
+                {/* Project Metadata Fields */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2 space-y-1">
+                    <label className="text-xs font-bold text-[#64748B] uppercase">Project Name *</label>
+                    <input
+                      type="text"
+                      value={newProjectName}
+                      onChange={(e) => setNewProjectName(e.target.value)}
+                      placeholder="e.g. Numaligarh Refinery Crude Distillation Unit-4"
+                      className="w-full h-11 px-4 rounded-xl bg-[#F5F2FE] border border-[#C7C4D7]/30 text-sm text-[#1B1B23] focus:ring-2 focus:ring-[#4648D4]/20 focus:border-[#4648D4] transition"
+                      disabled={onboardingStage !== 'idle' && onboardingStage !== 'error'}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-[#64748B] uppercase">Organization / Client</label>
+                    <input
+                      type="text"
+                      value={newProjectOrg}
+                      onChange={(e) => setNewProjectOrg(e.target.value)}
+                      placeholder="e.g. Numaligarh Refinery Limited"
+                      className="w-full h-11 px-4 rounded-xl bg-[#F5F2FE] border border-[#C7C4D7]/30 text-sm text-[#1B1B23] focus:ring-2 focus:ring-[#4648D4]/20 focus:border-[#4648D4] transition"
+                      disabled={onboardingStage !== 'idle' && onboardingStage !== 'error'}
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-[#64748B] uppercase">Location</label>
+                    <input
+                      type="text"
+                      value={newProjectLocation}
+                      onChange={(e) => setNewProjectLocation(e.target.value)}
+                      placeholder="e.g. Golaghat, Assam"
+                      className="w-full h-11 px-4 rounded-xl bg-[#F5F2FE] border border-[#C7C4D7]/30 text-sm text-[#1B1B23] focus:ring-2 focus:ring-[#4648D4]/20 focus:border-[#4648D4] transition"
+                      disabled={onboardingStage !== 'idle' && onboardingStage !== 'error'}
+                    />
+                  </div>
+                </div>
+
+                {/* Baseline Schedule Import Section */}
+                <div className="space-y-2 pt-2 border-t border-[#C7C4D7]/20">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-[#64748B] uppercase">
+                      Baseline Schedule CSV
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewProjectInputMode('text');
+                        setNewProjectCsvText(`activity_code,description,discipline,line,location,planned_start,planned_end
+NRL-PIP-1001,Erect Crude Feed Overhead Line 12-CS-01,Piping,12-CS-01,CDU Column Area,2026-09-01,2026-09-12
+NRL-ELE-2001,Pull 11kV High Voltage Feeder Cables,Electrical,,Substation 4,2026-09-05,2026-09-10
+NRL-CIV-3001,Cast Concrete Foundation for Reformer Furnace F-101,Civil,,Reformer Unit,2026-08-25,2026-09-02
+NRL-INS-4001,Mount Differential Pressure Transmitter PDT-301,Instrumentation,12-CS-01,CDU Column Area,2026-09-11,2026-09-13`);
+                      }}
+                      className="text-[11px] font-bold text-[#4648D4] hover:underline"
+                    >
+                      Use Sample NRL Schedule
+                    </button>
+                  </div>
+
+                  {/* Mode Toggle */}
+                  <div className="flex p-1 bg-[#F5F2FE] rounded-xl border border-[#C7C4D7]/20">
+                    <button
+                      type="button"
+                      onClick={() => setNewProjectInputMode('file')}
+                      className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition ${
+                        newProjectInputMode === 'file' ? 'bg-white shadow-xs text-[#4648D4]' : 'text-[#64748B]'
+                      }`}
+                    >
+                      Upload CSV File
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNewProjectInputMode('text')}
+                      className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition ${
+                        newProjectInputMode === 'text' ? 'bg-white shadow-xs text-[#4648D4]' : 'text-[#64748B]'
+                      }`}
+                    >
+                      Paste CSV Text
+                    </button>
+                  </div>
+
+                  {newProjectInputMode === 'file' ? (
+                    <div
+                      onClick={() => newProjectFileInputRef.current?.click()}
+                      className="border-2 border-dashed border-[#C7C4D7]/60 hover:border-[#4648D4] p-6 rounded-2xl text-center cursor-pointer bg-[#F5F2FE]/40 transition group"
+                    >
+                      <input
+                        ref={newProjectFileInputRef}
+                        type="file"
+                        accept=".csv"
+                        onChange={(e) => setNewProjectCsvFile(e.target.files?.[0] || null)}
+                        className="hidden"
+                      />
+                      <FileSpreadsheet className="w-8 h-8 text-[#4648D4] mx-auto mb-2 group-hover:scale-110 transition" />
+                      {newProjectCsvFile ? (
+                        <div>
+                          <p className="text-xs font-bold text-[#1B1B23]">{newProjectCsvFile.name}</p>
+                          <p className="text-[10px] text-[#64748B] mt-0.5">
+                            {(newProjectCsvFile.size / 1024).toFixed(1)} KB • Ready for embedding
+                          </p>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-xs font-semibold text-[#1B1B23]">
+                            Click to browse or drag & drop schedule.csv
+                          </p>
+                          <p className="text-[10px] text-[#64748B] mt-0.5">
+                            Standard format: activity_code, description, discipline, line, location, dates
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <textarea
+                      rows={5}
+                      value={newProjectCsvText}
+                      onChange={(e) => setNewProjectCsvText(e.target.value)}
+                      placeholder="activity_code,description,discipline,line,location,planned_start,planned_end&#10;NRL-PIP-1001,Erect Crude Feed Overhead Line 12-CS-01,Piping,12-CS-01,CDU Area,2026-09-01,2026-09-12"
+                      className="w-full p-3 rounded-xl bg-[#F5F2FE] border border-[#C7C4D7]/30 text-xs font-mono text-[#1B1B23] focus:ring-2 focus:ring-[#4648D4]/20 resize-y"
+                    />
+                  )}
+                </div>
+
+                {/* Submit Buttons */}
+                <div className="pt-4 border-t border-[#C7C4D7]/20 flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsNewProjectModalOpen(false)}
+                    disabled={onboardingStage === 'creating' || onboardingStage === 'importing' || onboardingStage === 'embedding'}
+                    className="px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-semibold transition disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={onboardingStage === 'creating' || onboardingStage === 'importing' || onboardingStage === 'embedding' || onboardingStage === 'success'}
+                    className="px-6 py-2.5 rounded-xl bg-[#4648D4] hover:bg-[#3B3DC0] text-white text-xs font-semibold shadow-md shadow-[#4648D4]/25 transition flex items-center gap-2 disabled:opacity-60"
+                  >
+                    {onboardingStage === 'creating' || onboardingStage === 'importing' || onboardingStage === 'embedding' ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Generating Embeddings...</span>
+                      </>
+                    ) : onboardingStage === 'success' ? (
+                      <>
+                        <CheckCheck className="w-4 h-4" />
+                        <span>Onboarded!</span>
+                      </>
+                    ) : (
+                      <>
+                        <FolderPlus className="w-4 h-4" />
+                        <span>Onboard Project & Embed</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>

@@ -6,9 +6,15 @@ const router = Router();
 // GET /audit-log - List audit log entries, most recent first
 router.get('/', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { match_id, source_report_id, approver } = req.query;
+    const { match_id, source_report_id, approver, project_id, projectId } = req.query;
+    const targetProjectId = (project_id || projectId) as string | undefined;
     const conditions: string[] = [];
     const params: string[] = [];
+
+    if (targetProjectId && typeof targetProjectId === 'string') {
+      params.push(targetProjectId);
+      conditions.push(`(r.project_id = $${params.length} OR w.project_id = $${params.length})`);
+    }
 
     if (match_id && typeof match_id === 'string') {
       params.push(match_id);
@@ -53,6 +59,7 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
       LEFT JOIN reports r ON a.source_report_id = r.id
       LEFT JOIN matches m ON a.match_id = m.id
       LEFT JOIN activities act ON m.activity_id = act.id
+      LEFT JOIN wbs_nodes w ON act.wbs_node_id = w.id
       LEFT JOIN actual_events evt ON m.event_id = evt.id
       ${whereClause}
       ORDER BY a.timestamp DESC;

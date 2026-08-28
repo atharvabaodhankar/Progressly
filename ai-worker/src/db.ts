@@ -6,7 +6,7 @@ import fs from 'fs';
 
 dotenv.config();
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
-dotenv.config({ path: path.resolve(process.cwd(), 'backend/.env') });
+dotenv.config({ path: path.resolve(process.cwd(), 'ai-worker/.env') });
 dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
 
 const rawConnectionString =
@@ -56,14 +56,8 @@ export async function initializeDatabase(): Promise<void> {
     await client.query('SELECT 1');
     client.release();
     useEmbeddedMode = false;
-    console.log('\n========================================================================');
-    console.log(`[DB] Using Docker/RDS Postgres at ${hostDisplay}`);
-    console.log('========================================================================\n');
   } catch (err: any) {
     useEmbeddedMode = true;
-    console.log('\n========================================================================');
-    console.log('[DB] Using embedded PGlite fallback at ./data/pglite_db — Docker not detected');
-    console.log('========================================================================\n');
     getPGlite();
   }
   probeCompleted = true;
@@ -85,7 +79,6 @@ export const pool = {
         return await pgPool.query<R>(text, params);
       } catch (err: any) {
         if (err.code === 'ECONNREFUSED' || err.message?.includes('ECONNREFUSED') || err.message?.includes('timeout')) {
-          console.warn('\n[DB] Using embedded PGlite fallback at ./data/pglite_db — Docker not detected\n');
           useEmbeddedMode = true;
         } else {
           throw err;
@@ -122,6 +115,7 @@ export const pool = {
         }
       }
 
+      // If PGlite, cosine distance query
       const res = await pglite.query<R>(text, params);
       return {
         rows: res.rows || [],
@@ -131,7 +125,7 @@ export const pool = {
         fields: [],
       };
     } catch (err) {
-      console.error('[BridgeIQ DB] Query execution error:', err);
+      console.error('[BridgeIQ AI-Worker DB] Query execution error:', err);
       throw err;
     }
   },
@@ -147,7 +141,6 @@ export const pool = {
         return client;
       } catch (err: any) {
         if (err.code === 'ECONNREFUSED' || err.message?.includes('ECONNREFUSED') || err.message?.includes('timeout')) {
-          console.warn('\n[DB] Using embedded PGlite fallback at ./data/pglite_db — Docker not detected\n');
           useEmbeddedMode = true;
         } else {
           throw err;
@@ -158,32 +151,6 @@ export const pool = {
     const pglite = getPGlite();
     return {
       async query<R extends QueryResultRow = any>(text: string, params?: any[]): Promise<QueryResult<R>> {
-        const trimmed = text.trim().toUpperCase();
-        if (!params || params.length === 0) {
-          if (trimmed === 'BEGIN' || trimmed === 'COMMIT' || trimmed === 'ROLLBACK') {
-            await pglite.exec(text);
-            return { rows: [], command: trimmed, rowCount: 0, oid: 0, fields: [] };
-          }
-          if (trimmed.startsWith('SELECT') || trimmed.startsWith('INSERT') || trimmed.startsWith('UPDATE') || trimmed.startsWith('DELETE')) {
-            const res = await pglite.query<R>(text);
-            return {
-              rows: res.rows || [],
-              command: '',
-              rowCount: res.rows?.length || 0,
-              oid: 0,
-              fields: [],
-            };
-          } else {
-            await pglite.exec(text);
-            return {
-              rows: [],
-              command: '',
-              rowCount: 0,
-              oid: 0,
-              fields: [],
-            };
-          }
-        }
         const res = await pglite.query<R>(text, params);
         return {
           rows: res.rows || [],
@@ -194,12 +161,8 @@ export const pool = {
         };
       },
       release() {
-        // No-op for embedded single-process instance
+        // No-op
       },
     };
-  },
-
-  on(event: 'error' | 'release' | 'connect' | 'acquire' | 'remove', listener: (...args: any[]) => void) {
-    pgPool.on(event, listener);
   },
 };
