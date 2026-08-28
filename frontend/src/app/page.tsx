@@ -558,6 +558,18 @@ export default function ProgresslyApp() {
   const [selectedGroundingRecord, setSelectedGroundingRecord] = useState<any | null>(null);
   const [isGroundingModalOpen, setIsGroundingModalOpen] = useState(false);
 
+  // Historical Memory Import Modal State (Way 1)
+  const [isImportMemoryModalOpen, setIsImportMemoryModalOpen] = useState(false);
+  const [importMemoryCsvFile, setImportMemoryCsvFile] = useState<File | null>(null);
+  const [importMemoryCsvText, setImportMemoryCsvText] = useState('');
+  const [importMemoryInputMode, setImportMemoryInputMode] = useState<'file' | 'text'>('file');
+  const [isImportingMemory, setIsImportingMemory] = useState(false);
+  const [importMemoryError, setImportMemoryError] = useState<string | null>(null);
+  const memoryFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Closed-Loop Archiving State (Way 2)
+  const [isArchivingProject, setIsArchivingProject] = useState(false);
+
   // Toast State
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
@@ -863,6 +875,70 @@ NRL-INS-4001,Mount Differential Pressure Transmitter PDT-301,Instrumentation,12-
         similarity_score: 0.945,
       });
       setIsGroundingModalOpen(true);
+    }
+  };
+
+  // Handle Import Memory CSV (Way 1)
+  const handleImportMemorySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsImportingMemory(true);
+    setImportMemoryError(null);
+
+    try {
+      let res: globalThis.Response;
+      if (importMemoryInputMode === 'file' && importMemoryCsvFile) {
+        const formData = new FormData();
+        formData.append('file', importMemoryCsvFile);
+        res = await fetch(`${API_BASE}/memory/import`, {
+          method: 'POST',
+          body: formData,
+        });
+      } else {
+        if (!importMemoryCsvText.trim()) {
+          throw new Error('Please provide CSV data or select a file.');
+        }
+        res = await fetch(`${API_BASE}/memory/import`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ csv_text: importMemoryCsvText }),
+        });
+      }
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to import historical records.');
+
+      showToast(`✓ Successfully imported & embedded ${data.count} historical records!`, 'success');
+      setIsImportMemoryModalOpen(false);
+      setImportMemoryCsvFile(null);
+      setImportMemoryCsvText('');
+      fetchHistoricalRecords();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error importing memory';
+      setImportMemoryError(msg);
+      showToast(msg, 'error');
+    } finally {
+      setIsImportingMemory(false);
+    }
+  };
+
+  // Handle Closed-Loop Project Archiving (Way 2)
+  const handleArchiveProjectToMemory = async () => {
+    if (!currentProject?.id) return;
+    setIsArchivingProject(true);
+    try {
+      const res = await fetch(`${API_BASE}/memory/archive-project/${currentProject.id}`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to archive project to memory.');
+
+      showToast(`✓ Closed-Loop Learning: Successfully archived ${data.records_archived} records from "${currentProject.name}" into Institutional Memory!`, 'success');
+      fetchHistoricalRecords();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error archiving project to memory';
+      showToast(msg, 'error');
+    } finally {
+      setIsArchivingProject(false);
     }
   };
 
@@ -2181,12 +2257,31 @@ NRL-INS-4001,Mount Differential Pressure Transmitter PDT-301,Instrumentation,12-
                       Query institutional memory across 40 past capital energy projects to prevent recurring schedule delays.
                     </p>
                   </div>
-                  <button
-                    onClick={() => setShowAllHistorical(!showAllHistorical)}
-                    className="px-4 py-2 text-xs font-semibold rounded-xl bg-[#F5F2FE] hover:bg-[#E9E6F3] text-[#4648D4] border border-[#C7C4D7]/30 transition self-start sm:self-auto"
-                  >
-                    {showAllHistorical ? 'Hide Seeded Dataset' : 'Browse All 40 Seeded Records'}
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                    <button
+                      onClick={() => setIsImportMemoryModalOpen(true)}
+                      className="px-3.5 py-2 text-xs font-bold rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 transition flex items-center gap-1.5 shadow-xs"
+                      title="Upload or paste past project archives (Way 1)"
+                    >
+                      <Upload className="w-3.5 h-3.5 text-purple-600" />
+                      <span>+ Import Past CSV</span>
+                    </button>
+                    <button
+                      onClick={handleArchiveProjectToMemory}
+                      disabled={isArchivingProject}
+                      className="px-3.5 py-2 text-xs font-bold rounded-xl bg-indigo-50 hover:bg-indigo-100 text-[#4648D4] border border-indigo-200 transition flex items-center gap-1.5 shadow-xs disabled:opacity-50"
+                      title="Archive current active project lessons into memory (Way 2)"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-[#4648D4]" />
+                      <span>{isArchivingProject ? 'Archiving...' : 'Archive Active Project'}</span>
+                    </button>
+                    <button
+                      onClick={() => setShowAllHistorical(!showAllHistorical)}
+                      className="px-3.5 py-2 text-xs font-semibold rounded-xl bg-[#F5F2FE] hover:bg-[#E9E6F3] text-[#4648D4] border border-[#C7C4D7]/30 transition"
+                    >
+                      {showAllHistorical ? 'Hide Dataset' : `Browse All ${historicalRecords.length || 40} Records`}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Query Input */}
@@ -2781,6 +2876,150 @@ NRL-INS-4001,Mount Differential Pressure Transmitter PDT-301,Instrumentation,12-
                       <>
                         <FolderPlus className="w-4 h-4" />
                         <span>Onboard Project & Embed</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: IMPORT PAST HISTORICAL RECORDS CSV (WAY 1)                         */}
+      {/* ========================================================================= */}
+      {isImportMemoryModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-[28px] max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-[#C7C4D7]/40 max-h-[90vh] overflow-y-auto">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between border-b border-[#C7C4D7]/20 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-purple-50 flex items-center justify-center text-purple-700">
+                    <Upload className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg text-[#1B1B23]">Import Past Company Records</h3>
+                    <p className="text-xs text-[#64748B]">Feed historical project delays &amp; lessons learned into Institutional Memory</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsImportMemoryModalOpen(false)}
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {importMemoryError && (
+                <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>{importMemoryError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleImportMemorySubmit} className="space-y-4">
+                <div className="flex p-1 bg-[#F5F2FE] rounded-xl border border-[#C7C4D7]/20">
+                  <button
+                    type="button"
+                    onClick={() => setImportMemoryInputMode('file')}
+                    className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition ${
+                      importMemoryInputMode === 'file' ? 'bg-white shadow-xs text-purple-700' : 'text-[#64748B]'
+                    }`}
+                  >
+                    Upload CSV File
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setImportMemoryInputMode('text')}
+                    className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition ${
+                      importMemoryInputMode === 'text' ? 'bg-white shadow-xs text-purple-700' : 'text-[#64748B]'
+                    }`}
+                  >
+                    Paste CSV Text
+                  </button>
+                </div>
+
+                {importMemoryInputMode === 'file' ? (
+                  <div
+                    onClick={() => memoryFileInputRef.current?.click()}
+                    className="border-2 border-dashed border-purple-200 hover:border-purple-500 p-6 rounded-2xl text-center cursor-pointer bg-purple-50/30 transition group"
+                  >
+                    <input
+                      ref={memoryFileInputRef}
+                      type="file"
+                      accept=".csv"
+                      onChange={(e) => setImportMemoryCsvFile(e.target.files?.[0] || null)}
+                      className="hidden"
+                    />
+                    <FileSpreadsheet className="w-8 h-8 text-purple-600 mx-auto mb-2 group-hover:scale-110 transition" />
+                    {importMemoryCsvFile ? (
+                      <div>
+                        <p className="text-xs font-bold text-[#1B1B23]">{importMemoryCsvFile.name}</p>
+                        <p className="text-[10px] text-[#64748B] mt-0.5">
+                          {(importMemoryCsvFile.size / 1024).toFixed(1)} KB • Ready to embed with Titan V2
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-xs font-semibold text-[#1B1B23]">
+                          Click to browse or drop historical_delays.csv
+                        </p>
+                        <p className="text-[10px] text-[#64748B] mt-0.5">
+                          Columns: project_name, discipline, activity_description, delay_days, delay_cause, notes
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-[#64748B] uppercase">CSV Data</label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImportMemoryCsvText(`project_name,discipline,activity_description,planned_duration_days,actual_duration_days,delay_days,delay_cause,notes
+Mumbai High Offshore,Piping,Underwater Spool Tie-In,14,28,14,Heavy monsoons & subsea crane failure,Pre-book backup hydraulic cranes during coastal monsoon
+Jamnagar Refinery Phase 3,Civil,Furnace Concrete Pour,8,17,9,Excavation waterlogging,Install automatic dewatering sumps before casting`);
+                        }}
+                        className="text-[11px] font-bold text-purple-600 hover:underline"
+                      >
+                        Paste Sample Data
+                      </button>
+                    </div>
+                    <textarea
+                      rows={6}
+                      value={importMemoryCsvText}
+                      onChange={(e) => setImportMemoryCsvText(e.target.value)}
+                      placeholder="project_name,discipline,activity_description,planned_duration_days,actual_duration_days,delay_days,delay_cause,notes&#10;Mumbai High,Piping,Spool Tie-In,10,20,10,Crane breakdown,Book backup cranes"
+                      className="w-full p-3 rounded-xl bg-[#F5F2FE] border border-[#C7C4D7]/30 text-xs font-mono text-[#1B1B23] focus:ring-2 focus:ring-purple-500/20 resize-y"
+                    />
+                  </div>
+                )}
+
+                <div className="pt-4 border-t border-[#C7C4D7]/20 flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsImportMemoryModalOpen(false)}
+                    disabled={isImportingMemory}
+                    className="px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-semibold transition disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isImportingMemory}
+                    className="px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-md shadow-purple-600/25 transition flex items-center gap-2 disabled:opacity-60"
+                  >
+                    {isImportingMemory ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Vectorizing with Titan V2...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4" />
+                        <span>Embed &amp; Ingest to Memory</span>
                       </>
                     )}
                   </button>

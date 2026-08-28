@@ -1,9 +1,16 @@
 import { Router, Request, Response } from 'express';
+import multer from 'multer';
+import csv from 'csv-parser';
+import { Readable } from 'stream';
 import { InvokeModelCommand, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
 import { getBedrockRuntimeClient } from '../bedrockClient';
 import { pool } from '../db';
 
 const router = Router();
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
 
 export interface HistoricalRecord {
   id: string;
@@ -319,4 +326,229 @@ Please synthesize a grounded, cited answer to the user's inquiry adhering strict
   }
 });
 
+// Helper to generate a 1024d embedding using Bedrock Titan V2
+async function generateTitanEmbedding(text: string): Promise<number[]> {
+  const client = getBedrockRuntimeClient();
+  const modelId = process.env.BEDROCK_EMBEDDING_MODEL_ID || 'amazon.titan-embed-text-v2:0';
+
+  const payload = {
+    inputText: text.trim(),
+    dimensions: 1024,
+    normalize: true,
+  };
+
+  const command = new InvokeModelCommand({
+    modelId,
+    contentType: 'application/json',
+    accept: 'application/json',
+    body: JSON.stringify(payload),
+  });
+
+  const res = await client.send(command);
+  const json = JSON.parse(new TextDecoder().decode(res.body));
+  return json.embedding;
+}
+
+// POST /memory/import - Import historical project archives (CSV/JSON) into Institutional Memory (Way 1)
+router.post('/import', upload.single('file'), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const rows: any[] = [];
+
+    if (req.file) {
+      const stream = Readable.from(req.file.buffer);
+      await new Promise<void>((resolve, reject) => {
+        stream
+          .pipe(csv())
+          .on('data', (data) => rows.push(data))
+          .on('end', () => resolve())
+          .on('error', (err) => reject(err));
+      });
+    } else if (req.body.csv_text && typeof req.body.csv_text === 'string') {
+      const stream = Readable.from(req.body.csv_text);
+      await new Promise<void>((resolve, reject) => {
+        stream
+          .pipe(csv())
+          .on('data', (data) => rows.push(data))
+          .on('end', () => resolve())
+          .on('error', (err) => reject(err));
+      });
+    } else if (Array.isArray(req.body.records)) {
+      rows.push(...req.body.records);
+    } else {
+      res.status(400).json({
+        error: 'Please upload a CSV file (`file`), provide `csv_text` in body, or send a `records` JSON array.',
+      });
+      return;
+    }
+
+    if (rows.length === 0) {
+      res.status(400).json({ error: 'No valid historical records found in CSV payload.' });
+      return;
+    }
+
+    console.log(`[BridgeIQ Memory] Ingesting ${rows.length} historical records into institutional memory...`);
+
+    let insertedCount = 0;
+    const insertedRecords = [];
+
+    for (const r of rows) {
+      const projectName = (r.project_name || r.projectName || 'Historical Capital Project').trim();
+      const discipline = (r.discipline || 'General').trim();
+      const activityDesc = (r.activity_description || r.activity || r.description || '').trim();
+      if (!activityDesc) continue;
+
+      const plannedDays = parseInt(r.planned_duration_days || r.plannedDays || '10', 10) || 10;
+      const actualDays = parseInt(r.actual_duration_days || r.actualDays || String(plannedDays), 10) || plannedDays;
+      const delayDays = parseInt(r.delay_days || r.delayDays || String(Math.max(0, actualDays - plannedDays)), 10) || 0;
+      const delayCause = r.delay_cause || r.delayCause || (delayDays > 0 ? 'Field Logistics & Variance' : null);
+      const notes = (r.notes || r.lessons_learned || `Historical record from ${projectName}`).trim();
+
+      const textToEmbed = `${projectName} - ${discipline} - ${activityDesc}. Delay: ${delayDays} days. Cause: ${delayCause || 'None'}. Notes: ${notes}`;
+      let vectorSql: string | null = null;
+      try {
+        const vec = await generateTitanEmbedding(textToEmbed);
+        vectorSql = `[${vec.join(',')}]`;
+      } catch (embErr) {
+        console.warn(`[BridgeIQ Memory] Warning: Bedrock Titan embedding failed for record:`, embErr);
+      }
+
+      const insertQuery = `
+        INSERT INTO historical_records (
+          project_name, discipline, activity_description,
+          planned_duration_days, actual_duration_days, delay_days,
+          delay_cause, notes, embedding
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING id, project_name, activity_description;
+      `;
+
+      const dbRes = await pool.query(insertQuery, [
+        projectName,
+        discipline,
+        activityDesc,
+        plannedDays,
+        actualDays,
+        delayDays,
+        delayCause,
+        notes,
+        vectorSql,
+      ]);
+
+      insertedRecords.push(dbRes.rows[0]);
+      insertedCount++;
+    }
+
+    console.log(`[BridgeIQ Memory] ✓ Successfully embedded & stored ${insertedCount} historical records in memory.`);
+
+    res.status(201).json({
+      success: true,
+      message: `Successfully ingested ${insertedCount} historical records into Institutional Memory.`,
+      count: insertedCount,
+      records: insertedRecords,
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to import historical records';
+    console.error('[BridgeIQ Memory] Error importing historical records:', error);
+    res.status(500).json({ error: message });
+  }
+});
+
+// POST /memory/archive-project/:projectId - Closed-Loop Learning: Archive completed project variance into institutional memory (Way 2)
+router.post('/archive-project/:projectId', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { projectId } = req.params;
+
+    // 1. Get project details
+    const projRes = await pool.query('SELECT id, name, org, location FROM projects WHERE id = $1', [projectId]);
+    if (projRes.rows.length === 0) {
+      res.status(404).json({ error: `Project with ID ${projectId} not found.` });
+      return;
+    }
+    const project = projRes.rows[0];
+
+    // 2. Fetch all activities with their actual events and progress
+    const actRes = await pool.query(
+      `SELECT 
+         a.id, a.activity_code, a.description, a.discipline, a.location,
+         a.planned_start, a.planned_end, a.actual_start, a.actual_end, a.progress_pct,
+         COALESCE(
+           (SELECT STRING_AGG(m.event_description, ' | ') FROM matches m WHERE m.activity_id = a.id),
+           a.description
+         ) AS match_summary
+       FROM activities a
+       JOIN wbs_nodes w ON a.wbs_node_id = w.id
+       WHERE w.project_id = $1`,
+      [projectId]
+    );
+
+    if (actRes.rows.length === 0) {
+      res.status(400).json({ error: 'This project has no activities to archive into memory.' });
+      return;
+    }
+
+    console.log(`[BridgeIQ Memory] Archiving project "${project.name}" (${actRes.rows.length} activities) into Institutional Memory...`);
+
+    let archivedCount = 0;
+
+    for (const act of actRes.rows) {
+      const plannedDays = (act.planned_start && act.planned_end)
+        ? Math.max(1, Math.round((new Date(act.planned_end).getTime() - new Date(act.planned_start).getTime()) / (1000 * 60 * 60 * 24)))
+        : 10;
+      
+      const actualDays = (act.actual_start && act.actual_end)
+        ? Math.max(1, Math.round((new Date(act.actual_end).getTime() - new Date(act.actual_start).getTime()) / (1000 * 60 * 60 * 24)))
+        : plannedDays;
+      
+      const delayDays = Math.max(0, actualDays - plannedDays);
+      const delayCause = delayDays > 0 ? `Schedule overrun during execution: ${act.match_summary}` : 'Completed within scheduled window';
+      const notes = `Archived from completed active project [${project.name} • ${project.org || 'Capital Works'}]. Actual field logging: ${act.match_summary}`;
+
+      const textToEmbed = `${project.name} - ${act.discipline} - ${act.description}. Delay: ${delayDays} days. Cause: ${delayCause}. Notes: ${notes}`;
+      let vectorSql: string | null = null;
+      try {
+        const vec = await generateTitanEmbedding(textToEmbed);
+        vectorSql = `[${vec.join(',')}]`;
+      } catch (embErr) {
+        console.warn(`[BridgeIQ Memory] Bedrock Titan embedding failed for archived activity:`, embErr);
+      }
+
+      await pool.query(
+        `INSERT INTO historical_records (
+           project_name, discipline, activity_description,
+           planned_duration_days, actual_duration_days, delay_days,
+           delay_cause, notes, embedding
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [
+          project.name,
+          act.discipline,
+          act.description,
+          plannedDays,
+          actualDays,
+          delayDays,
+          delayCause,
+          notes,
+          vectorSql,
+        ]
+      );
+
+      archivedCount++;
+    }
+
+    console.log(`[BridgeIQ Memory] ✓ Successfully archived ${archivedCount} activities from "${project.name}" into Institutional Memory.`);
+
+    res.status(200).json({
+      success: true,
+      message: `Closed-loop learning complete: successfully archived ${archivedCount} activities from "${project.name}" into Institutional Memory.`,
+      project_name: project.name,
+      records_archived: archivedCount,
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to archive project to memory';
+    console.error('[BridgeIQ Memory] Error archiving project:', error);
+    res.status(500).json({ error: message });
+  }
+});
+
 export default router;
+
