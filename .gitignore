@@ -40,3 +40,4 @@ logs/
 *.tfvars
 !terraform.tfvars.example
 *.zip
+.env.production

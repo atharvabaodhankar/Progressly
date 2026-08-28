@@ -11,7 +11,7 @@
     "dev:backend": "npm run dev --workspace=backend",
     "dev:worker": "npm run dev --workspace=ai-worker",
     "dev:frontend": "npm run dev --workspace=frontend",
-    "build": "npm run build --workspaces",
+    "build": "npm run build --workspace=frontend",
     "lint": "npm run lint --workspaces",
     "migrate": "tsx database/scripts/migrate.ts",
     "seed": "tsx database/scripts/seed.ts",
@@ -23,8 +23,5 @@
     "test:retrieve": "npm run test:retrieve --workspace=ai-worker",
     "test:memory": "npm run test:memory --workspace=ai-worker",
     "audit:hardening": "npm run audit:hardening --workspace=ai-worker"
-  },
-  "devDependencies": {
-    "@esbuild/win32-x64": "^0.28.2"
   }
 }
