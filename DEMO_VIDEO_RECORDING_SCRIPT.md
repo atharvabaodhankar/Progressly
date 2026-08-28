@@ -28,11 +28,9 @@
 1. **Browser Setup:**
    - Open **`https://progressly-frontend-amber.vercel.app/`** in Google Chrome.
    - Set zoom to **100% or 110%** for crisp presentation typography.
-   - Hide bookmarks bar (`Ctrl + Shift + B` / `Cmd + Shift + B`).
+   - Hide bookmarks bar (`Ctrl + Shift + B` on Windows / `Cmd + Shift + B` on Mac).
    - Close all unnecessary tabs.
-2. **Data Bank on Second Screen:**
-   - Keep the copy-paste snippets from **Section 3** open on a side window.
-3. **Recording Quality:**
+2. **Recording Quality:**
    - 1080p (1920x1080) at 60 FPS.
    - Clear voice recording with energetic, professional delivery.
 
@@ -52,7 +50,7 @@
 
 ---
 
-## 🎙️ Word-for-Word Pitch & Voiceover Script
+## 🎙️ Word-for-Word Pitch & Recording Script
 
 ---
 
@@ -72,7 +70,7 @@
 ---
 
 ### 📍 Scene 2: Live Operational Timeline & Multi-Project Scoping (0:45 – 1:30)
-* **Screen:** Stay on the **Timeline Dashboard**.
+* **Screen:** Stay on the **Timeline Dashboard** (`/`).
 * **Visual Action:**
   1. Hover over the **Metric Cards** (*15 Total Activities, 73.3% On-Track, 1 Critical Delay*).
   2. Click the **Project Dropdown Switcher** in the top right to demonstrate multi-tenant project isolation:
@@ -95,11 +93,13 @@
 * **Screen:** Click **`Ingest Report`** in the left sidebar.
 * **Visual Action:**
   1. Point out the active target project badge (`Baghjan Gas Gathering Station`).
-  2. Paste the daily report snippet below into the narrative text area.
+  2. Copy and paste the text block below into the **Daily Progress Notes** area.
   3. Click **`Upload & Link to Schedule`**.
   4. Show the live button state transition (*"Transmitting to S3 & Bedrock..."*) and green success toast.
 
-#### 📋 Copy-Paste Snippet #1 (Daily Field Report):
+---
+
+#### 📋 [COPY THIS] Daily Field Report Text to Paste:
 ```text
 Daily Progress Report - Area 3 Tank Farm & Compressor Shelter
 Date: 28-Aug-2026 | Submitter: Site Supervisor - Tank Farm
@@ -107,6 +107,8 @@ Date: 28-Aug-2026 | Submitter: Site Supervisor - Tank Farm
 1. Piping Crew A completed welding of 14 spool joints on 24-inch crude header line 24-XX at Tank Farm 3. Radiography (NDT) cleared 100% of joints.
 2. Civil team poured 45 cubic meters of concrete for the compressor foundation pit at equipment shelter area. Curing compound applied.
 ```
+
+---
 
 > **🗣️ Voiceover Script:**
 > *"Now let's demonstrate our low-friction supervisor ingestion.*
@@ -145,21 +147,41 @@ Date: 28-Aug-2026 | Submitter: Site Supervisor - Tank Farm
 
 ### 📍 Scene 5: Institutional Memory — RAG, CSV Import & Closed-Loop Learning (3:15 – 4:15)
 * **Screen:** Click **`Project Memory (RAG)`** in the left sidebar.
-* **Visual Action:**
-  1. Click the preset prompt pill: *"What caused piping delays in past projects?"* (or type it in the search bar).
-  2. Show the **Bedrock Nova Pro synthesis**:
-     - Point out the mathematical dataset summary (*Average delay: 10.3 days, Material shortages: 50%*).
-     - Click a source citation in brackets (e.g. `[Mumbai High Offshore — Underwater Spool Tie-In]`) to open the **Grounding Verification Modal**.
-  3. Click **`+ Import Past CSV`**:
-     - Click **"Paste Sample Data"** $\rightarrow$ Click **"Embed & Ingest to Memory"**.
-     - Show the database record counter increase live!
-  4. Click **`Archive Active Project`**:
-     - Show the live toast confirming **Closed-Loop Learning**: *"Archived active project activities into Institutional Memory!"*
+* **Visual Action 1 (RAG Search):**
+  - Click the preset prompt pill: *"What caused piping delays in past projects?"* (or copy and paste the prompt below into the search bar and press Enter).
+  - Show the **Bedrock Nova Pro synthesis**:
+    - Point out the mathematical dataset summary (*Average delay: 10.3 days, Material shortages: 50%*).
+    - Click a source citation in brackets (e.g. `[Mumbai High Offshore — Underwater Spool Tie-In]`) to open the **Grounding Verification Modal**.
 
-#### 📋 Copy-Paste Snippet #2 (RAG Query):
+---
+
+#### 📋 [COPY THIS] Memory RAG Query #1:
 ```text
 What caused piping delays in past projects?
 ```
+
+---
+
+* **Visual Action 2 (Importing Past Archives - Way 1):**
+  - Click the purple **`+ Import Past CSV`** button in the top right.
+  - Click **"Paste Sample Data"** (or copy and paste the CSV block below).
+  - Click **"Embed & Ingest to Memory"**.
+  - Show the database counter increasing live with new Titan V2 embeddings!
+
+---
+
+#### 📋 [COPY THIS] Historical Past Project CSV (for Import Modal):
+```csv
+project_name,discipline,activity_description,planned_duration_days,actual_duration_days,delay_cause,notes
+Mumbai High Offshore,Piping,Underwater Spool Tie-In,14,28,Heavy monsoons & subsea crane failure,Pre-book backup hydraulic cranes during coastal monsoon
+Jamnagar Refinery Phase 3,Civil,Furnace Concrete Pour,8,17,Excavation waterlogging,Install automatic dewatering sumps before casting
+```
+
+---
+
+* **Visual Action 3 (Closed-Loop Learning - Way 2):**
+  - Click **`Archive Active Project`** button.
+  - Show the green confirmation toast: *"Closed-loop learning complete: successfully archived activities from active project into Institutional Memory!"*
 
 > **🗣️ Voiceover Script:**
 > *"Now for the final requirement of Problem 26122: **Institutional Memory Building**.*
@@ -201,20 +223,9 @@ What caused piping delays in past projects?
 
 ---
 
-## 📊 Quick-Copy Data Bank for Video Recording
+## 🎯 Pro Tips for Recording
 
-| Field / Action | Copy-Paste Text |
-|---|---|
-| **Field Report (Upload Screen)** | `Daily Progress Report - Area 3 Tank Farm & Compressor Shelter`<br>`Date: 28-Aug-2026 \| Submitter: Site Supervisor - Tank Farm`<br><br>`1. Piping Crew A completed welding of 14 spool joints on 24-inch crude header line 24-XX at Tank Farm 3. Radiography (NDT) cleared 100% of joints.`<br>`2. Civil team poured 45 cubic meters of concrete for the compressor foundation pit at equipment shelter area. Curing compound applied.` |
-| **RAG Query #1** | `What caused piping delays in past projects?` |
-| **RAG Query #2** | `What lessons were learned on the Paradip-Hyderabad pipeline project?` |
-| **Historical CSV Data** | `project_name,discipline,activity_description,planned_duration_days,actual_duration_days,delay_cause,notes`<br>`Mumbai High Offshore,Piping,Underwater Spool Tie-In,14,28,Heavy monsoons & subsea crane failure,Pre-book backup hydraulic cranes during coastal monsoon`<br>`Jamnagar Refinery Phase 3,Civil,Furnace Concrete Pour,8,17,Excavation waterlogging,Install automatic dewatering sumps before casting` |
-
----
-
-## 🎯 Pro Tips for a Winning Submission
-
-1. **Mention Problem ID 26122 and Oil India Limited:** State both clearly in the first 15 seconds.
-2. **Move Cursor with Purpose:** Hover briefly over key numbers (*73.3% On-Track*, *92.4% Confidence*, *1024-dim Titan V2 vectors*).
-3. **Click Grounding Modal:** Click on `[Mumbai High Offshore — Underwater Spool Tie-In]` in Project Memory to show judges that the LLM is 100% grounded on real database records.
-4. **End on Live Dashboard:** Conclude with the beautiful live operational view.
+1. **Keep this document open side-by-side or on a tablet:** Each scene has its own exact copy-paste box right above the script.
+2. **Mention Problem ID 26122 and Oil India Limited:** State both in the first 15 seconds.
+3. **Click Grounding Modal:** Click on `[Mumbai High Offshore — Underwater Spool Tie-In]` in Project Memory to prove zero hallucination to judges.
+4. **End on Live Dashboard:** Conclude on the clean operational view.
