@@ -28,6 +28,16 @@ import {
   AlertCircle,
   Activity as ActivityIcon,
   Search,
+  Menu,
+  HardHat,
+  Bell,
+  Plus,
+  Compass,
+  FileCheck,
+  User,
+  ZoomIn,
+  ZoomOut,
+  CalendarDays,
 } from 'lucide-react';
 
 const API_BASE = '/api-proxy';
@@ -58,45 +68,40 @@ interface MatchItem {
   status: 'pending' | 'auto_approved' | 'planner_approved' | 'rejected' | 'manual_resolution';
   model_version: string;
   created_at: string;
-  resolved_at?: string;
-  resolved_by?: string;
+  resolved_at: string | null;
+  resolved_by: string | null;
   activity_code: string;
   activity_description: string;
   activity_discipline: string;
   activity_line: string | null;
   activity_location: string | null;
   event_description: string;
-  event_discipline: string;
+  event_discipline: string | null;
   event_line: string | null;
   event_location: string | null;
-  event_type: 'start' | 'end' | 'progress';
-  quantity: number | null;
+  event_type: string;
+  quantity: string | number | null;
   report_id: string;
-  report_file_path?: string;
-  report_file_type?: string;
-  report_uploaded_by?: string;
+  extracted_json: Record<string, any>;
+  report_file_path: string;
+  report_file_type: string;
+  report_uploaded_by: string;
 }
 
 interface AuditLogEntry {
   id: string;
-  match_id: string;
+  event_id: string;
+  report_id: string;
   action: string;
-  source_report_id: string;
-  confidence_score: string | number;
-  model_version: string;
-  approver: string;
-  previous_value: Record<string, unknown> | string;
-  new_value: Record<string, unknown> | string;
-  timestamp: string;
-  report_uploaded_by?: string;
-  report_file_type?: string;
+  model_name: string;
+  confidence_score: string | number | null;
+  created_at: string;
   activity_code?: string;
   activity_description?: string;
   activity_discipline?: string;
+  report_uploaded_by?: string;
   event_description?: string;
   event_discipline?: string;
-  event_line?: string | null;
-  event_location?: string | null;
   event_type?: string;
 }
 
@@ -108,6 +113,7 @@ interface ToastMessage {
 
 export default function BridgeIQApp() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'review' | 'upload' | 'memory'>('dashboard');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Screen 1: Upload State
   const [uploadMode, setUploadMode] = useState<'file' | 'text'>('text');
@@ -134,6 +140,7 @@ export default function BridgeIQApp() {
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [isLoadingDashboard, setIsLoadingDashboard] = useState(false);
+  const [timelineStatusFilter, setTimelineStatusFilter] = useState<'all' | 'delayed' | 'in_progress' | 'completed'>('all');
   const [disciplineFilter, setDisciplineFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [expandedAuditId, setExpandedAuditId] = useState<string | null>(null);
@@ -180,119 +187,57 @@ export default function BridgeIQApp() {
           ? `${API_BASE}/matches`
           : `${API_BASE}/matches?status=${statusFilter}`;
       const res = await fetch(url);
-      if (!res.ok) throw new Error('Failed to load matches');
       const data = await res.json();
-      setMatches(data.matches || []);
+      if (res.ok) {
+        setMatches(data.matches || []);
+      } else {
+        throw new Error(data.error || 'Failed to fetch matches');
+      }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Error fetching matches';
-      console.error(msg);
+      console.error('Error fetching matches:', err);
     } finally {
       setIsLoadingMatches(false);
     }
   }, [statusFilter]);
 
-  // Fetch Dashboard Data (Activities & Audit Logs)
+  // Fetch Dashboard & Audit Log
   const fetchDashboardData = useCallback(async () => {
     setIsLoadingDashboard(true);
     try {
-      const [actRes, audRes, allMatchesRes] = await Promise.all([
+      const [actRes, auditRes] = await Promise.all([
         fetch(`${API_BASE}/activities`),
-        fetch(`${API_BASE}/audit-log`),
-        fetch(`${API_BASE}/matches`),
+        fetch(`${API_BASE}/audit-log?limit=25`),
       ]);
 
+      const actData = await actRes.json();
+      const auditData = await auditRes.json();
+
       if (actRes.ok) {
-        const actData = await actRes.json();
         setActivities(actData.activities || []);
       }
-
-      if (audRes.ok) {
-        const audData = await audRes.json();
-        setAuditLogs(audData.audit_logs || []);
+      if (auditRes.ok) {
+        setAuditLogs(auditData.logs || []);
       }
-
-      if (allMatchesRes.ok) {
-        const allMatchesData = await allMatchesRes.json();
-        if (statusFilter === 'all') {
-          setMatches(allMatchesData.matches || []);
-        }
-      }
-    } catch (err: unknown) {
-      console.error('Error loading dashboard:', err);
+    } catch (err) {
+      console.error('Error loading dashboard data:', err);
     } finally {
       setIsLoadingDashboard(false);
     }
-  }, [statusFilter]);
+  }, []);
 
-  useEffect(() => {
-    fetchMatches();
-    fetchDashboardData();
-  }, [fetchMatches, fetchDashboardData]);
-
-  // Counts & Summary KPIs
-  const totalActivities = activities.length;
-  const pendingMatchesCount = matches.filter((m) => m.status === 'pending').length;
-  const manualResolutionCount = matches.filter((m) => m.status === 'manual_resolution').length;
-  const autoApprovedCount = matches.filter((m) => m.status === 'auto_approved').length;
-  const totalMatchesCount = matches.length;
-
-  const autoApprovedPct =
-    totalMatchesCount > 0 ? Math.round((autoApprovedCount / totalMatchesCount) * 100) : 0;
-  const pendingReviewPct =
-    totalMatchesCount > 0 ? Math.round((pendingMatchesCount / totalMatchesCount) * 100) : 0;
-
-  // Handle Report Upload
-  const handleUploadSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setUploadError(null);
-    setUploadSuccess(null);
-    setIsUploading(true);
-
+  // Fetch Historical Records
+  const fetchHistoricalRecords = async () => {
+    setIsLoadingHistorical(true);
     try {
-      let res: Response;
-
-      if (uploadMode === 'file') {
-        if (!selectedFile) {
-          throw new Error('Please select a file to upload.');
-        }
-        const formData = new FormData();
-        formData.append('file', selectedFile);
-        formData.append('uploaded_by', uploadedBy);
-        res = await fetch(`${API_BASE}/reports`, {
-          method: 'POST',
-          body: formData,
-        });
-      } else {
-        if (!reportText.trim()) {
-          throw new Error('Please enter daily report text.');
-        }
-        res = await fetch(`${API_BASE}/reports`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            text_content: reportText,
-            uploaded_by: uploadedBy,
-            file_type: 'free-text',
-          }),
-        });
-      }
-
+      const res = await fetch(`${API_BASE}/memory/records`);
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to submit report.');
+      if (res.ok && data.records) {
+        setHistoricalRecords(data.records);
       }
-
-      setUploadSuccess(data.report);
-      showToast('Report received successfully. Ingested for schedule processing.', 'success');
-      setReportText('');
-      setSelectedFile(null);
-      fetchDashboardData();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Upload failed';
-      setUploadError(msg);
-      showToast(msg, 'error');
+    } catch (err) {
+      console.error('Failed to fetch historical records:', err);
     } finally {
-      setIsUploading(false);
+      setIsLoadingHistorical(false);
     }
   };
 
@@ -323,18 +268,61 @@ export default function BridgeIQApp() {
     }
   };
 
-  const fetchHistoricalRecords = async () => {
-    setIsLoadingHistorical(true);
+  useEffect(() => {
+    fetchDashboardData();
+    fetchMatches();
+  }, [fetchDashboardData, fetchMatches]);
+
+  // Handle File / Text Upload
+  const handleUploadSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsUploading(true);
+    setUploadError(null);
+    setUploadSuccess(null);
+
     try {
-      const res = await fetch(`${API_BASE}/memory/records`);
-      const data = await res.json();
-      if (res.ok && data.records) {
-        setHistoricalRecords(data.records);
+      let res: globalThis.Response;
+
+      if (uploadMode === 'file' && selectedFile) {
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        formData.append('uploaded_by', uploadedBy);
+        res = await fetch(`${API_BASE}/reports`, {
+          method: 'POST',
+          body: formData,
+        });
+      } else {
+        if (!reportText.trim()) {
+          throw new Error('Please enter text content for the report.');
+        }
+        res = await fetch(`${API_BASE}/reports`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text_content: reportText,
+            uploaded_by: uploadedBy,
+            file_type: 'free-text',
+          }),
+        });
       }
-    } catch (err) {
-      console.error('Failed to fetch historical records:', err);
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to submit report.');
+      }
+
+      setUploadSuccess(data.report);
+      showToast('Report uploaded & queued for schedule linking!', 'success');
+      setReportText('');
+      setSelectedFile(null);
+      fetchDashboardData();
+      fetchMatches();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Upload failed';
+      setUploadError(msg);
+      showToast(msg, 'error');
     } finally {
-      setIsLoadingHistorical(false);
+      setIsUploading(false);
     }
   };
 
@@ -351,7 +339,7 @@ export default function BridgeIQApp() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           status: action,
-          resolved_by: 'Planner User (Lead Engineer)',
+          resolved_by: 'Lead Planning Engineer',
         }),
       });
 
@@ -360,13 +348,9 @@ export default function BridgeIQApp() {
         throw new Error(data.error || `Failed to ${action} match`);
       }
 
-      // Optimistic update: Remove from pending list
       setMatches((prev) => prev.filter((m) => m.id !== matchId));
-
-      const actionText = action === 'planner_approved' ? 'approved & schedule updated' : 'rejected';
+      const actionText = action === 'planner_approved' ? 'approved & schedule linked' : 'rejected';
       showToast(`Match for ${activityCode} was ${actionText}.`, 'success');
-
-      // Refresh dashboard to show linked dates and audit log
       fetchDashboardData();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to update match';
@@ -376,7 +360,7 @@ export default function BridgeIQApp() {
     }
   };
 
-  // Helper for Confidence Badges
+  // Confidence Badge Helper
   const getConfidenceBadge = (score: string | number) => {
     const num = typeof score === 'string' ? parseFloat(score) : score;
     const pct = Math.round(num > 1 ? num : num * 100);
@@ -384,534 +368,774 @@ export default function BridgeIQApp() {
     if (pct >= 95) {
       return {
         label: `${pct}%`,
-        tier: 'Auto-Approved Tier (≥95%)',
-        bg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
-        dot: 'bg-emerald-400',
+        tier: 'Auto-Approved (Tier 1)',
+        bg: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
+        dot: 'bg-emerald-500',
       };
     }
     if (pct >= 70) {
       return {
         label: `${pct}%`,
-        tier: 'Planner Review Tier (70–94%)',
-        bg: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
-        dot: 'bg-amber-400',
+        tier: 'Planner Review (Tier 2)',
+        bg: 'bg-amber-500/10 text-amber-600 border-amber-500/30',
+        dot: 'bg-amber-500',
       };
     }
     return {
       label: `${pct}%`,
-      tier: 'Manual Resolution (<70%)',
-      bg: 'bg-rose-500/10 text-rose-300 border-rose-500/30',
-      dot: 'bg-rose-400',
+      tier: 'Manual Resolution (Tier 3)',
+      bg: 'bg-rose-500/10 text-rose-600 border-rose-500/30',
+      dot: 'bg-rose-500',
     };
   };
 
-  // Helper for Schedule Variance / Deviation
-  const getScheduleDeviation = (act: ActivityItem) => {
-    if (!act.actual_start) {
-      return { status: 'not_started', label: 'Not Started', badge: 'bg-slate-800 text-slate-400 border-slate-700' };
-    }
+  // Compute Real Metrics
+  const totalActivitiesCount = activities.length;
+  const pendingMatchesCount = matches.filter((m) => m.status === 'pending').length;
+  const completedActivitiesCount = activities.filter((a) => (a.progress_pct ?? 0) >= 100).length;
+  const inProgressActivitiesCount = activities.filter((a) => (a.progress_pct ?? 0) > 0 && (a.progress_pct ?? 0) < 100).length;
+  
+  // Real On-Track Calculation: activities with no end date overrun or progress on track
+  const delayedActivities = activities.filter((a) => {
+    if (!a.planned_end || !a.actual_end) return false;
+    return new Date(a.actual_end) > new Date(a.planned_end);
+  });
+  const delayedCount = delayedActivities.length;
+  const onTrackPct = totalActivitiesCount > 0
+    ? Math.round(((totalActivitiesCount - delayedCount) / totalActivitiesCount) * 100)
+    : 100;
 
-    if (act.progress_pct === 100) {
-      if (act.planned_start && act.actual_start) {
-        const planned = new Date(act.planned_start).getTime();
-        const actual = new Date(act.actual_start).getTime();
-        const diffDays = Math.round((actual - planned) / (1000 * 60 * 60 * 24));
-        if (diffDays > 0) {
-          return {
-            status: 'completed_delayed',
-            label: `Completed (+${diffDays}d delay)`,
-            badge: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
-          };
-        }
-      }
-      return { status: 'completed_ontime', label: 'Completed (On Time)', badge: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' };
-    }
-
-    if (act.planned_start) {
-      const planned = new Date(act.planned_start).getTime();
-      const actual = new Date(act.actual_start).getTime();
-      const diffDays = Math.round((actual - planned) / (1000 * 60 * 60 * 24));
-      if (diffDays > 0) {
-        return {
-          status: 'delayed_start',
-          label: `Delayed Start (+${diffDays}d)`,
-          badge: 'bg-rose-500/10 text-rose-300 border-rose-500/30',
-        };
-      }
-    }
-
-    return { status: 'in_progress', label: `In Progress (${act.progress_pct || 0}%)`, badge: 'bg-sky-500/10 text-sky-300 border-sky-500/30' };
-  };
-
-  // Filtered Activities
+  // Filtered Activities for Operational Timeline
   const filteredActivities = activities.filter((act) => {
+    // Status tab filter
+    if (timelineStatusFilter === 'delayed') {
+      const isDelayed = act.planned_end && act.actual_end && new Date(act.actual_end) > new Date(act.planned_end);
+      if (!isDelayed) return false;
+    } else if (timelineStatusFilter === 'in_progress') {
+      const isInProgress = (act.progress_pct ?? 0) > 0 && (act.progress_pct ?? 0) < 100;
+      if (!isInProgress) return false;
+    } else if (timelineStatusFilter === 'completed') {
+      const isCompleted = (act.progress_pct ?? 0) >= 100;
+      if (!isCompleted) return false;
+    }
+
+    // Discipline dropdown filter
     const matchesDiscipline =
       disciplineFilter === 'all' ||
       act.discipline.toLowerCase() === disciplineFilter.toLowerCase();
+
+    // Search query
     const matchesSearch =
       searchQuery === '' ||
       act.activity_code.toLowerCase().includes(searchQuery.toLowerCase()) ||
       act.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (act.location && act.location.toLowerCase().includes(searchQuery.toLowerCase()));
+
     return matchesDiscipline && matchesSearch;
   });
 
   const uniqueDisciplines = Array.from(new Set(activities.map((a) => a.discipline)));
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col antialiased">
+    <div className="min-h-screen bg-[#F8FAFF] text-[#1B1B23] flex flex-col antialiased">
       {/* Toast Notification Container */}
       <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-md w-full pointer-events-none">
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto p-4 rounded-xl border shadow-xl flex items-center gap-3 transition-all duration-300 ${
+            className={`pointer-events-auto p-4 rounded-2xl border shadow-xl flex items-center gap-3 transition-all duration-300 ${
               toast.type === 'success'
-                ? 'bg-slate-900/95 border-emerald-500/50 text-emerald-200'
+                ? 'bg-white border-emerald-200 text-emerald-900 shadow-emerald-500/10'
                 : toast.type === 'error'
-                ? 'bg-slate-900/95 border-rose-500/50 text-rose-200'
-                : 'bg-slate-900/95 border-sky-500/50 text-sky-200'
+                ? 'bg-white border-rose-200 text-rose-900 shadow-rose-500/10'
+                : 'bg-white border-indigo-200 text-indigo-900 shadow-indigo-500/10'
             }`}
           >
-            {toast.type === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />}
-            {toast.type === 'error' && <XCircle className="w-5 h-5 text-rose-400 shrink-0" />}
-            {toast.type === 'info' && <AlertTriangle className="w-5 h-5 text-sky-400 shrink-0" />}
+            {toast.type === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />}
+            {toast.type === 'error' && <XCircle className="w-5 h-5 text-rose-500 shrink-0" />}
+            {toast.type === 'info' && <AlertTriangle className="w-5 h-5 text-indigo-500 shrink-0" />}
             <p className="text-sm font-medium">{toast.message}</p>
           </div>
         ))}
       </div>
 
-      {/* Navigation Header */}
-      <header className="border-b border-slate-800 bg-slate-900/70 backdrop-blur-md sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-900/40">
-              <Layers className="w-5 h-5 text-slate-950 font-bold" />
+      {/* Desktop Sidebar */}
+      <aside className="hidden lg:flex fixed left-0 top-0 h-full w-72 bg-[#F5F2FE]/80 backdrop-blur-xl z-50 flex-col border-r border-[#C7C4D7]/30">
+        <div className="p-6 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#A855F7] to-[#6366F1] flex items-center justify-center shadow-lg shadow-indigo-500/25 text-white">
+            <HardHat className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-xl text-[#4648D4] tracking-tight">BridgeIQ</span>
+              <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-bold">
+                PROD
+              </span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold tracking-tight text-lg text-white">BridgeIQ</span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
-                  Oil India Ltd
-                </span>
-              </div>
-              <p className="text-xs text-slate-400">Schedule-Linking & Verification Layer</p>
+            <p className="text-xs text-[#64748B] font-medium">Oil India Ltd • Baghjan</p>
+          </div>
+        </div>
+
+        {/* Sidebar Nav Links */}
+        <nav className="flex-1 px-4 space-y-1.5 mt-2">
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all ${
+              activeTab === 'dashboard'
+                ? 'bg-[#4648D4] text-white shadow-lg shadow-[#4648D4]/25'
+                : 'text-[#464554] hover:bg-[#E9E6F3] hover:text-[#1B1B23]'
+            }`}
+          >
+            <LayoutDashboard className="w-5 h-5" />
+            <span>Timeline Dashboard</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('review')}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-semibold text-sm transition-all ${
+              activeTab === 'review'
+                ? 'bg-[#4648D4] text-white shadow-lg shadow-[#4648D4]/25'
+                : 'text-[#464554] hover:bg-[#E9E6F3] hover:text-[#1B1B23]'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <ShieldCheck className="w-5 h-5" />
+              <span>Review Queue</span>
             </div>
+            {pendingMatchesCount > 0 && (
+              <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                activeTab === 'review' ? 'bg-white text-[#4648D4]' : 'bg-amber-100 text-amber-800'
+              }`}>
+                {pendingMatchesCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('upload')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all ${
+              activeTab === 'upload'
+                ? 'bg-[#4648D4] text-white shadow-lg shadow-[#4648D4]/25'
+                : 'text-[#464554] hover:bg-[#E9E6F3] hover:text-[#1B1B23]'
+            }`}
+          >
+            <Upload className="w-5 h-5" />
+            <span>Upload Daily Report</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab('memory');
+              if (historicalRecords.length === 0) fetchHistoricalRecords();
+            }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all ${
+              activeTab === 'memory'
+                ? 'bg-[#4648D4] text-white shadow-lg shadow-[#4648D4]/25'
+                : 'text-[#464554] hover:bg-[#E9E6F3] hover:text-[#1B1B23]'
+            }`}
+          >
+            <Sparkles className="w-5 h-5" />
+            <span>Project Memory (RAG)</span>
+          </button>
+        </nav>
+
+        {/* User Card */}
+        <div className="p-4 m-4 rounded-2xl bg-[#E9E6F3]/60 border border-[#C7C4D7]/20 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-[#4648D4] text-white flex items-center justify-center font-bold text-sm">
+            PS
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="font-semibold text-sm text-[#1B1B23] truncate">Priya Sharma</span>
+            <span className="text-xs text-[#64748B] truncate">Lead Planning Engineer</span>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content Wrap */}
+      <div className="lg:pl-72 flex-1 flex flex-col">
+        {/* Top Header */}
+        <header className="sticky top-0 z-40 h-20 bg-white/85 backdrop-blur-xl border-b border-[#C7C4D7]/30 px-4 sm:px-8 flex items-center justify-between shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
+          {/* Mobile Menu Button & Title */}
+          <div className="flex items-center gap-3 lg:hidden">
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <span className="font-bold text-lg text-[#4648D4]">BridgeIQ</span>
           </div>
 
-          {/* Navigation Tabs (3 Screens) */}
-          <nav className="flex items-center gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800">
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
-                activeTab === 'dashboard'
-                  ? 'bg-emerald-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-              }`}
-            >
-              <LayoutDashboard className="w-4 h-4" />
-              <span>Project Dashboard</span>
-            </button>
+          {/* Search Bar */}
+          <div className="hidden sm:flex relative w-80 md:w-96">
+            <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search tasks, WBS codes, disciplines..."
+              className="w-full h-11 pl-11 pr-4 rounded-xl bg-[#F5F2FE] border-none text-sm text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-[#4648D4]/20 transition"
+            />
+          </div>
 
+          {/* Right Header Actions */}
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => setActiveTab('review')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all relative ${
-                activeTab === 'review'
-                  ? 'bg-emerald-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-              }`}
+              onClick={() => {
+                fetchDashboardData();
+                fetchMatches();
+                showToast('Synchronized with live AWS database.', 'info');
+              }}
+              disabled={isLoadingDashboard}
+              className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 transition"
+              title="Refresh Live Data"
             >
-              <ShieldCheck className="w-4 h-4" />
-              <span>Review Queue</span>
-              {pendingMatchesCount > 0 && (
-                <span className="ml-1 px-1.5 py-0.2 text-xs font-semibold bg-amber-400 text-slate-950 rounded-full">
-                  {pendingMatchesCount}
-                </span>
-              )}
+              <RefreshCw className={`w-4 h-4 ${isLoadingDashboard ? 'animate-spin text-[#4648D4]' : ''}`} />
             </button>
 
             <button
               onClick={() => setActiveTab('upload')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
-                activeTab === 'upload'
-                  ? 'bg-emerald-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#4648D4] hover:bg-[#3B3DC0] text-white text-sm font-semibold shadow-md shadow-[#4648D4]/20 transition"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Ingest Report</span>
+            </button>
+          </div>
+        </header>
+
+        {/* Mobile Navigation Drawer */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden bg-white border-b border-slate-200 p-4 space-y-2">
+            <button
+              onClick={() => { setActiveTab('dashboard'); setMobileMenuOpen(false); }}
+              className={`w-full flex items-center gap-3 p-3 rounded-xl text-sm font-medium ${
+                activeTab === 'dashboard' ? 'bg-[#4648D4] text-white' : 'text-slate-700'
+              }`}
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              <span>Timeline Dashboard</span>
+            </button>
+            <button
+              onClick={() => { setActiveTab('review'); setMobileMenuOpen(false); }}
+              className={`w-full flex items-center justify-between p-3 rounded-xl text-sm font-medium ${
+                activeTab === 'review' ? 'bg-[#4648D4] text-white' : 'text-slate-700'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <ShieldCheck className="w-4 h-4" />
+                <span>Review Queue</span>
+              </div>
+              {pendingMatchesCount > 0 && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold">
+                  {pendingMatchesCount}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => { setActiveTab('upload'); setMobileMenuOpen(false); }}
+              className={`w-full flex items-center gap-3 p-3 rounded-xl text-sm font-medium ${
+                activeTab === 'upload' ? 'bg-[#4648D4] text-white' : 'text-slate-700'
               }`}
             >
               <Upload className="w-4 h-4" />
-              <span>Upload Report</span>
+              <span>Upload Daily Report</span>
             </button>
-
             <button
-              onClick={() => {
-                setActiveTab('memory');
-                if (historicalRecords.length === 0) fetchHistoricalRecords();
-              }}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
-                activeTab === 'memory'
-                  ? 'bg-emerald-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              onClick={() => { setActiveTab('memory'); setMobileMenuOpen(false); if (historicalRecords.length === 0) fetchHistoricalRecords(); }}
+              className={`w-full flex items-center gap-3 p-3 rounded-xl text-sm font-medium ${
+                activeTab === 'memory' ? 'bg-[#4648D4] text-white' : 'text-slate-700'
               }`}
             >
               <Sparkles className="w-4 h-4" />
-              <span>Project Memory</span>
+              <span>Project Memory (RAG)</span>
             </button>
-          </nav>
-        </div>
-      </header>
+          </div>
+        )}
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-        {/* ========================================================================= */}
-        {/* SCREEN 3: PROJECT DASHBOARD                                               */}
-        {/* ========================================================================= */}
-        {activeTab === 'dashboard' && (
-          <div className="space-y-8">
-            {/* Header with Project Title */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-3">
-                  <span>Project Schedule Dashboard</span>
-                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
-                    Live Schedule Sync
-                  </span>
-                </h1>
-                <p className="text-sm text-slate-400 mt-1">
-                  Oil India Ltd - Duliajan Infrastructure • Real-time progress tracking and automated schedule updates
-                </p>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={fetchDashboardData}
-                  disabled={isLoadingDashboard}
-                  className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-2 transition"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isLoadingDashboard ? 'animate-spin' : ''}`} />
-                  <span>Refresh Data</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Section C: Summary Stats KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Card 1: Total Activities */}
-              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                    Total Schedule Activities
-                  </span>
-                  <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
-                    <ActivityIcon className="w-4 h-4" />
-                  </div>
-                </div>
-                <div className="mt-3 flex items-baseline gap-2">
-                  <span className="text-3xl font-extrabold text-white tracking-tight">{totalActivities}</span>
-                  <span className="text-xs text-slate-400 font-medium">L6 Activities</span>
-                </div>
-                <p className="text-xs text-slate-500 mt-1">Across 6 engineering disciplines</p>
-              </div>
-
-              {/* Card 2: Auto-Approved % */}
-              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">
-                    Auto-Approved (Tier 1)
-                  </span>
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-                    <CheckCircle2 className="w-4 h-4" />
-                  </div>
-                </div>
-                <div className="mt-3 flex items-baseline gap-2">
-                  <span className="text-3xl font-extrabold text-emerald-400 tracking-tight">{autoApprovedPct}%</span>
-                  <span className="text-xs text-slate-400 font-medium">({autoApprovedCount} events)</span>
-                </div>
-                <p className="text-xs text-slate-500 mt-1">Directly updated schedule ($\ge 95\%$ confidence)</p>
-              </div>
-
-              {/* Card 3: Requires Review % */}
-              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">
-                    Planner Review (Tier 2)
-                  </span>
-                  <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-                    <Clock className="w-4 h-4" />
-                  </div>
-                </div>
-                <div className="mt-3 flex items-baseline gap-2">
-                  <span className="text-3xl font-extrabold text-amber-400 tracking-tight">{pendingReviewPct}%</span>
-                  <span className="text-xs text-slate-400 font-medium">({pendingMatchesCount} pending)</span>
-                </div>
-                <p className="text-xs text-slate-500 mt-1">Awaiting human planner verification (70–94%)</p>
-              </div>
-
-              {/* Card 4: Manual Resolution */}
-              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-rose-400 uppercase tracking-wider">
-                    Manual Resolution (Tier 3)
-                  </span>
-                  <div className="w-8 h-8 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
-                    <AlertTriangle className="w-4 h-4" />
-                  </div>
-                </div>
-                <div className="mt-3 flex items-baseline gap-2">
-                  <span className="text-3xl font-extrabold text-rose-400 tracking-tight">{manualResolutionCount}</span>
-                  <span className="text-xs text-slate-400 font-medium">unmatched items</span>
-                </div>
-                <p className="text-xs text-slate-500 mt-1">Unplanned site works flagged for review</p>
-              </div>
-            </div>
-
-            {/* Section A: Planned vs Actual Schedule Intelligence */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        {/* Main Content Area */}
+        <main className="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto space-y-8">
+          {/* ========================================================================= */}
+          {/* SCREEN 1: OPERATIONAL TIMELINE DASHBOARD (REFERENCE DESIGN)               */}
+          {/* ========================================================================= */}
+          {activeTab === 'dashboard' && (
+            <div className="space-y-8">
+              {/* Header Title Section */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-emerald-400" />
-                    <span>Planned vs Actual Schedule Timeline</span>
-                  </h2>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Baseline milestone tracking linked directly to verified supervisor reports
+                  <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B1B23]">
+                    Operational Timeline
+                  </h1>
+                  <p className="text-sm text-[#64748B] mt-1">
+                    Real-time progress tracking and automated schedule-linking powered by Amazon Bedrock
                   </p>
                 </div>
 
-                {/* Filters */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="relative">
-                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                    <input
-                      type="text"
-                      placeholder="Search activity or code..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-8 pr-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                {/* Filter Tabs Header */}
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center bg-[#F5F2FE] rounded-xl p-1 shadow-sm border border-[#C7C4D7]/20">
                     <button
-                      onClick={() => setDisciplineFilter('all')}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition ${
-                        disciplineFilter === 'all'
-                          ? 'bg-emerald-600 text-white'
-                          : 'text-slate-400 hover:text-slate-200'
+                      onClick={() => setTimelineStatusFilter('all')}
+                      className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition ${
+                        timelineStatusFilter === 'all'
+                          ? 'bg-white shadow-sm text-[#4648D4]'
+                          : 'text-[#464554] hover:text-[#1B1B23]'
                       }`}
                     >
-                      All
+                      All Tasks ({activities.length})
                     </button>
-                    {uniqueDisciplines.map((disc) => (
-                      <button
-                        key={disc}
-                        onClick={() => setDisciplineFilter(disc)}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-medium capitalize transition ${
-                          disciplineFilter === disc
-                            ? 'bg-emerald-600 text-white'
-                            : 'text-slate-400 hover:text-slate-200'
-                        }`}
-                      >
-                        {disc}
-                      </button>
+                    <button
+                      onClick={() => setTimelineStatusFilter('delayed')}
+                      className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition ${
+                        timelineStatusFilter === 'delayed'
+                          ? 'bg-white shadow-sm text-[#4648D4]'
+                          : 'text-[#464554] hover:text-[#1B1B23]'
+                      }`}
+                    >
+                      Delayed ({delayedCount})
+                    </button>
+                    <button
+                      onClick={() => setTimelineStatusFilter('in_progress')}
+                      className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition ${
+                        timelineStatusFilter === 'in_progress'
+                          ? 'bg-white shadow-sm text-[#4648D4]'
+                          : 'text-[#464554] hover:text-[#1B1B23]'
+                      }`}
+                    >
+                      In Progress ({inProgressActivitiesCount})
+                    </button>
+                    <button
+                      onClick={() => setTimelineStatusFilter('completed')}
+                      className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition ${
+                        timelineStatusFilter === 'completed'
+                          ? 'bg-white shadow-sm text-[#4648D4]'
+                          : 'text-[#464554] hover:text-[#1B1B23]'
+                      }`}
+                    >
+                      Completed ({completedActivitiesCount})
+                    </button>
+                  </div>
+
+                  {/* Discipline Dropdown */}
+                  <select
+                    value={disciplineFilter}
+                    onChange={(e) => setDisciplineFilter(e.target.value)}
+                    className="h-10 px-3.5 rounded-xl bg-white border border-[#C7C4D7]/40 text-xs sm:text-sm font-medium text-[#1B1B23] focus:outline-none focus:ring-2 focus:ring-[#4648D4]/20 shadow-sm"
+                  >
+                    <option value="all">All Disciplines</option>
+                    {uniqueDisciplines.map((d) => (
+                      <option key={d} value={d}>
+                        {d.toUpperCase()}
+                      </option>
                     ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Key Metrics Row (4 Cards) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+                {/* Metric 1: Total Activities */}
+                <div className="bg-white rounded-[24px] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[#C7C4D7]/30 relative overflow-hidden group">
+                  <div className="absolute -right-6 -top-6 w-24 h-24 bg-[#4648D4]/10 rounded-full blur-2xl group-hover:bg-[#4648D4]/20 transition-all duration-500" />
+                  <div className="flex items-center gap-4 mb-3 relative z-10">
+                    <div className="w-12 h-12 rounded-2xl bg-[#4648D4]/10 flex items-center justify-center text-[#4648D4]">
+                      <FileCheck className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-[#64748B]">Total Activities</p>
+                      <p className="text-3xl font-bold text-[#1B1B23]">{totalActivitiesCount}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 relative z-10 text-xs text-[#64748B] font-medium">
+                    <span className="text-[#10B981] flex items-center gap-1 bg-[#10B981]/10 px-2 py-0.5 rounded-md font-semibold">
+                      100%
+                    </span>
+                    <span>Titan V2 embedded</span>
+                  </div>
+                </div>
+
+                {/* Metric 2: On Track % */}
+                <div className="bg-white rounded-[24px] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[#C7C4D7]/30 relative overflow-hidden group">
+                  <div className="absolute -right-6 -top-6 w-24 h-24 bg-[#10B981]/10 rounded-full blur-2xl group-hover:bg-[#10B981]/20 transition-all duration-500" />
+                  <div className="flex items-center gap-4 mb-3 relative z-10">
+                    <div className="w-12 h-12 rounded-2xl bg-[#10B981]/10 flex items-center justify-center text-[#10B981]">
+                      <TrendingUp className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-[#64748B]">On Track Rate</p>
+                      <p className="text-3xl font-bold text-[#1B1B23]">{onTrackPct}%</p>
+                    </div>
+                  </div>
+                  <div className="w-full bg-[#E9E6F3] rounded-full h-2 mt-4 relative z-10 overflow-hidden">
+                    <div className="bg-[#10B981] h-2 rounded-full transition-all duration-500" style={{ width: `${onTrackPct}%` }} />
+                  </div>
+                </div>
+
+                {/* Metric 3: Pending Review Queue */}
+                <div
+                  onClick={() => setActiveTab('review')}
+                  className="bg-white rounded-[24px] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[#C7C4D7]/30 relative overflow-hidden group cursor-pointer hover:border-amber-300 transition"
+                >
+                  <div className="absolute -right-6 -top-6 w-24 h-24 bg-[#F59E0B]/10 rounded-full blur-2xl group-hover:bg-[#F59E0B]/20 transition-all duration-500" />
+                  <div className="flex items-center gap-4 mb-3 relative z-10">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-[#F59E0B]">
+                      <ShieldCheck className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-[#64748B]">Review Queue</p>
+                      <p className="text-3xl font-bold text-[#1B1B23]">{pendingMatchesCount}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 relative z-10 text-xs">
+                    <span className="text-[#F59E0B] flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-md font-semibold">
+                      Requires Planner Sign-off
+                    </span>
+                  </div>
+                </div>
+
+                {/* Metric 4: Institutional Memory */}
+                <div
+                  onClick={() => {
+                    setActiveTab('memory');
+                    if (historicalRecords.length === 0) fetchHistoricalRecords();
+                  }}
+                  className="bg-white rounded-[24px] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[#C7C4D7]/30 relative overflow-hidden group cursor-pointer hover:border-indigo-300 transition"
+                >
+                  <div className="absolute -right-6 -top-6 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-all duration-500" />
+                  <div className="flex items-center gap-4 mb-3 relative z-10">
+                    <div className="w-12 h-12 rounded-2xl bg-purple-50 flex items-center justify-center text-purple-600">
+                      <Sparkles className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-[#64748B]">Project Memory</p>
+                      <p className="text-3xl font-bold text-[#1B1B23]">40</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 relative z-10 text-xs text-[#64748B] font-medium">
+                    <span className="text-purple-600 font-semibold bg-purple-50 px-2 py-0.5 rounded-md">
+                      Nova Pro RAG Active
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {/* Activities Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="border-b border-slate-800 text-slate-400 font-semibold uppercase tracking-wider">
-                      <th className="py-3 px-4">Activity Code</th>
-                      <th className="py-3 px-4">Description & Scope</th>
-                      <th className="py-3 px-4">Discipline / Line</th>
-                      <th className="py-3 px-4">Planned Dates</th>
-                      <th className="py-3 px-4">Actual Dates</th>
-                      <th className="py-3 px-4">Progress</th>
-                      <th className="py-3 px-4 text-right">Variance / Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/60">
-                    {filteredActivities.map((act) => {
-                      const dev = getScheduleDeviation(act);
+              {/* Primary Timeline Grid (Gantt-Style Task Bars) */}
+              <div className="bg-white rounded-[24px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[#C7C4D7]/30 overflow-hidden flex flex-col">
+                <div className="p-6 border-b border-[#C7C4D7]/20 flex items-center justify-between bg-white sticky top-0 z-20">
+                  <div>
+                    <h2 className="text-lg font-bold text-[#1B1B23]">Execution Schedule & Gantt Tracking</h2>
+                    <p className="text-xs text-[#64748B] mt-0.5">
+                      15 Baseline WBS engineering activities mapped with real progress percentages
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 bg-[#F5F2FE] p-1 rounded-xl border border-[#C7C4D7]/20 text-xs text-[#64748B]">
+                    <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-white rounded-lg font-semibold text-[#4648D4] shadow-sm">
+                      <Calendar className="w-3.5 h-3.5" /> Oct 2026 Baseline
+                    </span>
+                  </div>
+                </div>
 
-                      return (
-                        <tr key={act.id} className="hover:bg-slate-800/30 transition">
-                          <td className="py-3.5 px-4 font-mono font-bold text-emerald-400">
-                            {act.activity_code}
-                          </td>
-                          <td className="py-3.5 px-4 font-medium text-slate-200 max-w-xs truncate">
-                            {act.description}
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <div className="flex items-center gap-1.5">
-                              <span className="capitalize px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-300">
+                <div className="overflow-x-auto">
+                  <div className="min-w-[840px]">
+                    {/* Timeline Column Headers */}
+                    <div className="grid grid-cols-[320px_1fr_1fr_1fr] border-b border-[#C7C4D7]/20 bg-[#F5F2FE]/60 text-xs font-semibold text-[#64748B]">
+                      <div className="p-4">Activity Code & Scope</div>
+                      <div className="p-4 border-l border-[#C7C4D7]/20 text-center">Phase 1 (Oct 1 - Oct 7)</div>
+                      <div className="p-4 border-l border-[#C7C4D7]/20 text-center">Phase 2 (Oct 8 - Oct 14)</div>
+                      <div className="p-4 border-l border-[#C7C4D7]/20 text-center">Phase 3 (Oct 15 - Oct 25)</div>
+                    </div>
+
+                    {/* Timeline Rows */}
+                    <div className="relative divide-y divide-[#C7C4D7]/15">
+                      {/* Background dashed grid lines */}
+                      <div className="absolute inset-0 grid grid-cols-[320px_1fr_1fr_1fr] pointer-events-none">
+                        <div />
+                        <div className="border-l border-[#C7C4D7]/20 border-dashed" />
+                        <div className="border-l border-[#C7C4D7]/20 border-dashed" />
+                        <div className="border-l border-[#C7C4D7]/20 border-dashed" />
+                      </div>
+
+                      {filteredActivities.map((act, index) => {
+                        const progress = act.progress_pct ?? 0;
+                        const isComplete = progress >= 100;
+                        const isInProgress = progress > 0 && progress < 100;
+
+                        return (
+                          <div
+                            key={act.id}
+                            className="grid grid-cols-[320px_1fr_1fr_1fr] hover:bg-[#F5F2FE]/40 transition-colors relative z-10 items-center min-h-[72px]"
+                          >
+                            {/* Task Column */}
+                            <div className="p-4 flex flex-col justify-center">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono font-bold text-xs text-[#4648D4]">
+                                  {act.activity_code}
+                                </span>
+                                <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
+                                  {act.discipline}
+                                </span>
+                              </div>
+                              <p className="font-semibold text-xs sm:text-sm text-[#1B1B23] mt-1 truncate" title={act.description}>
+                                {act.description}
+                              </p>
+                              <p className="text-[11px] text-[#64748B]">
+                                {act.location || 'Baghjan Site'} {act.line ? `• Line ${act.line}` : ''}
+                              </p>
+                            </div>
+
+                            {/* Gantt Bar Visualization Columns */}
+                            <div className="p-4 relative col-span-3 flex items-center">
+                              <div className="w-full h-8 bg-[#E9E6F3] rounded-xl relative overflow-hidden flex items-center">
+                                {/* Completed Bar */}
+                                {isComplete && (
+                                  <div className="w-full h-full bg-[#10B981] rounded-xl flex items-center justify-between px-3 text-white shadow-sm">
+                                    <span className="font-semibold text-xs">100% Complete</span>
+                                    <Check className="w-3.5 h-3.5" />
+                                  </div>
+                                )}
+
+                                {/* In Progress Bar */}
+                                {isInProgress && (
+                                  <div
+                                    className="h-full bg-[#F59E0B] rounded-xl flex items-center px-3 text-white shadow-sm transition-all duration-500 whitespace-nowrap"
+                                    style={{ width: `${Math.max(progress, 25)}%` }}
+                                  >
+                                    <span className="font-semibold text-xs">
+                                      In Progress ({progress}%)
+                                    </span>
+                                  </div>
+                                )}
+
+                                {/* Pending Bar */}
+                                {!isComplete && !isInProgress && (
+                                  <div className="w-full h-full flex items-center justify-center text-xs font-semibold text-slate-400">
+                                    Pending Execution (0%)
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Schedule Update Lineage (Audit Trail Table) */}
+              <div className="bg-white rounded-[24px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[#C7C4D7]/30 overflow-hidden">
+                <div className="p-6 border-b border-[#C7C4D7]/20 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-bold text-[#1B1B23]">Schedule Update Lineage</h2>
+                    <p className="text-xs text-[#64748B] mt-0.5">
+                      Immutable audit log of all automated AI and planner-approved schedule updates
+                    </p>
+                  </div>
+                  <span className="text-xs px-3 py-1 rounded-full bg-indigo-50 text-[#4648D4] font-semibold border border-indigo-100">
+                    {auditLogs.length} Logged Updates
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs sm:text-sm">
+                    <thead>
+                      <tr className="bg-[#F5F2FE]/60 text-xs font-semibold text-[#64748B] border-b border-[#C7C4D7]/20">
+                        <th className="p-4">Activity Code</th>
+                        <th className="p-4">Description & Scope</th>
+                        <th className="p-4">Discipline</th>
+                        <th className="p-4">Planned Dates</th>
+                        <th className="p-4">Actual Dates</th>
+                        <th className="p-4">Progress</th>
+                        <th className="p-4">Status & Lineage</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#C7C4D7]/15">
+                      {activities.map((act) => {
+                        const progress = act.progress_pct ?? 0;
+                        const isComplete = progress >= 100;
+                        const isInProgress = progress > 0 && progress < 100;
+
+                        return (
+                          <tr key={act.id} className="hover:bg-[#F5F2FE]/30 transition-colors">
+                            <td className="p-4 font-mono font-bold text-[#4648D4]">
+                              {act.activity_code}
+                            </td>
+                            <td className="p-4 font-medium text-[#1B1B23] max-w-xs">
+                              {act.description}
+                            </td>
+                            <td className="p-4">
+                              <span className="bg-[#E9E6F3] text-slate-700 px-2 py-1 rounded-md text-xs font-semibold uppercase">
                                 {act.discipline}
                               </span>
-                              {act.line && (
-                                <span className="px-1.5 py-0.5 rounded bg-slate-950 border border-slate-800 text-indigo-300 font-mono">
-                                  L-{act.line}
+                            </td>
+                            <td className="p-4 text-xs text-[#64748B]">
+                              {act.planned_start ? `${act.planned_start} → ${act.planned_end}` : 'Oct 1 - Oct 15'}
+                            </td>
+                            <td className="p-4 text-xs text-[#64748B]">
+                              {act.actual_start ? `${act.actual_start} → ${act.actual_end || 'Ongoing'}` : '—'}
+                            </td>
+                            <td className="p-4">
+                              <div className="flex items-center gap-2">
+                                <div className="w-16 h-2 bg-[#E9E6F3] rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full ${isComplete ? 'bg-[#10B981]' : isInProgress ? 'bg-[#F59E0B]' : 'bg-slate-300'}`}
+                                    style={{ width: `${progress}%` }}
+                                  />
+                                </div>
+                                <span className="font-semibold text-xs text-[#1B1B23]">{progress}%</span>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              {isComplete ? (
+                                <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-[#10B981] px-2.5 py-1 rounded-full text-xs font-semibold border border-emerald-200">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" /> Completed (Tier 1)
+                                </span>
+                              ) : isInProgress ? (
+                                <span className="inline-flex items-center gap-1.5 bg-amber-50 text-[#F59E0B] px-2.5 py-1 rounded-full text-xs font-semibold border border-amber-200">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-[#F59E0B]" /> In Progress (Tier 2)
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full text-xs font-semibold border border-slate-200">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400" /> Pending (Tier 3)
                                 </span>
                               )}
-                            </div>
-                          </td>
-                          <td className="py-3.5 px-4 text-slate-400 font-mono text-[11px]">
-                            {act.planned_start ? act.planned_start.slice(0, 10) : '—'} →{' '}
-                            {act.planned_end ? act.planned_end.slice(0, 10) : '—'}
-                          </td>
-                          <td className="py-3.5 px-4 font-mono text-[11px]">
-                            {act.actual_start ? (
-                              <span className="text-white">
-                                {act.actual_start.slice(0, 10)}
-                                {act.actual_end && ` → ${act.actual_end.slice(0, 10)}`}
-                              </span>
-                            ) : (
-                              <span className="text-slate-600">Pending link</span>
-                            )}
-                          </td>
-                          <td className="py-3.5 px-4 min-w-[120px]">
-                            <div className="space-y-1">
-                              <div className="flex justify-between text-[10px] text-slate-400">
-                                <span>{act.progress_pct || 0}%</span>
-                              </div>
-                              <div className="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden">
-                                <div
-                                  className={`h-full rounded-full transition-all duration-500 ${
-                                    act.progress_pct === 100
-                                      ? 'bg-emerald-500'
-                                      : act.progress_pct && act.progress_pct > 0
-                                      ? 'bg-sky-400'
-                                      : 'bg-transparent'
-                                  }`}
-                                  style={{ width: `${act.progress_pct || 0}%` }}
-                                />
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-3.5 px-4 text-right">
-                            <span className={`px-2.5 py-1 rounded-full border text-[11px] font-semibold ${dev.badge}`}>
-                              {dev.label}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
+          )}
 
-            {/* Section B: Audit Trail & Lineage ("Why Did This Update Happen?") */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
-              <div className="flex items-center justify-between">
+          {/* ========================================================================= */}
+          {/* SCREEN 2: REVIEW QUEUE (CONFIDENCE POLICY GATING)                         */}
+          {/* ========================================================================= */}
+          {activeTab === 'review' && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                    <History className="w-5 h-5 text-indigo-400" />
-                    <span>Audit Trail & Schedule Update Lineage</span>
+                  <h2 className="text-2xl font-bold tracking-tight text-[#1B1B23]">
+                    Matching & Verification Queue
                   </h2>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Immutable audit log of all automated and planner-approved schedule updates
+                  <p className="text-sm text-[#64748B] mt-1">
+                    Review and verify AI-extracted field events against the baseline WBS schedule
                   </p>
                 </div>
-                <span className="text-xs px-2.5 py-1 rounded-full bg-slate-950 border border-slate-800 text-slate-400 font-mono">
-                  {auditLogs.length} Verified Entries
-                </span>
+
+                <div className="flex items-center gap-2 bg-[#F5F2FE] p-1 rounded-xl border border-[#C7C4D7]/20">
+                  <button
+                    onClick={() => setStatusFilter('pending')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                      statusFilter === 'pending'
+                        ? 'bg-white shadow-sm text-[#4648D4]'
+                        : 'text-[#64748B] hover:text-[#1B1B23]'
+                    }`}
+                  >
+                    Pending Review ({matches.filter((m) => m.status === 'pending').length})
+                  </button>
+                  <button
+                    onClick={() => setStatusFilter('all')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                      statusFilter === 'all'
+                        ? 'bg-white shadow-sm text-[#4648D4]'
+                        : 'text-[#64748B] hover:text-[#1B1B23]'
+                    }`}
+                  >
+                    All Matches
+                  </button>
+                </div>
               </div>
 
-              {auditLogs.length === 0 ? (
-                <div className="p-8 text-center text-slate-500 space-y-2 bg-slate-950/40 rounded-xl border border-slate-800/60">
-                  <History className="w-6 h-6 mx-auto text-slate-600" />
-                  <p className="text-xs">No audit records logged yet. Approve a match in the Review Queue to generate an entry.</p>
+              {isLoadingMatches ? (
+                <div className="p-12 text-center text-slate-400">
+                  <RefreshCw className="w-6 h-6 animate-spin mx-auto text-[#4648D4]" />
+                  <p className="mt-2 text-sm font-medium">Loading match queue...</p>
+                </div>
+              ) : matches.length === 0 ? (
+                <div className="bg-white rounded-[24px] border border-[#C7C4D7]/30 p-12 text-center">
+                  <div className="w-16 h-16 rounded-full bg-emerald-50 text-[#10B981] flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle2 className="w-8 h-8" />
+                  </div>
+                  <h3 className="font-bold text-lg text-[#1B1B23]">Verification Queue Clear</h3>
+                  <p className="text-sm text-[#64748B] max-w-sm mx-auto mt-1">
+                    All submitted field reports have been linked and verified against the schedule.
+                  </p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {auditLogs.map((log) => {
-                    const isExpanded = expandedAuditId === log.id;
-                    const conf = getConfidenceBadge(log.confidence_score);
+                <div className="space-y-4">
+                  {matches.map((match) => {
+                    const badge = getConfidenceBadge(match.confidence_score);
+                    const isPending = match.status === 'pending';
 
                     return (
                       <div
-                        key={log.id}
-                        className="bg-slate-950/60 border border-slate-800 hover:border-slate-700/80 rounded-xl p-4 transition"
+                        key={match.id}
+                        className="bg-white rounded-[24px] border border-[#C7C4D7]/30 p-6 shadow-sm hover:shadow-md transition space-y-4"
                       >
-                        {/* Summary Header */}
-                        <div
-                          onClick={() => setExpandedAuditId(isExpanded ? null : log.id)}
-                          className="flex flex-wrap items-center justify-between gap-3 cursor-pointer select-none"
-                        >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#C7C4D7]/20 pb-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
-                              <Check className="w-4 h-4" />
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-mono font-bold text-emerald-400 text-xs">
-                                  {log.activity_code || 'Activity Update'}
-                                </span>
-                                <span className="text-slate-300 font-medium text-xs">
-                                  {log.activity_description || 'Schedule Link'}
-                                </span>
-                              </div>
-                              <p className="text-[11px] text-slate-500 mt-0.5">
-                                Approver: <span className="text-slate-300">{log.approver}</span> • Model: {log.model_version}
-                              </p>
+                            <span className="font-mono font-bold text-[#4648D4] text-base">
+                              {match.activity_code}
+                            </span>
+                            <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#E9E6F3] text-slate-700 font-semibold uppercase">
+                              {match.activity_discipline}
+                            </span>
+                            <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${badge.bg}`}>
+                              {badge.label} • {badge.tier}
+                            </span>
+                          </div>
+
+                          <span className="text-xs text-[#64748B]">
+                            {new Date(match.created_at).toLocaleString()}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+                          {/* Extracted Event */}
+                          <div className="bg-[#F5F2FE]/50 p-4 rounded-xl space-y-2 border border-[#C7C4D7]/20">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-[#64748B]">
+                              Extracted Field Event (Nova Micro)
+                            </p>
+                            <p className="font-semibold text-[#1B1B23]">{match.event_description}</p>
+                            <div className="flex flex-wrap gap-2 text-xs text-[#64748B] pt-1">
+                              {match.event_line && <span>Line: {match.event_line}</span>}
+                              {match.event_location && <span>Location: {match.event_location}</span>}
+                              {match.quantity && <span>Qty: {match.quantity}</span>}
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-3">
-                            <div className={`px-2.5 py-0.5 rounded-full border text-[11px] font-bold ${conf.bg}`}>
-                              {conf.label}
-                            </div>
-                            <span className="text-[11px] text-slate-500 font-mono">
-                              {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                            {isExpanded ? (
-                              <ChevronUp className="w-4 h-4 text-slate-400" />
-                            ) : (
-                              <ChevronDown className="w-4 h-4 text-slate-400" />
-                            )}
+                          {/* Matched Schedule Activity */}
+                          <div className="bg-[#F5F2FE]/50 p-4 rounded-xl space-y-2 border border-[#C7C4D7]/20">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-[#64748B]">
+                              Target Schedule Node (Titan V2)
+                            </p>
+                            <p className="font-semibold text-[#1B1B23]">{match.activity_description}</p>
+                            <p className="text-xs text-[#64748B]">
+                              Location: {match.activity_location || 'Baghjan Site'}
+                            </p>
                           </div>
                         </div>
 
-                        {/* Expandable Explanation Details */}
-                        {isExpanded && (
-                          <div className="mt-4 pt-4 border-t border-slate-800/80 space-y-3 text-xs">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                              {/* Source Extraction */}
-                              <div className="bg-slate-900/60 p-3 rounded-lg border border-slate-800 space-y-1.5">
-                                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                                  Source Field Extraction
-                                </span>
-                                <p className="font-medium text-slate-200">
-                                  {log.event_description || 'Extracted construction activity'}
-                                </p>
-                                <div className="flex flex-wrap gap-1 text-[11px] text-slate-400">
-                                  {log.event_discipline && <span>Discipline: {log.event_discipline}</span>}
-                                  {log.event_line && <span>• Line: {log.event_line}</span>}
-                                  {log.event_location && <span>• Loc: {log.event_location}</span>}
-                                </div>
-                              </div>
-
-                              {/* State Transition Diff */}
-                              <div className="bg-slate-900/60 p-3 rounded-lg border border-slate-800 space-y-1.5 font-mono text-[11px]">
-                                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                                  State Transition
-                                </span>
-                                <div className="text-slate-400">
-                                  <span className="text-rose-400">- Previous:</span>{' '}
-                                  {typeof log.previous_value === 'string'
-                                    ? log.previous_value
-                                    : JSON.stringify(log.previous_value)}
-                                </div>
-                                <div className="text-emerald-400">
-                                  <span className="text-emerald-400">+ New:</span>{' '}
-                                  {typeof log.new_value === 'string'
-                                    ? log.new_value
-                                    : JSON.stringify(log.new_value)}
-                                </div>
-                              </div>
-                            </div>
+                        {/* Actions */}
+                        {isPending && (
+                          <div className="flex items-center justify-end gap-3 pt-2">
+                            <button
+                              onClick={() => handleMatchAction(match.id, 'rejected', match.activity_code)}
+                              disabled={actionInProgress === match.id}
+                              className="px-4 py-2 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-semibold transition"
+                            >
+                              Reject Link
+                            </button>
+                            <button
+                              onClick={() => handleMatchAction(match.id, 'planner_approved', match.activity_code)}
+                              disabled={actionInProgress === match.id}
+                              className="px-5 py-2 rounded-xl bg-[#10B981] hover:bg-emerald-600 text-white text-xs font-semibold shadow-sm transition flex items-center gap-1.5"
+                            >
+                              <Check className="w-4 h-4" />
+                              <span>Approve & Update Schedule</span>
+                            </button>
                           </div>
                         )}
                       </div>
@@ -920,748 +1144,329 @@ export default function BridgeIQApp() {
                 </div>
               )}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* ========================================================================= */}
-        {/* SCREEN 2: REVIEW QUEUE                                                    */}
-        {/* ========================================================================= */}
-        {activeTab === 'review' && (
-          <div className="space-y-6">
-            {/* Header & Filter Controls */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-3">
-                  <span>Planner Review Queue</span>
-                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-900 border border-slate-800 text-slate-400 font-normal">
-                    AI Schedule Matcher
-                  </span>
-                </h1>
-                <p className="text-sm text-slate-400 mt-1">
-                  Verify or reject schedule activity updates flagged by confidence gating policy.
+          {/* ========================================================================= */}
+          {/* SCREEN 3: UPLOAD REPORT (S3 PIPELINE)                                     */}
+          {/* ========================================================================= */}
+          {activeTab === 'upload' && (
+            <div className="max-w-2xl mx-auto space-y-6">
+              <div className="text-center space-y-1">
+                <h2 className="text-2xl font-bold text-[#1B1B23]">Ingest Daily Field Report</h2>
+                <p className="text-sm text-[#64748B]">
+                  Submit unstructured notes, spreadsheets, or documents to trigger the event-driven AWS pipeline
                 </p>
               </div>
 
-              {/* Status Filter Buttons */}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setStatusFilter('pending')}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition ${
-                    statusFilter === 'pending'
-                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
-                      : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>Pending Review</span>
-                  <span className="px-1.5 py-0.2 rounded-full bg-amber-400/20 text-amber-300 text-[10px]">
-                    {matches.filter((m) => m.status === 'pending').length}
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => setStatusFilter('manual_resolution')}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition ${
-                    statusFilter === 'manual_resolution'
-                      ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm'
-                      : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  <span>Manual Resolution</span>
-                  <span className="px-1.5 py-0.2 rounded-full bg-rose-400/20 text-rose-300 text-[10px]">
-                    {matches.filter((m) => m.status === 'manual_resolution').length}
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => setStatusFilter('all')}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition ${
-                    statusFilter === 'all'
-                      ? 'bg-slate-800 text-white border border-slate-700'
-                      : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <Filter className="w-3.5 h-3.5" />
-                  <span>All ({matches.length})</span>
-                </button>
-
-                <button
-                  onClick={fetchMatches}
-                  disabled={isLoadingMatches}
-                  className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 transition"
-                  title="Refresh Queue"
-                >
-                  <RefreshCw className={`w-4 h-4 ${isLoadingMatches ? 'animate-spin' : ''}`} />
-                </button>
-              </div>
-            </div>
-
-            {/* Matches List */}
-            {isLoadingMatches ? (
-              <div className="p-12 text-center text-slate-500 space-y-3 bg-slate-900/30 rounded-2xl border border-slate-800/60">
-                <RefreshCw className="w-8 h-8 animate-spin mx-auto text-emerald-400" />
-                <p className="text-sm font-medium">Loading match items...</p>
-              </div>
-            ) : matches.length === 0 ? (
-              <div className="p-12 text-center text-slate-400 space-y-4 bg-slate-900/30 rounded-2xl border border-slate-800/60">
-                <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto text-emerald-400">
-                  <Inbox className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="text-base font-semibold text-white">No items in this queue</h3>
-                  <p className="text-xs text-slate-500 mt-1">
-                    All matches matching filter &quot;{statusFilter}&quot; have been resolved.
-                  </p>
-                </div>
-                <button
-                  onClick={() => setActiveTab('upload')}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition"
-                >
-                  <Upload className="w-3.5 h-3.5" />
-                  <span>Upload a Field Report</span>
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {matches.map((item) => {
-                  const conf = getConfidenceBadge(item.confidence_score);
-                  const isProcessing = actionInProgress === item.id;
-
-                  return (
-                    <div
-                      key={item.id}
-                      className="bg-slate-900/60 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-5 transition shadow-lg space-y-4"
-                    >
-                      {/* Card Header: Confidence & Status Badge */}
-                      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/70 pb-3">
-                        <div className="flex items-center gap-3">
-                          <div className={`flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-bold ${conf.bg}`}>
-                            <span className={`w-2 h-2 rounded-full ${conf.dot}`} />
-                            <span>Confidence: {conf.label}</span>
-                          </div>
-                          <span className="text-xs text-slate-400 font-medium">{conf.tier}</span>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-slate-500 font-mono">
-                            Match ID: {item.id.slice(0, 8)}
-                          </span>
-                          <span
-                            className={`text-xs px-2.5 py-0.5 rounded-full font-semibold capitalize ${
-                              item.status === 'pending'
-                                ? 'bg-amber-500/10 text-amber-300 border border-amber-500/20'
-                                : item.status === 'auto_approved' || item.status === 'planner_approved'
-                                ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20'
-                                : item.status === 'manual_resolution'
-                                ? 'bg-rose-500/10 text-rose-300 border border-rose-500/20'
-                                : 'bg-slate-800 text-slate-400'
-                            }`}
-                          >
-                            {item.status.replace('_', ' ')}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Card Body: Side-by-Side Comparison */}
-                      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-                        {/* Left: Extracted Field Event */}
-                        <div className="md:col-span-5 bg-slate-950/60 border border-slate-800/80 rounded-xl p-4 space-y-2.5">
-                          <div className="flex items-center justify-between text-xs text-slate-400">
-                            <span className="font-semibold uppercase tracking-wider text-slate-300">
-                              Extracted Field Event
-                            </span>
-                            <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-emerald-400 font-mono text-[11px] uppercase">
-                              {item.event_type}
-                            </span>
-                          </div>
-
-                          <p className="text-sm font-semibold text-white leading-snug">
-                            {item.event_description}
-                          </p>
-
-                          <div className="flex flex-wrap gap-1.5 pt-1 text-xs">
-                            <span className="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-slate-300 font-medium">
-                              Discipline: {item.event_discipline}
-                            </span>
-                            {item.event_line && (
-                              <span className="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-indigo-300 font-mono">
-                                Line: {item.event_line}
-                              </span>
-                            )}
-                            {item.event_location && (
-                              <span className="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-amber-300">
-                                Loc: {item.event_location}
-                              </span>
-                            )}
-                            {item.quantity && (
-                              <span className="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-teal-300">
-                                Qty: {item.quantity}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Middle: Arrow */}
-                        <div className="md:col-span-2 flex flex-col items-center justify-center gap-1 text-slate-500 py-1">
-                          <ArrowRight className="w-5 h-5 text-emerald-400/80 hidden md:block" />
-                          <span className="text-[10px] uppercase font-bold tracking-widest text-slate-500">
-                            Candidate
-                          </span>
-                        </div>
-
-                        {/* Right: Matched Baseline Schedule Activity */}
-                        <div className="md:col-span-5 bg-slate-950/60 border border-slate-800/80 rounded-xl p-4 space-y-2.5">
-                          <div className="flex items-center justify-between text-xs text-slate-400">
-                            <span className="font-semibold uppercase tracking-wider text-slate-300">
-                              Schedule Baseline Activity
-                            </span>
-                            <span className="px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-500/30 text-emerald-300 font-mono text-[11px] font-bold">
-                              {item.activity_code}
-                            </span>
-                          </div>
-
-                          <p className="text-sm font-semibold text-white leading-snug">
-                            {item.activity_description}
-                          </p>
-
-                          <div className="flex flex-wrap gap-1.5 pt-1 text-xs">
-                            <span className="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-slate-300 font-medium">
-                              Discipline: {item.activity_discipline}
-                            </span>
-                            {item.activity_line && (
-                              <span className="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-indigo-300 font-mono">
-                                Line: {item.activity_line}
-                              </span>
-                            )}
-                            {item.activity_location && (
-                              <span className="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-amber-300">
-                                Loc: {item.activity_location}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Card Footer: Metadata & Approval Actions */}
-                      <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-slate-800/50">
-                        <div className="text-xs text-slate-500 flex items-center gap-3">
-                          <span>Report: {item.report_file_type || 'free-text'}</span>
-                          {item.report_uploaded_by && <span>• Uploaded by: {item.report_uploaded_by}</span>}
-                          <span>• Model: {item.model_version}</span>
-                        </div>
-
-                        {/* Action Buttons (Enabled for Pending Items) */}
-                        {item.status === 'pending' && (
-                          <div className="flex items-center gap-2.5">
-                            <button
-                              onClick={() =>
-                                handleMatchAction(item.id, 'rejected', item.activity_code)
-                              }
-                              disabled={isProcessing}
-                              className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-rose-950/60 border border-slate-700 hover:border-rose-500/50 text-rose-300 text-xs font-semibold flex items-center gap-1.5 transition disabled:opacity-50"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                              <span>Reject Match</span>
-                            </button>
-
-                            <button
-                              onClick={() =>
-                                handleMatchAction(item.id, 'planner_approved', item.activity_code)
-                              }
-                              disabled={isProcessing}
-                              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500/50 text-white text-xs font-semibold flex items-center gap-1.5 transition shadow-md shadow-emerald-950/40 disabled:opacity-50"
-                            >
-                              <Check className="w-3.5 h-3.5" />
-                              <span>Approve & Link Schedule</span>
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ========================================================================= */}
-        {/* SCREEN 1: UPLOAD                                                          */}
-        {/* ========================================================================= */}
-        {activeTab === 'upload' && (
-          <div className="max-w-3xl mx-auto space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight text-white">Ingest Field Report</h1>
-                <p className="text-sm text-slate-400 mt-1">
-                  Submit site supervisor updates, spreadsheets, or contractor logs for automated schedule linking.
-                </p>
-              </div>
-              <div className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">
-                <Building2 className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Project: Duliajan Infrastructure</span>
-              </div>
-            </div>
-
-            {uploadSuccess && (
-              <div className="p-5 rounded-2xl bg-emerald-950/40 border border-emerald-500/40 text-emerald-200 space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                    <Check className="w-5 h-5 text-emerald-400" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-emerald-300">Report received successfully</h3>
-                    <p className="text-xs text-emerald-400/80">
-                      Report ID: {uploadSuccess.id} • Type: {uploadSuccess.file_type} • Uploaded by: {uploadSuccess.uploaded_by}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-3 pt-2">
-                  <button
-                    onClick={() => {
-                      setUploadSuccess(null);
-                      setActiveTab('review');
-                      fetchMatches();
-                    }}
-                    className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-2 transition"
-                  >
-                    <span>Go to Review Queue</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => setUploadSuccess(null)}
-                    className="px-4 py-2 rounded-lg bg-slate-900 border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-semibold transition"
-                  >
-                    Submit Another Report
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {uploadError && (
-              <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-500/40 text-rose-200 text-sm flex items-center gap-3">
-                <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0" />
-                <span>{uploadError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleUploadSubmit} className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-6 shadow-xl">
-              {/* Uploader Name */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-                  Uploaded By (Role / Department)
-                </label>
-                <input
-                  type="text"
-                  value={uploadedBy}
-                  onChange={(e) => setUploadedBy(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
-                  placeholder="e.g. Site Supervisor - Tank Farm"
-                  required
-                />
-              </div>
-
-              {/* Mode Toggle */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-                  Submission Format
-                </label>
-                <div className="grid grid-cols-2 gap-3">
+              <form onSubmit={handleUploadSubmit} className="bg-white p-8 rounded-[24px] shadow-sm border border-[#C7C4D7]/30 space-y-6">
+                {/* Upload Mode Switcher */}
+                <div className="flex p-1 bg-[#F5F2FE] rounded-xl border border-[#C7C4D7]/20">
                   <button
                     type="button"
                     onClick={() => setUploadMode('text')}
-                    className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border text-sm font-medium transition ${
-                      uploadMode === 'text'
-                        ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-300 shadow-sm'
-                        : 'bg-slate-950/40 border-slate-800 text-slate-400 hover:border-slate-700'
+                    className={`flex-1 py-2 rounded-lg text-xs font-semibold transition ${
+                      uploadMode === 'text' ? 'bg-white shadow-sm text-[#4648D4]' : 'text-[#64748B]'
                     }`}
                   >
-                    <FileText className="w-4 h-4" />
-                    <span>Free-Text Update</span>
+                    Free-Text Narrative
                   </button>
-
                   <button
                     type="button"
                     onClick={() => setUploadMode('file')}
-                    className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border text-sm font-medium transition ${
-                      uploadMode === 'file'
-                        ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-300 shadow-sm'
-                        : 'bg-slate-950/40 border-slate-800 text-slate-400 hover:border-slate-700'
+                    className={`flex-1 py-2 rounded-lg text-xs font-semibold transition ${
+                      uploadMode === 'file' ? 'bg-white shadow-sm text-[#4648D4]' : 'text-[#64748B]'
                     }`}
                   >
-                    <Upload className="w-4 h-4" />
-                    <span>File Attachment (CSV, PDF, Excel)</span>
+                    File / Document Upload
                   </button>
                 </div>
-              </div>
 
-              {/* Free-Text Input */}
-              {uploadMode === 'text' ? (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-xs font-medium text-slate-400">
-                      Report Narrative / Supervisor Site Log
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setReportText(
-                            'Team completed erection of three spools on line 24 near the tank farm today. Alignment checked, ready for welding tomorrow. No issues reported. Weather clear, full crew of 6 present.'
-                          )
-                        }
-                        className="text-xs text-emerald-400 hover:underline flex items-center gap-1"
-                      >
-                        <Sparkles className="w-3 h-3" /> Sample: Spools
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setReportText(
-                            'Hydrotest prep started on the 24-inch line at tank farm. Pressure gauges installed, isolation valves confirmed closed.'
-                          )
-                        }
-                        className="text-xs text-emerald-400 hover:underline flex items-center gap-1"
-                      >
-                        <Sparkles className="w-3 h-3" /> Sample: Hydrotest
-                      </button>
-                    </div>
-                  </div>
-                  <textarea
-                    rows={6}
-                    value={reportText}
-                    onChange={(e) => setReportText(e.target.value)}
-                    placeholder="Type or paste the field report narrative here (e.g. 'Completed erection of 3 spools on Line 24 in Tank Farm today...')"
-                    className="w-full p-4 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition leading-relaxed resize-y"
-                    required={uploadMode === 'text'}
+                {/* Submitter Field */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-[#64748B] uppercase">Supervisor / Submitter</label>
+                  <input
+                    type="text"
+                    value={uploadedBy}
+                    onChange={(e) => setUploadedBy(e.target.value)}
+                    className="w-full h-11 px-4 rounded-xl bg-[#F5F2FE] border-none text-sm text-[#1B1B23] focus:ring-2 focus:ring-[#4648D4]/20"
+                    required
                   />
                 </div>
-              ) : (
-                /* File Upload Dropzone */
-                <div className="space-y-3">
-                  <label className="block text-xs font-medium text-slate-400">Attach Document</label>
+
+                {/* Text or File Input */}
+                {uploadMode === 'text' ? (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-[#64748B] uppercase">Daily Progress Notes</label>
+                    <textarea
+                      rows={6}
+                      value={reportText}
+                      onChange={(e) => setReportText(e.target.value)}
+                      placeholder="e.g., Welded 14 spool joints on 24-inch crude header line 24-XX at Tank Farm area today..."
+                      className="w-full p-4 rounded-xl bg-[#F5F2FE] border-none text-sm text-[#1B1B23] focus:ring-2 focus:ring-[#4648D4]/20 resize-y"
+                      required
+                    />
+                  </div>
+                ) : (
                   <div
                     onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed border-slate-800 hover:border-emerald-500/60 rounded-2xl p-8 text-center cursor-pointer transition bg-slate-950/40 hover:bg-slate-950/80 group"
+                    className="border-2 border-dashed border-[#C7C4D7] hover:border-[#4648D4] rounded-2xl p-8 text-center cursor-pointer transition bg-[#F5F2FE]/50"
                   >
                     <input
                       type="file"
                       ref={fileInputRef}
                       className="hidden"
-                      accept=".csv,.txt,.pdf,.xlsx,.xls,.jpg,.jpeg,.png"
-                      onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          setSelectedFile(e.target.files[0]);
-                        }
-                      }}
+                      onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                     />
-                    <div className="w-12 h-12 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition text-slate-400 group-hover:text-emerald-400">
-                      <FileSpreadsheet className="w-6 h-6" />
-                    </div>
+                    <FileSpreadsheet className="w-8 h-8 text-[#4648D4] mx-auto mb-2" />
                     {selectedFile ? (
-                      <div>
-                        <p className="text-sm font-semibold text-emerald-400">{selectedFile.name}</p>
-                        <p className="text-xs text-slate-500 mt-1">
-                          {(selectedFile.size / 1024).toFixed(1)} KB • Click to choose a different file
-                        </p>
-                      </div>
+                      <p className="text-sm font-semibold text-[#4648D4]">{selectedFile.name}</p>
                     ) : (
-                      <div>
-                        <p className="text-sm font-medium text-slate-300">
-                          Click to select a file or drag & drop here
-                        </p>
-                        <p className="text-xs text-slate-500 mt-1">
-                          Supports CSV, PDF daily sheets, Excel spreadsheets, plain text, or site photos
-                        </p>
-                      </div>
+                      <p className="text-sm font-medium text-[#64748B]">Click to select CSV, TXT, or PDF</p>
                     )}
                   </div>
-                </div>
-              )}
-
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={isUploading}
-                className="w-full py-3.5 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-600 text-white font-semibold text-sm shadow-lg shadow-emerald-950/50 flex items-center justify-center gap-2 transition"
-              >
-                {isUploading ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Transmitting Report...</span>
-                  </>
-                ) : (
-                  <>
-                    <Upload className="w-4 h-4" />
-                    <span>Submit Report for Schedule Linking</span>
-                  </>
                 )}
-              </button>
-            </form>
-          </div>
-        )}
 
-        {/* ========================================================================= */}
-        {/* SCREEN 4: PROJECT MEMORY (INSTITUTIONAL RAG)                              */}
-        {/* ========================================================================= */}
-        {activeTab === 'memory' && (
-          <div className="space-y-8 max-w-5xl mx-auto">
-            {/* Header */}
-            <div className="bg-slate-900/80 border border-slate-800 p-6 sm:p-8 rounded-2xl shadow-xl relative overflow-hidden">
-              <div className="absolute -top-16 -right-16 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-                      <Sparkles className="w-6 h-6 text-emerald-400" />
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={isUploading}
+                  className="w-full py-3.5 rounded-xl bg-[#4648D4] hover:bg-[#3B3DC0] disabled:bg-slate-300 text-white font-semibold text-sm shadow-md transition flex items-center justify-center gap-2"
+                >
+                  {isUploading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Transmitting to S3 & Bedrock...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4" />
+                      <span>Upload & Link to Schedule</span>
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* SCREEN 4: PROJECT MEMORY (INSTITUTIONAL RAG)                              */}
+          {/* ========================================================================= */}
+          {activeTab === 'memory' && (
+            <div className="space-y-8 max-w-5xl mx-auto">
+              <div className="bg-white border border-[#C7C4D7]/30 p-8 rounded-[24px] shadow-sm relative overflow-hidden">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-2xl font-bold text-[#1B1B23] flex items-center gap-2">
+                      <Sparkles className="w-6 h-6 text-purple-600" />
                       <span>Project Memory & Historical RAG</span>
                     </h2>
-                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-300 border border-purple-500/30 font-medium">
-                      Titan V2 + Nova Pro
-                    </span>
-                  </div>
-                  <p className="text-sm text-slate-400">
-                    Query institutional memory across 40 past capital energy projects to prevent recurring schedule delays.
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowAllHistorical(!showAllHistorical)}
-                  className="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5 self-start sm:self-auto"
-                >
-                  <History className="w-4 h-4 text-emerald-400" />
-                  <span>{showAllHistorical ? 'Hide Seeded Dataset' : 'Browse All 40 Seeded Records'}</span>
-                </button>
-              </div>
-
-              {/* Search Form */}
-              <div className="mt-6 space-y-3">
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <div className="relative flex-1">
-                    <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      value={memoryQuery}
-                      onChange={(e) => setMemoryQuery(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleMemoryQuery()}
-                      placeholder="Ask any question about past project delays, piping risks, material shortages..."
-                      className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
-                    />
+                    <p className="text-sm text-[#64748B] mt-1">
+                      Query institutional memory across 40 past capital energy projects to prevent recurring schedule delays.
+                    </p>
                   </div>
                   <button
-                    onClick={() => handleMemoryQuery()}
-                    disabled={isQueryingMemory || !memoryQuery.trim()}
-                    className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-600 text-white font-semibold text-sm shadow-lg shadow-emerald-950/50 flex items-center justify-center gap-2 transition shrink-0"
+                    onClick={() => setShowAllHistorical(!showAllHistorical)}
+                    className="px-4 py-2 text-xs font-semibold rounded-xl bg-[#F5F2FE] hover:bg-[#E9E6F3] text-[#4648D4] border border-[#C7C4D7]/30 transition self-start sm:self-auto"
                   >
-                    {isQueryingMemory ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                        <span>Synthesizing...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-4 h-4" />
-                        <span>Query Memory</span>
-                      </>
-                    )}
+                    {showAllHistorical ? 'Hide Seeded Dataset' : 'Browse All 40 Seeded Records'}
                   </button>
                 </div>
 
-                {/* Preset Prompt Suggestions */}
-                <div className="flex flex-wrap items-center gap-2 pt-2">
-                  <span className="text-xs text-slate-500 font-medium">Try asking:</span>
-                  {[
-                    'What caused piping delays in past projects?',
-                    'What are the common risks in civil foundation works?',
-                    'How long did substation cable tray installation take?',
-                    'Show safety and HSE incident patterns.',
-                  ].map((preset, idx) => (
+                {/* Query Input */}
+                <div className="mt-6 space-y-3">
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="relative flex-1">
+                      <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={memoryQuery}
+                        onChange={(e) => setMemoryQuery(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleMemoryQuery()}
+                        placeholder="Ask about past piping delays, civil risks, material shortages..."
+                        className="w-full pl-11 pr-4 py-3 bg-[#F5F2FE] border-none rounded-xl text-sm text-[#1B1B23] focus:ring-2 focus:ring-purple-500/20 transition"
+                      />
+                    </div>
                     <button
-                      key={idx}
-                      onClick={() => {
-                        setMemoryQuery(preset);
-                        handleMemoryQuery(preset);
-                      }}
-                      className="px-2.5 py-1 text-xs rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition"
+                      onClick={() => handleMemoryQuery()}
+                      disabled={isQueryingMemory || !memoryQuery.trim()}
+                      className="px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-700 disabled:bg-slate-300 text-white font-semibold text-sm shadow-md transition flex items-center justify-center gap-2 shrink-0"
                     >
-                      {preset}
+                      {isQueryingMemory ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          <span>Synthesizing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4" />
+                          <span>Query Memory</span>
+                        </>
+                      )}
                     </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Error Message */}
-            {memoryError && (
-              <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm flex items-center gap-3">
-                <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
-                <p>{memoryError}</p>
-              </div>
-            )}
-
-            {/* Synthesized Answer Result */}
-            {memoryResult && (
-              <div className="space-y-6">
-                {/* Quantitative Stats Bar */}
-                {memoryResult.computed_stats && (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-xl">
-                      <p className="text-xs text-slate-400 uppercase font-semibold">Records Analyzed</p>
-                      <p className="text-2xl font-bold text-white mt-1">
-                        {memoryResult.computed_stats.totalRetrieved}
-                      </p>
-                    </div>
-                    <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-xl">
-                      <p className="text-xs text-slate-400 uppercase font-semibold">Delayed Activities</p>
-                      <p className="text-2xl font-bold text-amber-400 mt-1">
-                        {memoryResult.computed_stats.delayedCount}
-                      </p>
-                    </div>
-                    <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-xl">
-                      <p className="text-xs text-slate-400 uppercase font-semibold">Avg Delay Days</p>
-                      <p className="text-2xl font-bold text-rose-400 mt-1">
-                        +{memoryResult.computed_stats.averageDelayDays}d
-                      </p>
-                    </div>
-                    <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-xl">
-                      <p className="text-xs text-slate-400 uppercase font-semibold">Synthesis Model</p>
-                      <p className="text-xs font-mono font-semibold text-purple-300 mt-2 truncate" title={memoryResult.model_used}>
-                        {memoryResult.model_used.replace('apac.amazon.', '').replace(':0', '')}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Synthesized Narrative */}
-                <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xl space-y-4">
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="w-5 h-5 text-emerald-400" />
-                      <h3 className="font-bold text-lg text-white">Synthesized Institutional Memory</h3>
-                    </div>
-                    <span className="text-xs px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">
-                      Grounded via pgvector
-                    </span>
                   </div>
 
-                  <div className="prose prose-invert max-w-none text-slate-200 text-sm leading-relaxed whitespace-pre-line">
-                    {memoryResult.answer}
-                  </div>
-                </div>
-
-                {/* Retrieved Source Records */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-emerald-400" />
-                      <span>Verified Retrieved Grounding Sources ({memoryResult.retrieved_records?.length || 0})</span>
-                    </h3>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {memoryResult.retrieved_records?.map((record, idx) => (
-                      <div
-                        key={record.id || idx}
-                        className="bg-slate-900/50 border border-slate-800/80 hover:border-slate-700 p-4 rounded-xl space-y-2 transition"
+                  {/* Preset Suggestions */}
+                  <div className="flex flex-wrap items-center gap-2 pt-2">
+                    <span className="text-xs text-[#64748B] font-medium">Try asking:</span>
+                    {[
+                      'What caused piping delays in past projects?',
+                      'What are the common risks in civil foundation works?',
+                      'How long did substation cable tray installation take?',
+                      'Show safety and HSE incident patterns.',
+                    ].map((preset, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          setMemoryQuery(preset);
+                          handleMemoryQuery(preset);
+                        }}
+                        className="px-3 py-1 text-xs rounded-lg bg-[#F5F2FE] hover:bg-[#E9E6F3] text-purple-900 border border-[#C7C4D7]/30 transition"
                       >
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-300 uppercase">
-                              {record.discipline}
-                            </span>
-                            <h4 className="font-semibold text-sm text-slate-100 mt-1">
-                              {record.project_name}
-                            </h4>
-                          </div>
-                          {record.similarity_score && (
-                            <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                              {(record.similarity_score * 100).toFixed(1)}% match
-                            </span>
-                          )}
-                        </div>
-
-                        <p className="text-xs text-slate-300 font-medium">
-                          {record.activity_description}
-                        </p>
-
-                        <div className="flex items-center gap-3 text-xs text-slate-400 pt-1 border-t border-slate-800/60">
-                          <span>Planned: {record.planned_duration_days}d</span>
-                          <span>Actual: {record.actual_duration_days}d</span>
-                          <span className={record.delay_days > 0 ? 'text-amber-400 font-medium' : 'text-emerald-400'}>
-                            {record.delay_days > 0 ? `+${record.delay_days}d delay` : 'On Schedule'}
-                          </span>
-                        </div>
-
-                        {record.notes && (
-                          <p className="text-xs text-slate-400 italic bg-slate-950/60 p-2 rounded-lg border border-slate-800/40">
-                            &quot;{record.notes}&quot;
-                          </p>
-                        )}
-                      </div>
+                        {preset}
+                      </button>
                     ))}
                   </div>
                 </div>
               </div>
-            )}
 
-            {/* Seeded Dataset Explorer (40 records) */}
-            {showAllHistorical && (
-              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-bold text-white text-base">Historical Knowledge Base (40 Records)</h3>
-                    <p className="text-xs text-slate-400">All records embedded with 1024-dimensional Titan V2 vectors</p>
+              {/* Synthesized Answer Result */}
+              {memoryResult && (
+                <div className="space-y-6">
+                  {/* Stats Bar */}
+                  {memoryResult.computed_stats && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                      <div className="bg-white border border-[#C7C4D7]/30 p-4 rounded-2xl shadow-sm">
+                        <p className="text-xs text-[#64748B] uppercase font-semibold">Records Analyzed</p>
+                        <p className="text-2xl font-bold text-[#1B1B23] mt-1">
+                          {memoryResult.computed_stats.totalRetrieved}
+                        </p>
+                      </div>
+                      <div className="bg-white border border-[#C7C4D7]/30 p-4 rounded-2xl shadow-sm">
+                        <p className="text-xs text-[#64748B] uppercase font-semibold">Delayed Activities</p>
+                        <p className="text-2xl font-bold text-amber-600 mt-1">
+                          {memoryResult.computed_stats.delayedCount}
+                        </p>
+                      </div>
+                      <div className="bg-white border border-[#C7C4D7]/30 p-4 rounded-2xl shadow-sm">
+                        <p className="text-xs text-[#64748B] uppercase font-semibold">Avg Delay Days</p>
+                        <p className="text-2xl font-bold text-rose-600 mt-1">
+                          +{memoryResult.computed_stats.averageDelayDays}d
+                        </p>
+                      </div>
+                      <div className="bg-white border border-[#C7C4D7]/30 p-4 rounded-2xl shadow-sm">
+                        <p className="text-xs text-[#64748B] uppercase font-semibold">Synthesis Model</p>
+                        <p className="text-xs font-mono font-semibold text-purple-700 mt-2 truncate">
+                          {memoryResult.model_used.replace('apac.amazon.', '').replace(':0', '')}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Synthesized Narrative */}
+                  <div className="bg-white border border-[#C7C4D7]/30 rounded-[24px] p-8 shadow-sm space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-purple-600" />
+                        <h3 className="font-bold text-lg text-[#1B1B23]">Synthesized Institutional Memory</h3>
+                      </div>
+                      <span className="text-xs px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-700 font-mono font-semibold border border-purple-200">
+                        Grounded via pgvector
+                      </span>
+                    </div>
+
+                    <div className="text-slate-800 text-sm leading-relaxed whitespace-pre-line">
+                      {memoryResult.answer}
+                    </div>
                   </div>
-                  {isLoadingHistorical && <RefreshCw className="w-4 h-4 animate-spin text-emerald-400" />}
-                </div>
 
-                <div className="overflow-x-auto max-h-96 overflow-y-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead className="sticky top-0 bg-slate-950 text-slate-400 font-semibold border-b border-slate-800">
-                      <tr>
-                        <th className="p-3">Project</th>
-                        <th className="p-3">Discipline</th>
-                        <th className="p-3">Activity</th>
-                        <th className="p-3">Delay</th>
-                        <th className="p-3">Primary Cause</th>
-                        <th className="p-3">Embedding</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/50">
-                      {historicalRecords.map((hr, idx) => (
-                        <tr key={hr.id || idx} className="hover:bg-slate-800/30">
-                          <td className="p-3 font-medium text-slate-200">{hr.project_name}</td>
-                          <td className="p-3">
-                            <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 uppercase font-mono text-[10px]">
-                              {hr.discipline}
-                            </span>
-                          </td>
-                          <td className="p-3 text-slate-300 max-w-xs truncate" title={hr.activity_description}>
-                            {hr.activity_description}
-                          </td>
-                          <td className="p-3">
-                            {hr.delay_days > 0 ? (
-                              <span className="text-amber-400 font-semibold">+{hr.delay_days}d</span>
-                            ) : (
-                              <span className="text-emerald-400">0d</span>
+                  {/* Verified Sources */}
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-[#64748B]">
+                      Verified Retrieved Grounding Sources ({memoryResult.retrieved_records?.length || 0})
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {memoryResult.retrieved_records?.map((record, idx) => (
+                        <div
+                          key={record.id || idx}
+                          className="bg-white border border-[#C7C4D7]/30 p-5 rounded-2xl space-y-2 shadow-sm"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 uppercase">
+                                {record.discipline}
+                              </span>
+                              <h4 className="font-bold text-sm text-[#1B1B23] mt-1">
+                                {record.project_name}
+                              </h4>
+                            </div>
+                            {record.similarity_score && (
+                              <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 font-semibold">
+                                {(record.similarity_score * 100).toFixed(1)}% match
+                              </span>
                             )}
-                          </td>
-                          <td className="p-3 text-slate-400">{hr.delay_cause || 'None'}</td>
-                          <td className="p-3">
-                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-mono">
-                              1024d ✓
+                          </div>
+                          <p className="text-xs text-slate-700 font-medium">{record.activity_description}</p>
+                          <div className="flex items-center gap-3 text-xs text-[#64748B] pt-1 border-t border-slate-100">
+                            <span>Planned: {record.planned_duration_days}d</span>
+                            <span>Actual: {record.actual_duration_days}d</span>
+                            <span className={record.delay_days > 0 ? 'text-amber-600 font-bold' : 'text-emerald-600 font-bold'}>
+                              {record.delay_days > 0 ? `+${record.delay_days}d delay` : 'On Schedule'}
                             </span>
-                          </td>
-                        </tr>
+                          </div>
+                          {record.notes && (
+                            <p className="text-xs text-[#64748B] italic bg-[#F5F2FE] p-2.5 rounded-xl">
+                              &quot;{record.notes}&quot;
+                            </p>
+                          )}
+                        </div>
                       ))}
-                    </tbody>
-                  </table>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
-      </main>
+              )}
+
+              {/* Seeded Dataset Explorer */}
+              {showAllHistorical && (
+                <div className="bg-white border border-[#C7C4D7]/30 rounded-[24px] p-6 shadow-sm space-y-4">
+                  <h3 className="font-bold text-[#1B1B23] text-base">Historical Knowledge Base (40 Records)</h3>
+                  <div className="overflow-x-auto max-h-96 overflow-y-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead className="sticky top-0 bg-[#F5F2FE] text-[#64748B] font-semibold border-b border-[#C7C4D7]/20">
+                        <tr>
+                          <th className="p-3">Project</th>
+                          <th className="p-3">Discipline</th>
+                          <th className="p-3">Activity</th>
+                          <th className="p-3">Delay</th>
+                          <th className="p-3">Primary Cause</th>
+                          <th className="p-3">Embedding</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#C7C4D7]/15">
+                        {historicalRecords.map((hr, idx) => (
+                          <tr key={hr.id || idx} className="hover:bg-[#F5F2FE]/40">
+                            <td className="p-3 font-semibold text-[#1B1B23]">{hr.project_name}</td>
+                            <td className="p-3 uppercase font-mono text-[10px] text-slate-600">{hr.discipline}</td>
+                            <td className="p-3 text-slate-700">{hr.activity_description}</td>
+                            <td className="p-3 font-bold text-amber-600">
+                              {hr.delay_days > 0 ? `+${hr.delay_days}d` : '0d'}
+                            </td>
+                            <td className="p-3 text-[#64748B]">{hr.delay_cause || 'None'}</td>
+                            <td className="p-3">
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-mono text-[10px] font-bold border border-emerald-200">
+                                1024d ✓
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }
