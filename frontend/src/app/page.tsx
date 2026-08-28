@@ -462,11 +462,13 @@ export default function ProgresslyApp() {
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex fixed left-0 top-0 h-full w-72 bg-[#F5F2FE]/80 backdrop-blur-xl z-50 flex-col border-r border-[#C7C4D7]/30">
         <div className="p-6 flex items-center gap-3">
-          <img
-            src="/progressly-logo.png"
-            alt="Progressly Logo"
-            className="w-10 h-10 rounded-xl shadow-md shadow-indigo-500/20 object-cover"
-          />
+          <div className="w-11 h-11 rounded-2xl bg-white p-1.5 shadow-sm border border-[#C7C4D7]/40 flex items-center justify-center">
+            <img
+              src="/progressly-logo.png"
+              alt="Progressly Logo"
+              className="w-full h-full object-contain"
+            />
+          </div>
           <div>
             <div className="flex items-center gap-2">
               <span className="font-bold text-xl text-[#4648D4] tracking-tight">Progressly</span>
@@ -566,11 +568,13 @@ export default function ProgresslyApp() {
               <Menu className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-2">
-              <img
-                src="/progressly-logo.png"
-                alt="Progressly Logo"
-                className="w-7 h-7 rounded-lg object-cover"
-              />
+              <div className="w-8 h-8 rounded-xl bg-white p-1 shadow-sm border border-[#C7C4D7]/40 flex items-center justify-center">
+                <img
+                  src="/progressly-logo.png"
+                  alt="Progressly Logo"
+                  className="w-full h-full object-contain"
+                />
+              </div>
               <span className="font-bold text-lg text-[#4648D4]">Progressly</span>
             </div>
           </div>
