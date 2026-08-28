@@ -45,7 +45,7 @@ export default function ArchitecturePage() {
   const [activeFlow, setActiveFlow] = useState<'ingestion' | 'memory'>('ingestion');
   const [activeStep, setActiveStep] = useState<number>(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [diagramOrientation, setDiagramOrientation] = useState<'landscape' | 'portrait' | 'explainer'>('landscape');
+  const [diagramOrientation, setDiagramOrientation] = useState<'landscape' | 'portrait'>('landscape');
 
   const ingestionSteps = [
     {
@@ -329,10 +329,10 @@ export default function ArchitecturePage() {
               </div>
 
               {/* Diagram Format Controls */}
-              <div className="bg-white p-1.5 rounded-2xl border border-[#C7C4D7]/40 shadow-xs flex flex-wrap items-center gap-1.5 self-start md:self-auto">
+              <div className="bg-white p-1.5 rounded-2xl border border-[#C7C4D7]/40 shadow-xs flex items-center gap-1.5 self-start md:self-auto">
                 <button
                   onClick={() => setDiagramOrientation('landscape')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition ${
                     diagramOrientation === 'landscape'
                       ? 'bg-[#4648D4] text-white shadow-xs'
                       : 'text-slate-600 hover:bg-slate-100'
@@ -342,23 +342,13 @@ export default function ArchitecturePage() {
                 </button>
                 <button
                   onClick={() => setDiagramOrientation('portrait')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition ${
                     diagramOrientation === 'portrait'
                       ? 'bg-[#4648D4] text-white shadow-xs'
                       : 'text-slate-600 hover:bg-slate-100'
                   }`}
                 >
                   Technical Portrait (3:4)
-                </button>
-                <button
-                  onClick={() => setDiagramOrientation('explainer')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
-                    diagramOrientation === 'explainer'
-                      ? 'bg-[#4648D4] text-white shadow-xs'
-                      : 'text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  Judges Explainer (Portrait)
                 </button>
               </div>
             </div>
@@ -413,28 +403,16 @@ export default function ArchitecturePage() {
               <div>
                 <h2 className="text-xl font-bold text-[#1B1B23] flex items-center gap-2.5">
                   <Workflow className="w-5 h-5 text-[#4648D4]" />
-                  <span>
-                    {diagramOrientation === 'explainer'
-                      ? 'Executive Concept Explainer (Judge-Friendly Overview)'
-                      : 'Production Topology Blueprint (AWS & Bedrock)'}
-                  </span>
+                  <span>Production Topology Blueprint</span>
                 </h2>
                 <p className="text-xs sm:text-sm text-[#64748B] mt-0.5">
-                  {diagramOrientation === 'explainer'
-                    ? 'High-level conceptual overview explaining how unstructured site notes are transformed into verified schedule updates.'
-                    : 'Light-themed monochrome engineering schematic across Client, AWS Infrastructure VPC, and Amazon Bedrock.'}
+                  Light-themed monochrome engineering schematic across Client, AWS Infrastructure VPC, and Amazon Bedrock.
                 </p>
               </div>
 
               <div className="flex items-center gap-2">
                 <a
-                  href={
-                    diagramOrientation === 'landscape'
-                      ? '/architecture-landscape.svg'
-                      : diagramOrientation === 'portrait'
-                      ? '/architecture-portrait.svg'
-                      : '/progressly-explainer-minimal.svg'
-                  }
+                  href={diagramOrientation === 'landscape' ? '/architecture-landscape.svg' : '/architecture-portrait.svg'}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#C7C4D7]/50 text-xs font-semibold text-slate-800 hover:border-[#4648D4] hover:text-[#4648D4] shadow-xs transition"
@@ -443,19 +421,11 @@ export default function ArchitecturePage() {
                   <span>Open Full Vector</span>
                 </a>
                 <a
-                  href={
-                    diagramOrientation === 'landscape'
-                      ? '/architecture-landscape.svg'
-                      : diagramOrientation === 'portrait'
-                      ? '/architecture-portrait.svg'
-                      : '/progressly-explainer-minimal.svg'
-                  }
+                  href={diagramOrientation === 'landscape' ? '/architecture-landscape.svg' : '/architecture-portrait.svg'}
                   download={
                     diagramOrientation === 'landscape'
                       ? 'progressly-architecture-landscape.svg'
-                      : diagramOrientation === 'portrait'
-                      ? 'progressly-architecture-portrait.svg'
-                      : 'progressly-explainer-portrait.svg'
+                      : 'progressly-architecture-portrait.svg'
                   }
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#4648D4] text-white text-xs font-semibold shadow-xs hover:bg-[#3B3DC0] transition"
                 >
@@ -468,20 +438,10 @@ export default function ArchitecturePage() {
             {/* EMBEDDED CRISP VECTOR BLUEPRINT */}
             <div className="rounded-2xl border border-[#C7C4D7]/40 bg-[#FFFFFF] p-2 sm:p-4 shadow-sm flex items-center justify-center overflow-hidden">
               <img
-                src={
-                  diagramOrientation === 'landscape'
-                    ? '/architecture-landscape.svg'
-                    : diagramOrientation === 'portrait'
-                    ? '/architecture-portrait.svg'
-                    : '/progressly-explainer-minimal.svg'
-                }
+                src={diagramOrientation === 'landscape' ? '/architecture-landscape.svg' : '/architecture-portrait.svg'}
                 alt="Progressly System Architecture Light Monochrome Schematic"
                 className={`w-full h-auto object-contain rounded-lg ${
-                  diagramOrientation === 'landscape'
-                    ? 'max-h-[640px]'
-                    : diagramOrientation === 'portrait'
-                    ? 'max-h-[920px]'
-                    : 'max-h-[780px]'
+                  diagramOrientation === 'landscape' ? 'max-h-[640px]' : 'max-h-[920px]'
                 }`}
               />
             </div>
