@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import {
   Upload,
   FileText,
@@ -40,6 +41,7 @@ import {
   CalendarDays,
   Tag,
   ListChecks,
+  Network,
 } from 'lucide-react';
 
 const API_BASE = '/api-proxy';
@@ -972,6 +974,16 @@ export default function ProgresslyApp() {
             <Sparkles className="w-5 h-5" />
             <span>Project Memory (RAG)</span>
           </button>
+
+          <div className="pt-2 border-t border-[#C7C4D7]/20 my-2" />
+
+          <Link
+            href="/architecture"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-[#464554] hover:bg-[#E9E6F3] hover:text-[#1B1B23] transition-all"
+          >
+            <Network className="w-5 h-5" />
+            <span>System Architecture</span>
+          </Link>
         </nav>
 
         {/* User Card */}
@@ -1093,6 +1105,13 @@ export default function ProgresslyApp() {
               <Sparkles className="w-4 h-4" />
               <span>Project Memory (RAG)</span>
             </button>
+            <Link
+              href="/architecture"
+              className="w-full flex items-center gap-3 p-3 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-100"
+            >
+              <Network className="w-4 h-4" />
+              <span>System Architecture</span>
+            </Link>
           </div>
         )}
 
