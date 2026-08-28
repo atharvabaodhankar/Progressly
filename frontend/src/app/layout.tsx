@@ -2,8 +2,12 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'BridgeIQ | Intelligent Schedule Linking',
-  description: 'Intelligent Data Capture & Schedule-Linking Layer for Infrastructure Projects',
+  title: 'Progressly | Intelligent Schedule-Linking & Data Capture Layer',
+  description: 'AI-driven data capture, automated schedule-linking, and institutional memory for capital infrastructure projects.',
+  icons: {
+    icon: '/progressly-logo.png',
+    apple: '/progressly-logo.png',
+  },
 };
 
 export default function RootLayout({

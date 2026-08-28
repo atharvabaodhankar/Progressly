@@ -111,7 +111,7 @@ interface ToastMessage {
   message: string;
 }
 
-export default function BridgeIQApp() {
+export default function ProgresslyApp() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'review' | 'upload' | 'memory'>('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -462,12 +462,14 @@ export default function BridgeIQApp() {
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex fixed left-0 top-0 h-full w-72 bg-[#F5F2FE]/80 backdrop-blur-xl z-50 flex-col border-r border-[#C7C4D7]/30">
         <div className="p-6 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#A855F7] to-[#6366F1] flex items-center justify-center shadow-lg shadow-indigo-500/25 text-white">
-            <HardHat className="w-5 h-5" />
-          </div>
+          <img
+            src="/progressly-logo.png"
+            alt="Progressly Logo"
+            className="w-10 h-10 rounded-xl shadow-md shadow-indigo-500/20 object-cover"
+          />
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-bold text-xl text-[#4648D4] tracking-tight">BridgeIQ</span>
+              <span className="font-bold text-xl text-[#4648D4] tracking-tight">Progressly</span>
               <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-bold">
                 PROD
               </span>
@@ -563,7 +565,14 @@ export default function BridgeIQApp() {
             >
               <Menu className="w-5 h-5" />
             </button>
-            <span className="font-bold text-lg text-[#4648D4]">BridgeIQ</span>
+            <div className="flex items-center gap-2">
+              <img
+                src="/progressly-logo.png"
+                alt="Progressly Logo"
+                className="w-7 h-7 rounded-lg object-cover"
+              />
+              <span className="font-bold text-lg text-[#4648D4]">Progressly</span>
+            </div>
           </div>
 
           {/* Search Bar */}
