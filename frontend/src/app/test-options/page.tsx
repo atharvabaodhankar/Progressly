@@ -26,6 +26,13 @@ import {
   Info,
   ChevronDown,
   ChevronUp,
+  LayoutDashboard,
+  Upload,
+  Network,
+  Menu,
+  X,
+  FileCode,
+  CheckCircle,
 } from 'lucide-react';
 
 interface Scenario {
@@ -60,14 +67,14 @@ const SCENARIOS: Scenario[] = [
     id: 'metro',
     name: 'Central Metro Station Modernization',
     badge: 'Urban Infrastructure',
-    badgeColor: 'from-blue-500 to-indigo-600',
+    badgeColor: 'from-blue-600 to-indigo-600',
     icon: Train,
     organization: 'Metro Rail Corporation',
     location: 'Central Junction Station',
     difficulty: 'Easy / Everyday',
-    difficultyColor: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+    difficultyColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     summary: 'Construction and outfitting of a passenger metro station concourse, platforms, escalators, and ticketing gates.',
-    whyEasy: 'Everyone understands escalators, tile flooring, CCTV cameras, and ticketing gates. No complex chemical jargon!',
+    whyEasy: 'Everyone understands escalators, granite flooring, CCTV security cameras, and ticketing gates. Zero chemical or oil jargon!',
     csvFilename: 'metro_station_schedule.csv',
     csvData: `activity_code,description,discipline,line,location,planned_start,planned_end
 MTR-CIV-0101,Cast Concrete Base Slab Platform 1,Civil,,Station Platform 1,2026-10-01,2026-10-12
@@ -96,7 +103,7 @@ Shift Progress:
 Workforce & Equipment:
 - 18 electricians and 6 mechanical rigging technicians on site. All PPE compliant.`,
         expectedOutcome: {
-          novaExtraction: 'Extracts 2 distinct events: Escalator assembly at 75% (Location: Entry Hall A) and Concourse Lighting at 90% (Location: Main Concourse).',
+          novaExtraction: 'Extracts 2 events: Escalator assembly at 75% (Location: Entry Hall A) and Concourse Lighting at 90% (Location: Main Concourse).',
           titanLinking: 'Titan V2 matches MTR-MEC-0301 with >95% confidence and MTR-ELE-0201 with >96% confidence.',
           reviewQueueTier: 'Tier 1 Auto-Approved (Green badge). Automatically applied to project baseline.',
           timelineImpact: 'Timeline Dashboard immediately advances Escalator progress bar from 0% to 75% and Lighting to 90%.',
@@ -117,8 +124,8 @@ Notes:
         expectedOutcome: {
           novaExtraction: 'Extracts flooring tile activity at 20% with explicit delay cause ("Rain water seepage & transport strike delay 3 days").',
           titanLinking: 'Titan V2 matches MTR-CIV-0102 at ~93-96% confidence.',
-          reviewQueueTier: 'Tier 1 or Tier 2 depending on variance flags. Highlights 3-day critical path delay for Planner review.',
-          timelineImpact: 'Flags Platform 1 flooring as lagging behind baseline schedule with orange delay indicator.',
+          reviewQueueTier: 'Flags critical path delay for Planner Review in Tier 2 / Tier 1.',
+          timelineImpact: 'Flags Platform 1 flooring as lagging behind baseline schedule with visual delay indicator.',
         },
       },
     ],
@@ -127,14 +134,14 @@ Notes:
     id: 'solar',
     name: '50MW Thar Desert Solar Farm',
     badge: 'Clean Energy & Utilities',
-    badgeColor: 'from-amber-500 to-orange-600',
+    badgeColor: 'from-amber-500 to-orange-500',
     icon: Sun,
     organization: 'CleanGrid Energy Solutions',
     location: 'Jaisalmer Solar Park, Rajasthan',
     difficulty: 'Medium / Commercial',
-    difficultyColor: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+    difficultyColor: 'bg-amber-50 text-amber-700 border-amber-200',
     summary: 'Ground-mount solar PV array installation, underground cabling, weather pyranometer sensors, and 33kV grid transformer synchronization.',
-    whyEasy: 'Intuitive clean energy concepts: driving metal poles into the sand, bolting solar panels, and connecting inverters to the power grid.',
+    whyEasy: 'Intuitive clean energy concepts: driving metal poles into the ground, bolting solar panels, and connecting inverters to the power grid.',
     csvFilename: 'solar_farm_schedule.csv',
     csvData: `activity_code,description,discipline,line,location,planned_start,planned_end
 SLR-CIV-101,Drive Ground Mounting Steel Piles Sector A,Civil,,Sector A Ground,2026-11-01,2026-11-10
@@ -168,14 +175,14 @@ Today's Progress:
     id: 'pipeline',
     name: 'Paradip-Hyderabad Cross-Country Pipeline',
     badge: 'Oil & Gas Midstream',
-    badgeColor: 'from-purple-500 to-pink-600',
+    badgeColor: 'from-purple-600 to-indigo-600',
     icon: Building2,
     organization: 'Indian Oil Corporation Ltd',
     location: 'Odisha / Andhra Pradesh',
     difficulty: 'Advanced / Industrial',
-    difficultyColor: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
+    difficultyColor: 'bg-purple-50 text-purple-700 border-purple-200',
     summary: 'Heavy hydrocarbon cross-country pipeline trenching, mainline pipe welding, pump station concrete pedestals, and hydrostatic pressure testing.',
-    whyEasy: 'Standard oil & gas pipeline demonstration showcasing real industrial line tags (Line PL-100), NDT radiographic testing, and civil pump house pedestals.',
+    whyEasy: 'Standard mega-infrastructure demonstration showcasing industrial line tags (Line PL-100), NDT radiographic testing, and civil pump house pedestals.',
     csvFilename: 'paradip_pipeline_schedule.csv',
     csvData: `activity_code,description,discipline,line,location,planned_start,planned_end
 PL-PIP-1001,Trenching and Stringing Sector 1,Piping,PL-100,Paradip Terminal,2026-09-01,2026-09-15
@@ -213,33 +220,33 @@ Activity Progress:
 const GLOSSARY_TERMS = [
   {
     engineering: 'Civil Works & Concrete Pouring',
-    plain: 'Laying the foundation, digging trenches, and pouring concrete floors.',
-    example: 'Pouring the floor of a metro station or building a concrete pump stand.',
+    plain: 'Laying foundations, digging trenches, and pouring solid concrete floors.',
+    example: 'Pouring the floor of a metro station or building a pump mounting stand.',
   },
   {
     engineering: 'Piping, Spool & Stringing',
-    plain: 'Laying out, welding, and connecting large industrial pipes for water, gas, or oil.',
-    example: 'Connecting the pipe joints together along a 10km trench.',
+    plain: 'Laying out, welding, and connecting large pipes for water, gas, or fuel.',
+    example: 'Connecting the pipe joints together along a 10-kilometer trench.',
   },
   {
     engineering: 'Static & Rotating Mechanical Equipment',
-    plain: 'Heavy machines with moving or stationary parts (pumps, escalators, compressors).',
-    example: 'Installing the motor and step tracks of a passenger escalator.',
+    plain: 'Heavy machines with moving or stationary parts (pumps, escalators, motors).',
+    example: 'Installing the motor drive and step tracks of a passenger escalator.',
   },
   {
     engineering: 'Instrumentation & SCADA',
     plain: 'Electronic sensors, digital control screens, pressure meters, and CCTV cameras.',
-    example: 'Mounting surveillance cameras or digital temperature gauges that report back to a control room.',
+    example: 'Mounting surveillance cameras or digital gauges that report back to a control room.',
   },
   {
     engineering: 'WBS (Work Breakdown Structure)',
-    plain: 'A clean, step-by-step master checklist of all jobs required to finish the project.',
-    example: 'Level 1: Build Station -> Level 2: Electrical -> Level 3: Install Light Bulbs.',
+    plain: 'A clean, step-by-step master checklist tree of all tasks required for the project.',
+    example: 'Level 1: Build Station -> Level 2: Electrical -> Level 3: Install Concourse Lights.',
   },
   {
     engineering: 'Hydrostatic Pressure Testing (Hydrotest)',
-    plain: 'Filling a pipe with pressurized water to check if there are any leaks before opening.',
-    example: 'Pumping water at 50 PSI to guarantee the pipeline will never burst.',
+    plain: 'Filling a pipe with pressurized water to guarantee zero leaks before opening.',
+    example: 'Pumping water at 50 PSI to ensure the pipeline is 100% leak-proof.',
   },
 ];
 
@@ -247,6 +254,7 @@ export default function TestOptionsPage() {
   const [selectedScenario, setSelectedScenario] = useState<string>('metro');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [glossaryOpen, setGlossaryOpen] = useState<boolean>(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const scenario = SCENARIOS.find((s) => s.id === selectedScenario) || SCENARIOS[0];
 
@@ -268,339 +276,467 @@ export default function TestOptionsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500 selection:text-white">
-      {/* Top Banner Navigation */}
-      <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-6 py-4 flex items-center justify-between shadow-lg">
-        <div className="flex items-center gap-4">
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm font-medium bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-700 hover:border-slate-600"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to App
-          </Link>
-          <div className="h-5 w-px bg-slate-800" />
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md">
-              <Sparkles className="w-4 h-4 text-white" />
+    <div className="min-h-screen bg-[#F8FAFF] text-[#1B1B23] flex flex-col antialiased selection:bg-[#4648D4]/10 selection:text-[#4648D4]">
+      {/* Desktop Sidebar */}
+      <aside className="hidden lg:flex fixed left-0 top-0 h-full w-72 bg-[#F5F2FE]/80 backdrop-blur-xl z-50 flex-col border-r border-[#C7C4D7]/30">
+        <div className="p-6 flex items-center gap-3">
+          <div className="w-11 h-11 rounded-2xl bg-white p-1.5 shadow-sm border border-[#C7C4D7]/40 flex items-center justify-center">
+            <img
+              src="/progressly-logo.png"
+              alt="Progressly Logo"
+              className="w-full h-full object-contain"
+            />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-xl text-[#4648D4] tracking-tight">Progressly</span>
+              <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-bold">
+                PROD
+              </span>
             </div>
-            <div>
-              <h1 className="text-base font-bold text-white flex items-center gap-2">
-                Demo Test Lab & Project Scenarios
-                <span className="text-xs bg-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded-full border border-indigo-500/30">
-                  Ready to Test
-                </span>
-              </h1>
-            </div>
+            <p className="text-xs text-[#64748B] font-medium">Oil India Ltd • Baghjan</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Link
-            href="/architecture"
-            className="text-xs text-slate-300 hover:text-white bg-slate-800 px-3 py-2 rounded-lg border border-slate-700 hover:border-indigo-500/50 transition-all flex items-center gap-1.5"
-          >
-            <Layers className="w-3.5 h-3.5 text-indigo-400" />
-            System Architecture
-          </Link>
+        {/* Sidebar Nav Links */}
+        <nav className="flex-1 px-4 space-y-1.5 mt-2">
           <Link
             href="/"
-            className="text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg shadow-md transition-all flex items-center gap-1.5"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-[#464554] hover:bg-[#E9E6F3] hover:text-[#1B1B23] transition-all"
           >
-            <Play className="w-3.5 h-3.5 fill-current" />
-            Launch Live Dashboard
+            <LayoutDashboard className="w-5 h-5" />
+            <span>Timeline Dashboard</span>
           </Link>
-        </div>
-      </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
-        {/* Intro Hero Box */}
-        <div className="bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 p-6 rounded-2xl border border-indigo-500/20 relative overflow-hidden shadow-2xl">
-          <div className="absolute right-0 top-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="max-w-3xl space-y-2 relative z-10">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs font-medium">
-              <Lightbulb className="w-3.5 h-3.5" />
-              Easy-to-Understand Testing Sandbox
-            </div>
-            <h2 className="text-2xl font-extrabold text-white tracking-tight">
-              Test Progressly with Real-World Projects in Under 60 Seconds
-            </h2>
-            <p className="text-sm text-slate-300 leading-relaxed">
-              Whether you are an engineer or a general user, use these curated project examples to test 
-              <strong className="text-white"> Multi-Project Onboarding</strong>, 
-              <strong className="text-white"> Amazon Nova Micro Report Ingestion</strong>, and 
-              <strong className="text-white"> Titan V2 Semantic Schedule Linking</strong>.
-            </p>
-          </div>
-        </div>
-
-        {/* Plain English vs Engineering Terms Cheatsheet (Collapsible) */}
-        <div className="bg-slate-900/80 rounded-xl border border-slate-800 overflow-hidden shadow-md">
-          <button
-            onClick={() => setGlossaryOpen(!glossaryOpen)}
-            className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-slate-800/40 transition-colors"
+          <Link
+            href="/?tab=review"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-[#464554] hover:bg-[#E9E6F3] hover:text-[#1B1B23] transition-all"
           >
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                <HelpCircle className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                  &ldquo;Plain English&rdquo; vs &ldquo;Engineering Jargon&rdquo; Cheat Sheet
-                  <span className="text-[11px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                    For Normal People &amp; Judges
-                  </span>
-                </h3>
-                <p className="text-xs text-slate-400">
-                  What complex terms like &ldquo;Backfill Foundation Area B&rdquo; or &ldquo;Spool Tie-In&rdquo; actually mean in plain words.
-                </p>
-              </div>
-            </div>
-            {glossaryOpen ? (
-              <ChevronUp className="w-4 h-4 text-slate-400" />
-            ) : (
-              <ChevronDown className="w-4 h-4 text-slate-400" />
-            )}
-          </button>
+            <ShieldCheck className="w-5 h-5" />
+            <span>Review Queue</span>
+          </Link>
 
-          {glossaryOpen && (
-            <div className="px-6 pb-6 pt-2 border-t border-slate-800/60 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {GLOSSARY_TERMS.map((term, idx) => (
-                <div key={idx} className="bg-slate-950/60 p-3.5 rounded-lg border border-slate-800 space-y-1.5">
-                  <div className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
-                    {term.engineering}
-                  </div>
-                  <div className="text-xs font-medium text-emerald-400">
-                    🗣️ Plain English: <span className="text-slate-200">{term.plain}</span>
-                  </div>
-                  <div className="text-[11px] text-slate-400 italic">
-                    💡 Example: {term.example}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+          <Link
+            href="/?tab=upload"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-[#464554] hover:bg-[#E9E6F3] hover:text-[#1B1B23] transition-all"
+          >
+            <Upload className="w-5 h-5" />
+            <span>Upload Daily Report</span>
+          </Link>
 
-        {/* Project Scenario Selector Tabs */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <Layers className="w-4 h-4 text-indigo-400" />
-              Select a Project Scenario to Test
-            </h3>
-            <span className="text-xs text-slate-400">
-              Click any project card below to load its schedule & report examples
+          <Link
+            href="/?tab=memory"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-[#464554] hover:bg-[#E9E6F3] hover:text-[#1B1B23] transition-all"
+          >
+            <Sparkles className="w-5 h-5" />
+            <span>Project Memory (RAG)</span>
+          </Link>
+
+          <div className="pt-2 border-t border-[#C7C4D7]/20 my-2" />
+
+          <div className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm bg-[#4648D4] text-white shadow-lg shadow-[#4648D4]/25 transition-all">
+            <Sparkles className="w-5 h-5 text-white" />
+            <span>Demo Test Lab</span>
+            <span className="ml-auto text-[10px] bg-white/20 text-white px-1.5 py-0.5 rounded-md font-bold">
+              Active
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {SCENARIOS.map((sc) => {
-              const Icon = sc.icon;
-              const isSelected = sc.id === selectedScenario;
-              return (
-                <button
-                  key={sc.id}
-                  onClick={() => setSelectedScenario(sc.id)}
-                  className={`p-5 rounded-xl border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
-                    isSelected
-                      ? 'bg-slate-900 border-indigo-500 ring-2 ring-indigo-500/20 shadow-xl'
-                      : 'bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-800/40'
-                  }`}
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div
-                        className={`w-10 h-10 rounded-lg bg-gradient-to-br ${sc.badgeColor} flex items-center justify-center shadow-md`}
-                      >
-                        <Icon className="w-5 h-5 text-white" />
-                      </div>
-                      <span
-                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${sc.difficultyColor}`}
-                      >
-                        {sc.difficulty}
-                      </span>
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-white">{sc.name}</h4>
-                      <p className="text-xs text-slate-400 mt-0.5">{sc.organization}</p>
-                    </div>
-                    <p className="text-xs text-slate-300 line-clamp-2">{sc.summary}</p>
-                  </div>
+          <Link
+            href="/architecture"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-[#464554] hover:bg-[#E9E6F3] hover:text-[#1B1B23] transition-all"
+          >
+            <Network className="w-5 h-5" />
+            <span>System Architecture</span>
+          </Link>
+        </nav>
 
-                  <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
-                    <span className="text-indigo-400 font-medium flex items-center gap-1">
-                      {isSelected ? 'Currently Viewing' : 'Click to View'}
-                    </span>
-                    <span className="text-slate-500">{sc.location}</span>
-                  </div>
-                </button>
-              );
-            })}
+        {/* User Card */}
+        <div className="p-4 m-4 rounded-2xl bg-[#E9E6F3]/60 border border-[#C7C4D7]/20 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-[#4648D4] text-white flex items-center justify-center font-bold text-sm">
+            PS
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="font-semibold text-sm text-[#1B1B23] truncate">Priya Sharma</span>
+            <span className="text-xs text-[#64748B] truncate">Lead Planning Engineer</span>
           </div>
         </div>
+      </aside>
 
-        {/* Detailed Scenario Workspace */}
-        <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6 space-y-8 shadow-2xl">
-          {/* Header Info */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-6 border-b border-slate-800">
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                  {scenario.badge}
-                </span>
-                <span className="text-xs text-slate-400">• {scenario.location}</span>
+      {/* Main Content Wrap */}
+      <div className="lg:pl-72 flex-1 flex flex-col">
+        {/* Top Header */}
+        <header className="sticky top-0 z-40 h-20 bg-white/85 backdrop-blur-xl border-b border-[#C7C4D7]/30 px-4 sm:px-8 flex items-center justify-between shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
+          {/* Mobile Menu Button & Title */}
+          <div className="flex items-center gap-3 lg:hidden">
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-white p-1 shadow-sm border border-[#C7C4D7]/40 flex items-center justify-center">
+                <img
+                  src="/progressly-logo.png"
+                  alt="Progressly Logo"
+                  className="w-full h-full object-contain"
+                />
               </div>
-              <h3 className="text-xl font-bold text-white">{scenario.name}</h3>
-              <p className="text-xs text-emerald-400 flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span className="font-semibold">Why this is easy to explain:</span> {scenario.whyEasy}
+              <span className="font-bold text-lg text-[#4648D4]">Progressly</span>
+            </div>
+          </div>
+
+          {/* Breadcrumb / Title */}
+          <div className="hidden sm:flex items-center gap-3">
+            <Link
+              href="/"
+              className="text-xs font-semibold text-[#64748B] hover:text-[#4648D4] transition flex items-center gap-1.5"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Dashboard
+            </Link>
+            <span className="text-slate-300">/</span>
+            <span className="text-xs font-bold text-[#1B1B23]">Demo Test Lab & Project Scenarios</span>
+            <span className="text-[10px] bg-indigo-50 text-[#4648D4] px-2 py-0.5 rounded-full border border-indigo-100 font-bold">
+              Ready to Test
+            </span>
+          </div>
+
+          {/* Action Button */}
+          <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              className="h-10 px-4 rounded-xl bg-[#4648D4] hover:bg-[#3B3DBF] text-white font-semibold text-xs flex items-center gap-2 shadow-sm transition-all"
+            >
+              <Play className="w-3.5 h-3.5 fill-current" />
+              <span>Launch Live Dashboard</span>
+            </Link>
+          </div>
+        </header>
+
+        {/* Mobile Slideout Menu */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex">
+            <div className="w-72 bg-white h-full p-6 flex flex-col shadow-2xl">
+              <div className="flex items-center justify-between pb-6 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-lg text-[#4648D4]">Progressly</span>
+                </div>
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="p-2 rounded-lg text-slate-400 hover:text-slate-700"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <nav className="flex-1 py-4 space-y-1.5">
+                <Link
+                  href="/"
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-[#464554] hover:bg-[#E9E6F3]"
+                >
+                  <LayoutDashboard className="w-5 h-5" />
+                  <span>Timeline Dashboard</span>
+                </Link>
+                <Link
+                  href="/architecture"
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-[#464554] hover:bg-[#E9E6F3]"
+                >
+                  <Network className="w-5 h-5" />
+                  <span>System Architecture</span>
+                </Link>
+              </nav>
+            </div>
+          </div>
+        )}
+
+        {/* Page Content */}
+        <main className="p-4 sm:p-8 max-w-7xl w-full mx-auto space-y-8">
+          {/* Hero Welcome Card */}
+          <div className="bg-gradient-to-br from-white via-indigo-50/30 to-white rounded-3xl p-6 sm:p-8 border border-[#C7C4D7]/40 shadow-[0_4px_20px_rgba(0,0,0,0.02)] relative overflow-hidden">
+            <div className="absolute right-0 top-0 w-80 h-80 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
+            <div className="max-w-3xl space-y-3 relative z-10">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-[#4648D4] text-xs font-semibold">
+                <Sparkles className="w-3.5 h-3.5 text-[#4648D4]" />
+                Interactive Evaluation Sandbox
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-[#1B1B23] tracking-tight">
+                Test Progressly with Real-World Projects in Under 60 Seconds
+              </h2>
+              <p className="text-sm text-[#64748B] leading-relaxed">
+                Whether you are an engineer or evaluating as a general judge, use these ready-to-test project templates
+                to verify <strong className="text-[#1B1B23]">Multi-Project Onboarding</strong>,{' '}
+                <strong className="text-[#1B1B23]">Amazon Nova Micro Extraction</strong>, and{' '}
+                <strong className="text-[#1B1B23]">Titan V2 Schedule Linking</strong>.
               </p>
             </div>
+          </div>
 
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => handleDownloadCSV(scenario.csvFilename, scenario.csvData)}
-                className="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
-              >
-                <Download className="w-3.5 h-3.5 text-indigo-400" />
-                Download CSV ({scenario.csvFilename})
-              </button>
-              <Link
-                href="/"
-                className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md transition-all"
-              >
-                <Play className="w-3.5 h-3.5 fill-current" />
-                Open in App
-              </Link>
+          {/* Plain English vs Engineering Terms Cheatsheet */}
+          <div className="bg-white rounded-3xl border border-[#C7C4D7]/40 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
+            <button
+              onClick={() => setGlossaryOpen(!glossaryOpen)}
+              className="w-full px-6 sm:px-8 py-5 flex items-center justify-between text-left hover:bg-slate-50/60 transition-colors"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="p-2.5 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100">
+                  <HelpCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-[#1B1B23] flex items-center gap-2">
+                    &ldquo;Plain English&rdquo; vs &ldquo;Engineering Jargon&rdquo; Cheat Sheet
+                    <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                      For Normal People &amp; Judges
+                    </span>
+                  </h3>
+                  <p className="text-xs text-[#64748B] mt-0.5">
+                    What complex terms like &ldquo;Backfill Foundation Area B&rdquo; or &ldquo;Spool Tie-In&rdquo; mean in plain words.
+                  </p>
+                </div>
+              </div>
+              <div className="p-2 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200 transition">
+                {glossaryOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </div>
+            </button>
+
+            {glossaryOpen && (
+              <div className="px-6 sm:px-8 pb-8 pt-2 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {GLOSSARY_TERMS.map((term, idx) => (
+                  <div key={idx} className="bg-[#F8FAFF] p-4 rounded-2xl border border-indigo-100/60 space-y-2">
+                    <div className="text-xs font-bold text-[#4648D4] flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-[#4648D4]" />
+                      {term.engineering}
+                    </div>
+                    <div className="text-xs font-medium text-emerald-800 bg-emerald-50/80 p-2 rounded-lg border border-emerald-100">
+                      🗣️ <strong>Plain English:</strong> {term.plain}
+                    </div>
+                    <div className="text-[11px] text-[#64748B] italic">
+                      💡 <strong>Example:</strong> {term.example}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Project Scenarios Selector */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-[#1B1B23] flex items-center gap-2">
+                <Layers className="w-5 h-5 text-[#4648D4]" />
+                Select a Project Scenario to Test
+              </h3>
+              <span className="text-xs text-[#64748B]">Click any card to inspect its schedule &amp; reports</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {SCENARIOS.map((sc) => {
+                const Icon = sc.icon;
+                const isSelected = sc.id === selectedScenario;
+                return (
+                  <button
+                    key={sc.id}
+                    onClick={() => setSelectedScenario(sc.id)}
+                    className={`p-6 rounded-3xl border text-left transition-all relative overflow-hidden flex flex-col justify-between cursor-pointer ${
+                      isSelected
+                        ? 'bg-white border-[#4648D4] ring-2 ring-[#4648D4]/20 shadow-xl'
+                        : 'bg-white border-[#C7C4D7]/40 hover:border-slate-300 hover:shadow-md'
+                    }`}
+                  >
+                    <div className="space-y-3.5">
+                      <div className="flex items-center justify-between">
+                        <div
+                          className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${sc.badgeColor} flex items-center justify-center shadow-md text-white`}
+                        >
+                          <Icon className="w-6 h-6" />
+                        </div>
+                        <span
+                          className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${sc.difficultyColor}`}
+                        >
+                          {sc.difficulty}
+                        </span>
+                      </div>
+                      <div>
+                        <h4 className="text-base font-bold text-[#1B1B23]">{sc.name}</h4>
+                        <p className="text-xs text-[#64748B] font-medium mt-0.5">{sc.organization}</p>
+                      </div>
+                      <p className="text-xs text-[#475569] leading-relaxed line-clamp-2">{sc.summary}</p>
+                    </div>
+
+                    <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs">
+                      <span className="text-[#4648D4] font-bold flex items-center gap-1">
+                        {isSelected ? '✓ Selected' : 'Click to View'}
+                      </span>
+                      <span className="text-[#94A3B8] font-medium">{sc.location}</span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Step 1: Baseline Schedule CSV */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 text-xs font-bold flex items-center justify-center border border-indigo-500/30">
-                  1
+          {/* Detailed Active Workspace */}
+          <div className="bg-white rounded-3xl border border-[#C7C4D7]/40 p-6 sm:p-8 space-y-8 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
+            {/* Header Info */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-md bg-indigo-50 text-[#4648D4] border border-indigo-100">
+                    {scenario.badge}
+                  </span>
+                  <span className="text-xs text-[#64748B] font-medium">• {scenario.location}</span>
                 </div>
-                <h4 className="text-sm font-bold text-white">
-                  Baseline Project Schedule (CSV Data)
+                <h3 className="text-2xl font-extrabold text-[#1B1B23]">{scenario.name}</h3>
+                <p className="text-xs text-emerald-700 font-medium flex items-center gap-1.5 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-100 max-w-fit">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                  <span><strong>Why this is easy to explain:</strong> {scenario.whyEasy}</span>
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => handleDownloadCSV(scenario.csvFilename, scenario.csvData)}
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-[#1B1B23] text-xs font-bold border border-slate-200 flex items-center gap-2 transition cursor-pointer"
+                >
+                  <Download className="w-4 h-4 text-[#4648D4]" />
+                  Download CSV ({scenario.csvFilename})
+                </button>
+                <Link
+                  href="/"
+                  className="px-5 py-2.5 rounded-xl bg-[#4648D4] hover:bg-[#3B3DBF] text-white text-xs font-bold flex items-center gap-2 shadow-sm transition"
+                >
+                  <Play className="w-3.5 h-3.5 fill-current" />
+                  Open in App
+                </Link>
+              </div>
+            </div>
+
+            {/* Step 1: Baseline Schedule CSV */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-xl bg-indigo-50 text-[#4648D4] text-xs font-extrabold flex items-center justify-center border border-indigo-100">
+                    1
+                  </div>
+                  <h4 className="text-sm font-bold text-[#1B1B23]">
+                    Baseline Project Schedule (CSV Data)
+                  </h4>
+                </div>
+                <button
+                  onClick={() => handleCopy(scenario.csvData, 'csv')}
+                  className="text-xs font-semibold text-[#4648D4] bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg border border-indigo-100 flex items-center gap-1.5 transition cursor-pointer"
+                >
+                  {copiedKey === 'csv' ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      <span className="text-emerald-700">Copied to Clipboard!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      Copy CSV Content
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="bg-[#F8FAFC] rounded-2xl border border-[#E2E8F0] p-4 font-mono text-xs text-[#334155] overflow-x-auto">
+                <pre className="whitespace-pre">{scenario.csvData}</pre>
+              </div>
+
+              <div className="text-xs text-[#475569] flex items-center gap-2 bg-[#F1F5F9] p-3.5 rounded-xl border border-[#E2E8F0]">
+                <Info className="w-4 h-4 text-[#4648D4] flex-shrink-0" />
+                <span>
+                  <strong>How to test this in the app:</strong> Click <strong>&ldquo;+ New Project&rdquo;</strong> in the top navigation bar, enter project name <em>&ldquo;{scenario.name}&rdquo;</em>, and upload this CSV file. Amazon Bedrock Titan V2 will generate 1024-dim vector embeddings for each activity.
+                </span>
+              </div>
+            </div>
+
+            {/* Step 2: Sample Daily Progress Reports */}
+            <div className="space-y-4 pt-4 border-t border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-xl bg-indigo-50 text-[#4648D4] text-xs font-extrabold flex items-center justify-center border border-indigo-100">
+                  2
+                </div>
+                <h4 className="text-sm font-bold text-[#1B1B23]">
+                  Sample Field Engineer Daily Site Reports
                 </h4>
               </div>
-              <button
-                onClick={() => handleCopy(scenario.csvData, 'csv')}
-                className="text-xs text-slate-300 hover:text-white bg-slate-800/80 px-2.5 py-1 rounded-md border border-slate-700 flex items-center gap-1.5 transition-all cursor-pointer"
-              >
-                {copiedKey === 'csv' ? (
-                  <>
-                    <Check className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="text-emerald-400">Copied to Clipboard!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3.5 h-3.5" />
-                    Copy CSV Content
-                  </>
-                )}
-              </button>
-            </div>
 
-            <div className="bg-slate-950 rounded-xl border border-slate-800 p-4 font-mono text-xs text-slate-300 overflow-x-auto">
-              <pre className="whitespace-pre">{scenario.csvData}</pre>
-            </div>
-
-            <div className="text-xs text-slate-400 flex items-center gap-2 bg-slate-950/40 p-3 rounded-lg border border-slate-800/60">
-              <Info className="w-4 h-4 text-indigo-400 flex-shrink-0" />
-              <span>
-                <strong>How to test this in the app:</strong> Click <strong>&ldquo;+ New Project&rdquo;</strong> in the top navigation, enter project name <em>&ldquo;{scenario.name}&rdquo;</em>, and upload this CSV file. Titan V2 will generate 1024-dim vector embeddings for each row.
-              </span>
-            </div>
-          </div>
-
-          {/* Step 2: Sample Daily Progress Reports */}
-          <div className="space-y-4 pt-4 border-t border-slate-800">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 text-xs font-bold flex items-center justify-center border border-indigo-500/30">
-                2
-              </div>
-              <h4 className="text-sm font-bold text-white">
-                Sample Field Engineer Daily Site Reports
-              </h4>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {scenario.reports.map((report, rIdx) => (
-                <div
-                  key={rIdx}
-                  className="bg-slate-950 rounded-xl border border-slate-800 p-5 space-y-4 flex flex-col justify-between"
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-indigo-400">
-                        {report.title}
-                      </span>
-                      <span
-                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                          report.type.includes('Happy')
-                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                            : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-                        }`}
-                      >
-                        {report.type}
-                      </span>
-                    </div>
-
-                    <div className="relative">
-                      <div className="bg-slate-900/90 rounded-lg p-3.5 text-xs text-slate-300 font-mono leading-relaxed border border-slate-800 whitespace-pre-wrap">
-                        {report.content}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {scenario.reports.map((report, rIdx) => (
+                  <div
+                    key={rIdx}
+                    className="bg-[#F8FAFC] rounded-2xl border border-[#E2E8F0] p-5 space-y-4 flex flex-col justify-between"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-[#4648D4]">
+                          {report.title}
+                        </span>
+                        <span
+                          className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                            report.type.includes('Happy')
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : 'bg-amber-50 text-amber-700 border-amber-200'
+                          }`}
+                        >
+                          {report.type}
+                        </span>
                       </div>
-                      <button
-                        onClick={() => handleCopy(report.content, `report-${rIdx}`)}
-                        className="absolute top-2.5 right-2.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-2.5 py-1 rounded border border-slate-700 flex items-center gap-1 shadow transition-all cursor-pointer"
-                      >
-                        {copiedKey === `report-${rIdx}` ? (
-                          <>
-                            <Check className="w-3 h-3 text-emerald-400" />
-                            <span className="text-emerald-400 text-[11px]">Copied!</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3 h-3" />
-                            <span className="text-[11px]">Copy Report</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
 
-                  {/* What to Expect Outcome Box */}
-                  <div className="bg-slate-900/60 p-3.5 rounded-lg border border-indigo-500/20 space-y-2 text-xs">
-                    <div className="font-bold text-indigo-300 flex items-center gap-1.5">
-                      <Zap className="w-3.5 h-3.5 text-amber-400" />
-                      What Changes to Expect After Ingestion:
+                      <div className="relative">
+                        <div className="bg-white rounded-xl p-4 text-xs text-[#334155] font-mono leading-relaxed border border-[#E2E8F0] whitespace-pre-wrap shadow-sm">
+                          {report.content}
+                        </div>
+                        <button
+                          onClick={() => handleCopy(report.content, `report-${rIdx}`)}
+                          className="absolute top-2.5 right-2.5 text-xs bg-slate-100 hover:bg-slate-200 text-[#1B1B23] font-semibold px-2.5 py-1 rounded-lg border border-slate-200 flex items-center gap-1 shadow-sm transition cursor-pointer"
+                        >
+                          {copiedKey === `report-${rIdx}` ? (
+                            <>
+                              <Check className="w-3 h-3 text-emerald-600" />
+                              <span className="text-emerald-700 text-[11px]">Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3 h-3" />
+                              <span className="text-[11px]">Copy Report</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
-                    <ul className="space-y-1.5 text-slate-300 text-[11px]">
-                      <li>
-                        <strong className="text-slate-100">1. Nova Micro Extraction:</strong> {report.expectedOutcome.novaExtraction}
-                      </li>
-                      <li>
-                        <strong className="text-slate-100">2. Titan V2 Schedule Linking:</strong> {report.expectedOutcome.titanLinking}
-                      </li>
-                      <li>
-                        <strong className="text-slate-100">3. Review Queue Status:</strong> {report.expectedOutcome.reviewQueueTier}
-                      </li>
-                      <li>
-                        <strong className="text-slate-100">4. Timeline Dashboard Impact:</strong> {report.expectedOutcome.timelineImpact}
-                      </li>
-                    </ul>
+
+                    {/* What to Expect Outcome Box */}
+                    <div className="bg-white p-4 rounded-xl border border-indigo-100 space-y-2 text-xs shadow-sm">
+                      <div className="font-bold text-[#4648D4] flex items-center gap-1.5">
+                        <Zap className="w-3.5 h-3.5 text-amber-500" />
+                        What Changes to Expect After Ingestion:
+                      </div>
+                      <ul className="space-y-1.5 text-[#475569] text-[11px]">
+                        <li>
+                          <strong className="text-[#1B1B23]">1. Nova Micro Extraction:</strong> {report.expectedOutcome.novaExtraction}
+                        </li>
+                        <li>
+                          <strong className="text-[#1B1B23]">2. Titan V2 Schedule Linking:</strong> {report.expectedOutcome.titanLinking}
+                        </li>
+                        <li>
+                          <strong className="text-[#1B1B23]">3. Review Queue Status:</strong> {report.expectedOutcome.reviewQueueTier}
+                        </li>
+                        <li>
+                          <strong className="text-[#1B1B23]">4. Timeline Dashboard Impact:</strong> {report.expectedOutcome.timelineImpact}
+                        </li>
+                      </ul>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }
