@@ -18,8 +18,9 @@ resource "aws_db_parameter_group" "pg16" {
   description = "Custom parameter group for PostgreSQL 16 with pgvector support"
 
   parameter {
-    name  = "shared_preload_libraries"
-    value = "pg_stat_statements"
+    name         = "shared_preload_libraries"
+    value        = "pg_stat_statements"
+    apply_method = "pending-reboot"
   }
 
   tags = {
@@ -30,7 +31,7 @@ resource "aws_db_parameter_group" "pg16" {
 resource "aws_db_instance" "postgres" {
   identifier                 = "${var.project_name}-db-${var.environment}"
   engine                     = "postgres"
-  engine_version             = "16.3"
+  engine_version             = "16.9"
   instance_class             = var.db_instance_class
   allocated_storage          = var.db_allocated_storage
   max_allocated_storage      = 100
@@ -46,7 +47,7 @@ resource "aws_db_instance" "postgres" {
   skip_final_snapshot        = true
   deletion_protection        = false
   auto_minor_version_upgrade = true
-  backup_retention_period    = 7
+  backup_retention_period    = 1
 
   tags = {
     Name = "${var.project_name}-db-${var.environment}"

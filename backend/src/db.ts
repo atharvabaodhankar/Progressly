@@ -12,9 +12,14 @@ const rawConnectionString =
 
 // Ensure IPv4 on Windows to prevent ::1 ECONNREFUSED
 const connectionString = rawConnectionString.replace('localhost', '127.0.0.1');
+const isProduction =
+  process.env.NODE_ENV === 'production' ||
+  connectionString.includes('rds.amazonaws.com') ||
+  connectionString.includes('amazonaws.com');
 
 export const pool = new Pool({
   connectionString,
+  ssl: isProduction ? { rejectUnauthorized: false } : undefined,
 });
 
 pool.on('error', (err) => {

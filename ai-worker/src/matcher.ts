@@ -257,7 +257,11 @@ export async function matchEventToSchedule(event: ExtractedEvent): Promise<Match
   const vectorSql = `[${queryVector.join(',')}]`;
 
   // 2. Perform pgvector cosine similarity search
-  const client = new Client({ connectionString: DATABASE_URL });
+  const isProdDb = DATABASE_URL.includes('rds.amazonaws.com') || DATABASE_URL.includes('amazonaws.com');
+  const client = new Client({
+    connectionString: DATABASE_URL,
+    ssl: isProdDb ? { rejectUnauthorized: false } : undefined,
+  });
   await client.connect();
 
   let candidates: CandidateMatch[] = [];
@@ -279,7 +283,7 @@ export async function matchEventToSchedule(event: ExtractedEvent): Promise<Match
       [vectorSql]
     );
 
-    candidates = res.rows.map((row) => {
+    candidates = res.rows.map((row: Record<string, any>) => {
       const vector_similarity = Number(row.vector_similarity);
       const rule_score = applyBusinessRules(event, {
         discipline: row.discipline,

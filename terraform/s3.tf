@@ -12,7 +12,7 @@ resource "aws_s3_bucket" "reports" {
 
   tags = {
     Name        = "${var.project_name}-raw-reports-${var.environment}"
-    Description = "Ingestion store for raw site reports, spreadsheets, PDFs, and evidence files"
+    Description = "Ingestion store for raw site reports spreadsheets PDFs and evidence files"
   }
 }
 
