@@ -1,0 +1,209 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 1480" width="100%" height="100%" fill="none" style="background:#FFFFFF; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <defs>
+    <!-- Arrowhead markers -->
+    <marker id="arrow-v" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#475569"/>
+    </marker>
+    <marker id="arrow-v-purple" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#7E22CE"/>
+    </marker>
+    <filter id="card-shadow-v" x="-5%" y="-5%" width="110%" height="115%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0F172A" flood-opacity="0.04"/>
+    </filter>
+  </defs>
+
+  <!-- TITLE HEADER -->
+  <g transform="translate(40, 48)">
+    <text x="0" y="0" font-size="22" font-weight="700" fill="#0F172A" letter-spacing="-0.5">Progressly : Production System Architecture</text>
+    <text x="0" y="24" font-size="13" font-weight="500" fill="#64748B">Event-Driven Asynchronous Pipeline &amp; Multi-Account Bedrock RAG (ap-south-1)</text>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- ZONE 1: CLIENT & VERCEL EDGE INGRESS                                      -->
+  <!-- ========================================================================= -->
+  <g transform="translate(40, 95)">
+    <rect width="760" height="190" rx="16" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1.5"/>
+    <text x="24" y="30" font-size="12" font-weight="700" fill="#475569" letter-spacing="0.5">ZONE 1: CLIENT &amp; VERCEL EDGE INGRESS</text>
+    <rect x="24" y="42" width="712" height="1" fill="#E2E8F0"/>
+
+    <g transform="translate(24, 60)">
+      <!-- Web Client -->
+      <rect width="220" height="105" rx="12" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5" filter="url(#card-shadow-v)"/>
+      <text x="16" y="28" font-size="13" font-weight="700" fill="#0F172A">Web Dashboard</text>
+      <text x="16" y="46" font-size="11" font-weight="500" fill="#64748B">Next.js 14 App Router</text>
+      <rect x="16" y="65" width="188" height="24" rx="4" fill="#F8FAFC" stroke="#E2E8F0"/>
+      <text x="24" y="81" font-size="10" font-family="monospace" font-weight="600" fill="#4648D4">HTTPS / TLS 1.3 Edge</text>
+    </g>
+
+    <g transform="translate(270, 60)">
+      <!-- Reverse Proxy -->
+      <rect width="220" height="105" rx="12" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5" filter="url(#card-shadow-v)"/>
+      <text x="16" y="28" font-size="13" font-weight="700" fill="#0F172A">Vercel Reverse Proxy</text>
+      <text x="16" y="46" font-size="11" font-weight="500" fill="#64748B">Zero-CORS Route Tunnel</text>
+      <rect x="16" y="65" width="188" height="24" rx="4" fill="#EEF2FF" stroke="#C7D2FE"/>
+      <text x="24" y="81" font-size="10" font-family="monospace" font-weight="700" fill="#4338CA">/api-proxy/* → ALB:80</text>
+    </g>
+
+    <g transform="translate(516, 60)">
+      <!-- Field Mobile Input -->
+      <rect width="220" height="105" rx="12" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5" filter="url(#card-shadow-v)"/>
+      <text x="16" y="28" font-size="13" font-weight="700" fill="#0F172A">Site Field Input</text>
+      <text x="16" y="46" font-size="11" font-weight="500" fill="#64748B">Supervisor Daily Diary</text>
+      <rect x="16" y="65" width="188" height="24" rx="4" fill="#ECFDF5" stroke="#A7F3D0"/>
+      <text x="24" y="81" font-size="10" font-family="monospace" font-weight="600" fill="#059669">Raw Notes / CSV / PDF</text>
+    </g>
+  </g>
+
+  <!-- CONNECTOR 1: ZONE 1 TO ZONE 2 -->
+  <path d="M 380 285 L 380 325" stroke="#475569" stroke-width="2" fill="none" marker-end="url(#arrow-v)"/>
+
+  <!-- ========================================================================= -->
+  <!-- ZONE 2: AWS INFRASTRUCTURE ACCOUNT (Account B - 736969242498)             -->
+  <!-- ========================================================================= -->
+  <g transform="translate(40, 325)">
+    <rect width="760" height="660" rx="16" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1.5"/>
+    <text x="24" y="30" font-size="12" font-weight="700" fill="#4648D4" letter-spacing="0.5">ZONE 2: AWS ACCOUNT B — INFRASTRUCTURE &amp; COMPUTE (736969242498)</text>
+    <rect x="24" y="42" width="712" height="1" fill="#E2E8F0"/>
+
+    <!-- VPC Sub-box -->
+    <rect x="20" y="55" width="720" height="585" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5" stroke-dasharray="6 6"/>
+    <text x="36" y="78" font-size="11" font-weight="700" fill="#64748B">VPC (ap-south-1) • Public Subnets with Direct IGW (No NAT Gateways)</text>
+
+    <!-- Row 1: ALB & ECS API -->
+    <g transform="translate(36, 95)">
+      <rect width="330" height="95" rx="10" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5" filter="url(#card-shadow-v)"/>
+      <text x="16" y="28" font-size="13" font-weight="700" fill="#0F172A">AWS Application Load Balancer</text>
+      <text x="16" y="46" font-size="11" fill="#64748B">Public Ingress (Port 80) • Direct IGW</text>
+      <rect x="16" y="60" width="298" height="22" rx="4" fill="#F1F5F9"/>
+      <text x="24" y="75" font-size="10" font-family="monospace" fill="#475569">progressly-alb-prod-1551208303</text>
+    </g>
+
+    <g transform="translate(390, 95)">
+      <rect width="330" height="95" rx="10" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5" filter="url(#card-shadow-v)"/>
+      <text x="16" y="28" font-size="13" font-weight="700" fill="#0F172A">ECS Fargate: Express API</text>
+      <text x="16" y="46" font-size="11" fill="#64748B">Node.js TypeScript API Service</text>
+      <rect x="16" y="60" width="298" height="22" rx="4" fill="#EEF2FF"/>
+      <text x="24" y="75" font-size="10" font-family="monospace" font-weight="600" fill="#4338CA">0.5 vCPU • 1GB RAM • Port 4000</text>
+    </g>
+
+    <!-- Row 2: S3 Bucket, Lambda Router, SQS Queue -->
+    <g transform="translate(36, 215)">
+      <rect width="215" height="95" rx="10" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5" filter="url(#card-shadow-v)"/>
+      <text x="14" y="26" font-size="12" font-weight="700" fill="#0F172A">Amazon S3 Bucket</text>
+      <text x="14" y="42" font-size="10" fill="#64748B">Raw Evidence Storage</text>
+      <rect x="14" y="58" width="187" height="22" rx="4" fill="#F8FAFC" stroke="#E2E8F0"/>
+      <text x="20" y="73" font-size="9" font-family="monospace" fill="#059669">AES-256 Encrypted</text>
+    </g>
+
+    <g transform="translate(275, 215)">
+      <rect width="210" height="95" rx="10" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5" filter="url(#card-shadow-v)"/>
+      <text x="14" y="26" font-size="12" font-weight="700" fill="#0F172A">AWS Lambda Router</text>
+      <text x="14" y="42" font-size="10" fill="#64748B">s3-to-sqs Event Trigger</text>
+      <rect x="14" y="58" width="182" height="22" rx="4" fill="#FEF3C7"/>
+      <text x="20" y="73" font-size="9" font-family="monospace" font-weight="600" fill="#B45309">s3:ObjectCreated</text>
+    </g>
+
+    <g transform="translate(508, 215)">
+      <rect width="212" height="95" rx="10" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5" filter="url(#card-shadow-v)"/>
+      <text x="14" y="26" font-size="12" font-weight="700" fill="#0F172A">Amazon SQS Queue</text>
+      <text x="14" y="42" font-size="10" fill="#64748B">Decoupled Buffer</text>
+      <rect x="14" y="58" width="184" height="22" rx="4" fill="#F1F5F9"/>
+      <text x="20" y="73" font-size="9" font-family="monospace" fill="#475569">progressly-reports-queue</text>
+    </g>
+
+    <!-- Row 3: ECS AI Worker -->
+    <g transform="translate(36, 335)">
+      <rect width="684" height="95" rx="10" fill="#FFFFFF" stroke="#4648D4" stroke-width="2" filter="url(#card-shadow-v)"/>
+      <text x="20" y="30" font-size="14" font-weight="700" fill="#0F172A">ECS Fargate: AI Worker Service</text>
+      <text x="20" y="48" font-size="11" fill="#64748B">Polls SQS, invokes Bedrock Nova Micro for extraction, Titan V2 for 1024d vectors, executes pgvector cosine search.</text>
+      <rect x="20" y="60" width="644" height="24" rx="4" fill="#EEF2FF"/>
+      <text x="28" y="76" font-size="10" font-family="monospace" font-weight="700" fill="#4338CA">Task Sizing: 1024 CPU (1.0 vCPU) • 2048 MB (2GB RAM) • Auto-scaling SQS Consumer</text>
+    </g>
+
+    <!-- Row 4: RDS PostgreSQL with pgvector -->
+    <g transform="translate(36, 455)">
+      <rect width="470" height="165" rx="12" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5" filter="url(#card-shadow-v)"/>
+      <text x="20" y="30" font-size="13" font-weight="700" fill="#0F172A">Amazon RDS PostgreSQL 16.9 (pgvector extension)</text>
+      <text x="20" y="48" font-size="11" fill="#64748B">Single Store of Truth: Master WBS, Daily Reports, Matches, Audit Log, &amp; 40 Historical Records</text>
+
+      <g transform="translate(20, 65)">
+        <rect width="135" height="80" rx="8" fill="#F8FAFC" stroke="#E2E8F0"/>
+        <text x="12" y="24" font-size="11" font-weight="700" fill="#334155">wbs_nodes</text>
+        <text x="12" y="44" font-size="9" fill="#64748B">15 Activities</text>
+        <text x="12" y="62" font-size="9" font-family="monospace" fill="#059669">1024d pgvector</text>
+      </g>
+      <g transform="translate(168, 65)">
+        <rect width="140" height="80" rx="8" fill="#F8FAFC" stroke="#E2E8F0"/>
+        <text x="12" y="24" font-size="11" font-weight="700" fill="#334155">historical_records</text>
+        <text x="12" y="44" font-size="9" fill="#64748B">40 Seeded records</text>
+        <text x="12" y="62" font-size="9" font-family="monospace" fill="#7C3AED">Cosine matching</text>
+      </g>
+      <g transform="translate(320, 65)">
+        <rect width="130" height="80" rx="8" fill="#F8FAFC" stroke="#E2E8F0"/>
+        <text x="12" y="24" font-size="11" font-weight="700" fill="#334155">audit_log</text>
+        <text x="12" y="44" font-size="9" fill="#64748B">Immutable record</text>
+        <text x="12" y="62" font-size="9" font-family="monospace" fill="#4648D4">Schedule lineage</text>
+      </g>
+    </g>
+
+    <!-- Secrets Manager Card -->
+    <g transform="translate(520, 455)">
+      <rect width="200" height="165" rx="12" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5" filter="url(#card-shadow-v)"/>
+      <text x="16" y="28" font-size="12" font-weight="700" fill="#0F172A">AWS Secrets Manager</text>
+      <text x="16" y="46" font-size="10" fill="#64748B">Credential Bridge</text>
+      <rect x="16" y="65" width="168" height="80" rx="6" fill="#F1F5F9"/>
+      <text x="24" y="86" font-size="9" font-family="monospace" fill="#334155">Securely stores</text>
+      <text x="24" y="102" font-size="9" font-family="monospace" font-weight="700" fill="#4648D4">Account A</text>
+      <text x="24" y="118" font-size="9" font-family="monospace" fill="#334155">Bedrock IAM Keys</text>
+      <text x="24" y="134" font-size="8" font-family="monospace" fill="#059669">KMS Encrypted</text>
+    </g>
+  </g>
+
+  <!-- CONNECTOR 2: ZONE 2 TO ZONE 3 -->
+  <path d="M 380 985 L 380 1025" stroke="#7C3AED" stroke-width="2" fill="none" marker-end="url(#arrow-v-purple)"/>
+
+  <!-- ========================================================================= -->
+  <!-- ZONE 3: AMAZON BEDROCK FOUNDATION MODELS (Account A)                      -->
+  <!-- ========================================================================= -->
+  <g transform="translate(40, 1025)">
+    <rect width="760" height="395" rx="16" fill="#FAF5FF" stroke="#D8B4FE" stroke-width="1.5"/>
+    <text x="24" y="30" font-size="12" font-weight="700" fill="#7E22CE" letter-spacing="0.5">ZONE 3: AMAZON BEDROCK FOUNDATION MODELS (ACCOUNT A)</text>
+    <rect x="24" y="42" width="712" height="1" fill="#E9D5FF"/>
+
+    <g transform="translate(24, 60)">
+      <!-- Nova Micro -->
+      <rect width="220" height="305" rx="12" fill="#FFFFFF" stroke="#C084FC" stroke-width="1.5" filter="url(#card-shadow-v)"/>
+      <text x="16" y="30" font-size="14" font-weight="700" fill="#0F172A">Amazon Nova Micro</text>
+      <text x="16" y="48" font-size="10" font-family="monospace" fill="#7E22CE">apac.amazon.nova-micro-v1:0</text>
+      <text x="16" y="78" font-size="11" font-weight="600" fill="#334155">Task: Entity Extraction</text>
+      <text x="16" y="98" font-size="10" fill="#64748B">Extracts discipline, line number, location, and quantities from messy site notes.</text>
+      <rect x="16" y="240" width="188" height="45" rx="6" fill="#FAF5FF" stroke="#E9D5FF"/>
+      <text x="24" y="258" font-size="10" font-family="monospace" font-weight="700" fill="#059669">$0.035 / 1M Input</text>
+      <text x="24" y="274" font-size="9" fill="#64748B">Ultra-fast sub-second latency</text>
+    </g>
+
+    <g transform="translate(270, 60)">
+      <!-- Titan Embeddings V2 -->
+      <rect width="220" height="305" rx="12" fill="#FFFFFF" stroke="#C084FC" stroke-width="1.5" filter="url(#card-shadow-v)"/>
+      <text x="16" y="30" font-size="14" font-weight="700" fill="#0F172A">Titan Embeddings V2</text>
+      <text x="16" y="48" font-size="10" font-family="monospace" fill="#4338CA">amazon.titan-embed-text-v2:0</text>
+      <text x="16" y="78" font-size="11" font-weight="600" fill="#334155">Task: Dense Vectors</text>
+      <text x="16" y="98" font-size="10" fill="#64748B">Generates 1024-dimensional normalized vector embeddings for cosine similarity search.</text>
+      <rect x="16" y="240" width="188" height="45" rx="6" fill="#EEF2FF" stroke="#C7D2FE"/>
+      <text x="24" y="258" font-size="10" font-family="monospace" font-weight="700" fill="#4338CA">1024-dim Vector</text>
+      <text x="24" y="274" font-size="9" fill="#64748B">$0.020 / 1M Tokens</text>
+    </g>
+
+    <g transform="translate(516, 60)">
+      <!-- Nova Pro -->
+      <rect width="220" height="305" rx="12" fill="#FFFFFF" stroke="#C084FC" stroke-width="1.5" filter="url(#card-shadow-v)"/>
+      <text x="16" y="30" font-size="14" font-weight="700" fill="#0F172A">Amazon Nova Pro</text>
+      <text x="16" y="48" font-size="10" font-family="monospace" fill="#7E22CE">apac.amazon.nova-pro-v1:0</text>
+      <text x="16" y="78" font-size="11" font-weight="600" fill="#334155">Task: Memory RAG Synthesis</text>
+      <text x="16" y="98" font-size="10" fill="#64748B">Deep reasoning over retrieved historical delay records with strict source grounding.</text>
+      <rect x="16" y="240" width="188" height="45" rx="6" fill="#FAF5FF" stroke="#E9D5FF"/>
+      <text x="24" y="258" font-size="10" font-family="monospace" font-weight="700" fill="#7E22CE">300k Context Window</text>
+      <text x="24" y="274" font-size="9" fill="#64748B">Zero hallucination enforcement</text>
+    </g>
+  </g>
+</svg>

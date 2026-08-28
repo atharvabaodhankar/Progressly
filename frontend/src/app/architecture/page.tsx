@@ -37,14 +37,110 @@ import {
   Check,
   Info,
   Menu,
+  Download,
+  Maximize2,
 } from 'lucide-react';
 
 export default function ArchitecturePage() {
   const [activeFlow, setActiveFlow] = useState<'ingestion' | 'memory'>('ingestion');
+  const [activeStep, setActiveStep] = useState<number>(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [diagramOrientation, setDiagramOrientation] = useState<'landscape' | 'portrait'>('landscape');
+
+  const ingestionSteps = [
+    {
+      step: '01',
+      title: 'Supervisor Ingress',
+      badge: 'Edge Ingress',
+      desc: 'Free-text note, CSV, or scanned diary uploaded through Next.js Vercel Edge reverse proxy tunnel.',
+      highlight: 'Zero CORS /api-proxy/*',
+    },
+    {
+      step: '02',
+      title: 'ALB & S3 Persistence',
+      badge: 'Raw Evidence',
+      desc: 'ALB routes payload to Express API. Raw evidence is persisted immutably in Amazon S3.',
+      highlight: 'AES-256 Encrypted',
+    },
+    {
+      step: '03',
+      title: 'Lambda & SQS Buffer',
+      badge: 'Event Trigger',
+      desc: 'S3:ObjectCreated invokes Lambda router to decouple heavy AI extraction into Amazon SQS.',
+      highlight: 'Decoupled Buffer',
+    },
+    {
+      step: '04',
+      title: 'Nova Micro Parsing',
+      badge: 'Entity Extraction',
+      desc: 'ECS AI Worker polls SQS and extracts technical entities (discipline, line number, location, qty).',
+      highlight: '$0.035 / 1M Tokens',
+    },
+    {
+      step: '05',
+      title: 'Titan V2 Vector Search',
+      badge: 'pgvector Cosine',
+      desc: '1024d embedding computed for top-K cosine candidate ranking against Master WBS in RDS.',
+      highlight: '1024-dim Dense Vector',
+    },
+    {
+      step: '06',
+      title: 'Policy Sync & Audit',
+      badge: 'Schedule Update',
+      desc: 'Deterministic rules calibrate confidence. Updates baseline schedule + immutable audit log.',
+      highlight: 'Zero False Schedule Edits',
+    },
+  ];
+
+  const memorySteps = [
+    {
+      step: '01',
+      title: 'Planner Prompt',
+      badge: 'User Query',
+      desc: 'Lead planner queries historical delays directly from the dashboard memory bar.',
+      highlight: 'e.g. "piping delays in Assam"',
+    },
+    {
+      step: '02',
+      title: 'Titan V2 Embedding',
+      badge: 'Vectorization',
+      desc: 'Backend generates 1024-dimensional query vector via Bedrock Titan V2.',
+      highlight: 'amazon.titan-embed-text-v2',
+    },
+    {
+      step: '03',
+      title: 'pgvector Retrieval',
+      badge: 'Cosine Search',
+      desc: 'Extracts top matching records from 40 historical project records in RDS PostgreSQL.',
+      highlight: 'Cosine Similarity Threshold',
+    },
+    {
+      step: '04',
+      title: 'Deterministic Stats',
+      badge: 'Pre-computation',
+      desc: 'Pre-computes authentic average delay days, root causes, and delay distributions.',
+      highlight: 'Zero Math Hallucination',
+    },
+    {
+      step: '05',
+      title: 'Nova Pro Synthesis',
+      badge: 'Bedrock Reasoning',
+      desc: 'Synthesizes grounded executive briefing with strict citations over 300k context.',
+      highlight: '300k Context Window',
+    },
+    {
+      step: '06',
+      title: 'Evidence Verification',
+      badge: 'Provenance Modal',
+      desc: 'Planner clicks citations to inspect exact historical record evidence and cosine score.',
+      highlight: 'Clickable Provenance Proof',
+    },
+  ];
+
+  const currentStepList = activeFlow === 'ingestion' ? ingestionSteps : memorySteps;
 
   return (
-    <div className="min-h-screen bg-[#F8FAFF] text-[#1B1B23] flex flex-col antialiased">
+    <div className="min-h-screen bg-[#F8FAFF] text-[#1B1B23] flex flex-col antialiased selection:bg-[#4648D4]/10 selection:text-[#4648D4]">
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex fixed left-0 top-0 h-full w-72 bg-[#F5F2FE]/80 backdrop-blur-xl z-50 flex-col border-r border-[#C7C4D7]/30">
         <div className="p-6 flex items-center gap-3">
@@ -165,7 +261,7 @@ export default function ArchitecturePage() {
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-[#C7C4D7]/50 hover:border-[#4648D4] text-xs sm:text-sm font-semibold text-[#1B1B23] shadow-xs transition"
             >
               <ArrowLeft className="w-4 h-4 text-[#4648D4]" />
-              <span>Back to App</span>
+              <span>Back to Dashboard</span>
             </Link>
           </div>
         </header>
@@ -211,24 +307,50 @@ export default function ArchitecturePage() {
         {/* Main Content */}
         <main className="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto space-y-10">
           {/* ========================================================================= */}
-          {/* SECTION 1: HERO & PRODUCTION HEALTH                                       */}
+          {/* SECTION 1: HERO & LIVE HEALTH KPI STRIP                                   */}
           {/* ========================================================================= */}
           <div className="space-y-6">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2.5">
-                <span className="px-3 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200 text-xs font-mono font-bold uppercase tracking-wider">
-                  Technical Appendix & Topology
-                </span>
-                <span className="text-xs text-[#64748B] font-mono">
-                  Revision 3.2 • Live Production
-                </span>
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2.5">
+                  <span className="px-3 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200 text-xs font-mono font-bold uppercase tracking-wider">
+                    Production System Blueprint
+                  </span>
+                  <span className="text-xs text-[#64748B] font-mono">
+                    Multi-Account Split • Live AWS Infrastructure
+                  </span>
+                </div>
+                <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#1B1B23]">
+                  System Architecture & Data Topology
+                </h1>
+                <p className="text-sm sm:text-base text-[#64748B] max-w-2xl leading-relaxed">
+                  End-to-end technical blueprint of Progressly&apos;s asynchronous schedule-linking pipeline and institutional memory RAG engine.
+                </p>
               </div>
-              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#1B1B23]">
-                System Architecture & Data Flow
-              </h1>
-              <p className="text-sm sm:text-base text-[#64748B] max-w-3xl leading-relaxed">
-                Event-driven, asynchronous schedule-linking pipeline and institutional memory RAG engine deployed across dedicated AWS infrastructure and foundation model accounts.
-              </p>
+
+              {/* Diagram Format Controls */}
+              <div className="bg-white p-2 rounded-2xl border border-[#C7C4D7]/40 shadow-xs flex items-center gap-2 self-start md:self-auto">
+                <button
+                  onClick={() => setDiagramOrientation('landscape')}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition ${
+                    diagramOrientation === 'landscape'
+                      ? 'bg-[#4648D4] text-white shadow-xs'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  Landscape (16:9)
+                </button>
+                <button
+                  onClick={() => setDiagramOrientation('portrait')}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition ${
+                    diagramOrientation === 'portrait'
+                      ? 'bg-[#4648D4] text-white shadow-xs'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  Portrait (3:4)
+                </button>
+              </div>
             </div>
 
             {/* Live Health KPI Row */}
@@ -274,24 +396,75 @@ export default function ArchitecturePage() {
           </div>
 
           {/* ========================================================================= */}
-          {/* SECTION 2: INTERACTIVE PRODUCTION FLOW DIAGRAM (ORTHOGONAL AWS LAYOUT)    */}
+          {/* SECTION 2: HIGH-RESOLUTION MONOCHROME TECHNICAL SCHEMATIC                 */}
           {/* ========================================================================= */}
           <div className="bg-white rounded-[28px] border border-[#C7C4D7]/30 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 sm:p-8 space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#C7C4D7]/20 pb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#C7C4D7]/20 pb-4">
               <div>
                 <h2 className="text-xl font-bold text-[#1B1B23] flex items-center gap-2.5">
                   <Workflow className="w-5 h-5 text-[#4648D4]" />
-                  <span>Interactive Production Topology & Data Flow</span>
+                  <span>Production Topology Blueprint</span>
                 </h2>
                 <p className="text-xs sm:text-sm text-[#64748B] mt-0.5">
-                  Select a workflow to trace live data propagation across presentation, infrastructure, and foundation model boundaries.
+                  Light-themed monochrome engineering schematic across Client, AWS Infrastructure VPC, and Amazon Bedrock.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <a
+                  href={diagramOrientation === 'landscape' ? '/architecture-landscape.svg' : '/architecture-portrait.svg'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#C7C4D7]/50 text-xs font-semibold text-slate-800 hover:border-[#4648D4] hover:text-[#4648D4] shadow-xs transition"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Open Full Vector</span>
+                </a>
+                <a
+                  href={diagramOrientation === 'landscape' ? '/architecture-landscape.svg' : '/architecture-portrait.svg'}
+                  download={diagramOrientation === 'landscape' ? 'progressly-architecture-landscape.svg' : 'progressly-architecture-portrait.svg'}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#4648D4] text-white text-xs font-semibold shadow-xs hover:bg-[#3B3DC0] transition"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download SVG</span>
+                </a>
+              </div>
+            </div>
+
+            {/* EMBEDDED CRISP VECTOR BLUEPRINT */}
+            <div className="rounded-2xl border border-[#C7C4D7]/40 bg-[#FFFFFF] p-2 sm:p-4 shadow-sm flex items-center justify-center overflow-hidden">
+              <img
+                src={diagramOrientation === 'landscape' ? '/architecture-landscape.svg' : '/architecture-portrait.svg'}
+                alt="Progressly System Architecture Light Monochrome Schematic"
+                className={`w-full h-auto object-contain rounded-lg ${
+                  diagramOrientation === 'landscape' ? 'max-h-[640px]' : 'max-h-[920px]'
+                }`}
+              />
+            </div>
+          </div>
+
+          {/* ========================================================================= */}
+          {/* SECTION 3: STEP-BY-STEP DATA FLOW SEQUENCE MATRIX                         */}
+          {/* ========================================================================= */}
+          <div className="bg-white rounded-[28px] border border-[#C7C4D7]/30 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 sm:p-8 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#C7C4D7]/20 pb-4">
+              <div>
+                <h2 className="text-xl font-bold text-[#1B1B23] flex items-center gap-2.5">
+                  <Activity className="w-5 h-5 text-[#4648D4]" />
+                  <span>Step-by-Step Data Flow Matrix</span>
+                </h2>
+                <p className="text-xs sm:text-sm text-[#64748B] mt-0.5">
+                  Inspect the precise end-to-end execution path for report ingestion or institutional memory retrieval.
                 </p>
               </div>
 
               {/* Flow Selector */}
               <div className="flex items-center bg-[#F5F2FE] p-1 rounded-xl border border-[#C7C4D7]/20 self-start sm:self-auto">
                 <button
-                  onClick={() => setActiveFlow('ingestion')}
+                  onClick={() => {
+                    setActiveFlow('ingestion');
+                    setActiveStep(0);
+                  }}
                   className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
                     activeFlow === 'ingestion'
                       ? 'bg-white text-[#4648D4] shadow-sm'
@@ -301,7 +474,10 @@ export default function ArchitecturePage() {
                   Flow A: Report Ingestion & Linking
                 </button>
                 <button
-                  onClick={() => setActiveFlow('memory')}
+                  onClick={() => {
+                    setActiveFlow('memory');
+                    setActiveStep(0);
+                  }}
                   className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
                     activeFlow === 'memory'
                       ? 'bg-white text-[#4648D4] shadow-sm'
@@ -313,329 +489,54 @@ export default function ArchitecturePage() {
               </div>
             </div>
 
-            {/* Architecture Canvas Boxed Boundaries */}
-            <div className="space-y-6">
-              {/* Layer 1: Client & Ingress */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                {/* Presentation Box */}
-                <div className="bg-[#F8FAFF] border-2 border-dashed border-[#C7C4D7]/60 rounded-2xl p-5 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">
-                      1. Presentation Layer (Vercel)
-                    </span>
-                    <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-slate-200 text-slate-700">
-                      HTTPS Edge
-                    </span>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="bg-white p-3.5 rounded-xl border border-[#C7C4D7]/30 shadow-xs">
-                      <p className="font-bold text-xs text-[#1B1B23]">Next.js 14 Web App</p>
-                      <p className="text-[11px] text-[#64748B]">Operational Timeline & Review Queue</p>
-                    </div>
-                    <div className="bg-white p-3.5 rounded-xl border border-[#C7C4D7]/30 shadow-xs">
-                      <div className="flex items-center justify-between">
-                        <p className="font-bold text-xs text-[#4648D4]">Reverse Proxy Tunnel</p>
-                        <span className="text-[10px] font-mono text-emerald-600 font-bold">Zero CORS</span>
-                      </div>
-                      <p className="text-[11px] font-mono text-slate-500">/api-proxy/* → ALB:80</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Account B Box (Infrastructure) */}
-                <div className="lg:col-span-2 bg-[#F5F2FE]/40 border-2 border-[#4648D4]/30 rounded-2xl p-5 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-bold text-[#4648D4] uppercase tracking-wider">
-                        2. AWS Account B — Infrastructure & Compute
-                      </span>
-                      <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
-                        736969242498 (ap-south-1)
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-mono bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-bold">
-                      Direct IGW (No NAT)
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                    <div className={`p-3.5 rounded-xl border transition ${
-                      activeFlow === 'ingestion' ? 'bg-white border-[#4648D4] shadow-xs' : 'bg-white/80 border-[#C7C4D7]/30'
-                    }`}>
-                      <div className="flex items-center justify-between">
-                        <p className="font-bold text-xs text-[#1B1B23]">AWS ALB</p>
-                        <span className="text-[10px] font-mono text-slate-500">Public:80</span>
-                      </div>
-                      <p className="text-[11px] text-[#64748B] mt-1">Direct Internet Gateway</p>
-                    </div>
-
-                    <div className={`p-3.5 rounded-xl border transition ${
-                      activeFlow === 'ingestion' ? 'bg-white border-[#4648D4] shadow-xs' : 'bg-white/80 border-[#C7C4D7]/30'
-                    }`}>
-                      <p className="font-bold text-xs text-[#1B1B23]">ECS: Express API</p>
-                      <p className="text-[11px] font-mono text-[#64748B]">512 CPU / 1GB RAM</p>
-                    </div>
-
-                    <div className={`p-3.5 rounded-xl border transition ${
-                      activeFlow === 'ingestion' ? 'bg-white border-[#4648D4] shadow-xs' : 'bg-white/80 border-[#C7C4D7]/30'
-                    }`}>
-                      <p className="font-bold text-xs text-[#1B1B23]">Amazon S3 Bucket</p>
-                      <p className="text-[11px] text-[#64748B]">AES-256 Raw Storage</p>
-                    </div>
-
-                    <div className={`p-3.5 rounded-xl border transition ${
-                      activeFlow === 'ingestion' ? 'bg-white border-[#4648D4] shadow-xs' : 'bg-white/80 border-[#C7C4D7]/30'
-                    }`}>
-                      <p className="font-bold text-xs text-[#1B1B23]">Lambda (s3-to-sqs)</p>
-                      <p className="text-[11px] font-mono text-[#64748B]">Node.js 20.x • 256MB</p>
-                    </div>
-
-                    <div className={`p-3.5 rounded-xl border transition ${
-                      activeFlow === 'ingestion' ? 'bg-white border-[#4648D4] shadow-xs' : 'bg-white/80 border-[#C7C4D7]/30'
-                    }`}>
-                      <p className="font-bold text-xs text-[#1B1B23]">Amazon SQS Queue</p>
-                      <p className="text-[11px] text-[#64748B]">Asynchronous Buffer</p>
-                    </div>
-
-                    <div className={`p-3.5 rounded-xl border transition ${
-                      activeFlow === 'ingestion' ? 'bg-white border-[#4648D4] shadow-xs' : 'bg-white/80 border-[#C7C4D7]/30'
-                    }`}>
-                      <p className="font-bold text-xs text-[#1B1B23]">ECS: AI Worker</p>
-                      <p className="text-[11px] font-mono text-[#64748B]">1024 CPU / 2GB RAM</p>
-                    </div>
-                  </div>
-
-                  {/* Database Bar */}
-                  <div className="bg-white p-4 rounded-xl border border-[#C7C4D7]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center font-bold">
-                        <Database className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-xs text-[#1B1B23]">Amazon RDS PostgreSQL 16.9 + pgvector</p>
-                        <p className="text-[11px] text-[#64748B]">
-                          Single source of truth: WBS Nodes, Daily Reports, Matches, Audit Log, and 40 Seeded Historical Records
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-mono px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-200 shrink-0">
-                      1024d Cosine Search
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Layer 2: Foundation Models (Account A) */}
-              <div className="bg-purple-50/40 border-2 border-purple-300/60 rounded-2xl p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-bold text-purple-900 uppercase tracking-wider">
-                      3. AWS Account A — Amazon Bedrock Foundation Models
-                    </span>
-                    <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-purple-100 text-purple-800 border border-purple-200">
-                      Scoped IAM Policy (bedrock:InvokeModel)
-                    </span>
-                  </div>
-                  <span className="text-[10px] font-mono text-purple-700 font-bold">
-                    Zero Cross-Account Network Lag
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className={`p-4 rounded-xl border transition ${
-                    activeFlow === 'ingestion' ? 'bg-white border-purple-500 shadow-md' : 'bg-white/80 border-[#C7C4D7]/30'
-                  }`}>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-purple-100 text-purple-800">
-                        Event Extraction
-                      </span>
-                      <span className="text-xs font-mono font-bold text-emerald-600">$0.035/1M</span>
-                    </div>
-                    <p className="font-bold text-xs text-[#1B1B23]">Amazon Nova Micro</p>
-                    <p className="text-[11px] font-mono text-slate-500 mt-0.5">apac.amazon.nova-micro-v1:0</p>
-                    <p className="text-xs text-slate-600 mt-2">
-                      Extracts technical entities (discipline, line number, location, quantity) from messy notes in sub-seconds.
-                    </p>
-                  </div>
-
-                  <div className={`p-4 rounded-xl border transition ${
-                    activeFlow === 'ingestion' || activeFlow === 'memory' ? 'bg-white border-purple-500 shadow-md' : 'bg-white/80 border-[#C7C4D7]/30'
-                  }`}>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-indigo-100 text-indigo-800">
-                        Semantic Vectors
-                      </span>
-                      <span className="text-xs font-mono font-bold text-emerald-600">$0.020/1M</span>
-                    </div>
-                    <p className="font-bold text-xs text-[#1B1B23]">Titan Embeddings V2</p>
-                    <p className="text-[11px] font-mono text-slate-500 mt-0.5">amazon.titan-embed-text-v2:0</p>
-                    <p className="text-xs text-slate-600 mt-2">
-                      Converts construction activities and user queries into 1024-dimensional normalized dense vectors.
-                    </p>
-                  </div>
-
-                  <div className={`p-4 rounded-xl border transition ${
-                    activeFlow === 'memory' ? 'bg-white border-purple-500 shadow-md' : 'bg-white/80 border-[#C7C4D7]/30'
-                  }`}>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-purple-100 text-purple-800">
-                        Memory RAG Synthesis
-                      </span>
-                      <span className="text-xs font-mono font-bold text-purple-700">300k Context</span>
-                    </div>
-                    <p className="font-bold text-xs text-[#1B1B23]">Amazon Nova Pro</p>
-                    <p className="text-[11px] font-mono text-slate-500 mt-0.5">apac.amazon.nova-pro-v1:0</p>
-                    <p className="text-xs text-slate-600 mt-2">
-                      Deep reasoning over retrieved historical delay records with strict factual grounding and zero hallucination.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Step-by-Step Visual Stepper Matrix */}
-            <div className="bg-[#F5F2FE]/60 p-6 rounded-2xl border border-[#C7C4D7]/30 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#C7C4D7]/20 pb-3">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#4648D4] animate-pulse" />
-                  <p className="text-xs font-bold text-[#4648D4] uppercase tracking-wider">
-                    {activeFlow === 'ingestion'
-                      ? 'Live Execution Flow: Field Report Ingestion & Schedule Linking (6 Steps)'
-                      : 'Live Execution Flow: Project Memory Institutional RAG Synthesis (6 Steps)'}
-                  </p>
-                </div>
-                <span className="text-[11px] font-mono text-[#64748B]">
-                  {activeFlow === 'ingestion' ? 'Asynchronous Event-Driven Loop' : 'Sub-second Semantic RAG Pipeline'}
-                </span>
-              </div>
-
-              {/* Responsive 6-Card Visual Sequence Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-                {(activeFlow === 'ingestion'
-                  ? [
-                      {
-                        step: '01',
-                        title: 'Supervisor Upload',
-                        badge: 'Edge Ingress',
-                        desc: 'Free-text or daily diary uploaded via Next.js proxy tunnel.',
-                        highlight: 'No CORS /api-proxy/*',
-                      },
-                      {
-                        step: '02',
-                        title: 'ALB & S3 Storage',
-                        badge: 'Raw Evidence',
-                        desc: 'ALB routes to Express API. Raw payload stored in S3 bucket.',
-                        highlight: 'AES-256 Encrypted',
-                      },
-                      {
-                        step: '03',
-                        title: 'Lambda & SQS Queue',
-                        badge: 'Event Trigger',
-                        desc: 'S3:ObjectCreated invokes Lambda router to buffer event in SQS.',
-                        highlight: 'Decoupled Queue',
-                      },
-                      {
-                        step: '04',
-                        title: 'Nova Micro Parsing',
-                        badge: 'JSON Extraction',
-                        desc: 'ECS AI Worker polls SQS and extracts discipline, line, & qty.',
-                        highlight: '$0.035/1M Tokens',
-                      },
-                      {
-                        step: '05',
-                        title: 'Titan V2 Vector Search',
-                        badge: 'pgvector Cosine',
-                        desc: '1024d embedding computed for top-K cosine candidate ranking.',
-                        highlight: '1024-dim Vector',
-                      },
-                      {
-                        step: '06',
-                        title: 'Policy Sync & Audit',
-                        badge: 'Schedule Update',
-                        desc: 'Tiered gating updates baseline schedule with immutable audit trail.',
-                        highlight: 'Zero False Schedule Edits',
-                      },
-                    ]
-                  : [
-                      {
-                        step: '01',
-                        title: 'Planner Prompt',
-                        badge: 'User Query',
-                        desc: 'Lead planner queries historical delays directly from Dashboard.',
-                        highlight: 'e.g. "piping delays in Assam"',
-                      },
-                      {
-                        step: '02',
-                        title: 'Titan V2 Embedding',
-                        badge: 'Vectorization',
-                        desc: 'Backend generates 1024-dimensional query vector via Bedrock.',
-                        highlight: 'amazon.titan-embed-text-v2',
-                      },
-                      {
-                        step: '03',
-                        title: 'pgvector Retrieval',
-                        badge: 'Cosine Search',
-                        desc: 'Extracts top matching records from 40 historical project records.',
-                        highlight: 'Cosine Similarity Threshold',
-                      },
-                      {
-                        step: '04',
-                        title: 'Deterministic Stats',
-                        badge: 'Pre-computation',
-                        desc: 'Computes authentic average delay days and root cause percentages.',
-                        highlight: 'Zero Math Hallucination',
-                      },
-                      {
-                        step: '05',
-                        title: 'Nova Pro Synthesis',
-                        badge: 'Bedrock Reasoning',
-                        desc: 'Synthesizes grounded executive briefing with strict citations.',
-                        highlight: '300k Context Window',
-                      },
-                      {
-                        step: '06',
-                        title: 'Evidence Verification',
-                        badge: 'Provenance Modal',
-                        desc: 'Planner clicks citations to inspect exact historical record evidence.',
-                        highlight: 'Clickable Provenance Proof',
-                      },
-                    ]
-                ).map((s, idx) => (
-                  <div
+            {/* 6-Card Visual Sequence Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+              {currentStepList.map((s, idx) => {
+                const isSelected = activeStep === idx;
+                return (
+                  <button
                     key={idx}
-                    className="bg-white p-4 rounded-xl border border-[#C7C4D7]/40 shadow-xs flex flex-col justify-between space-y-3 relative group hover:border-[#4648D4] transition-all"
+                    onClick={() => setActiveStep(idx)}
+                    className={`text-left p-4 rounded-2xl border transition-all flex flex-col justify-between space-y-3 ${
+                      isSelected
+                        ? 'bg-white border-[#4648D4] ring-2 ring-[#4648D4]/20 shadow-md scale-[1.01]'
+                        : 'bg-[#F8FAFF] border-[#C7C4D7]/40 hover:bg-white hover:border-[#4648D4]/60 shadow-xs'
+                    }`}
                   >
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-md bg-[#4648D4]/10 text-[#4648D4] border border-[#4648D4]/20">
+                        <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded-md border ${
+                          isSelected
+                            ? 'bg-[#4648D4] text-white border-[#4648D4]'
+                            : 'bg-[#4648D4]/10 text-[#4648D4] border-[#4648D4]/20'
+                        }`}>
                           {s.step}
                         </span>
-                        <span className="text-[9px] font-mono uppercase font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 truncate max-w-[90px]">
+                        <span className="text-[9px] font-mono uppercase font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 truncate max-w-[85px]">
                           {s.badge}
                         </span>
                       </div>
                       <p className="font-bold text-xs text-[#1B1B23] leading-snug">
                         {s.title}
                       </p>
-                      <p className="text-[11px] text-[#64748B] leading-relaxed">
+                      <p className="text-[11px] text-[#64748B] leading-relaxed line-clamp-3">
                         {s.desc}
                       </p>
                     </div>
 
-                    <div className="pt-2 border-t border-slate-100">
+                    <div className="pt-2 border-t border-slate-200/60">
                       <span className="text-[10px] font-mono text-[#4648D4] font-medium block truncate">
                         {s.highlight}
                       </span>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           {/* ========================================================================= */}
-          {/* SECTION 3: AI PIPELINE & 3-TIER POLICY GATE                               */}
+          {/* SECTION 4: AI PIPELINE & 3-TIER POLICY GATE                               */}
           {/* ========================================================================= */}
           <div className="bg-white rounded-[28px] border border-[#C7C4D7]/30 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 sm:p-8 space-y-6">
             <div className="border-b border-[#C7C4D7]/20 pb-4">
@@ -747,7 +648,7 @@ export default function ArchitecturePage() {
           </div>
 
           {/* ========================================================================= */}
-          {/* SECTION 4: MULTI-ACCOUNT SECURITY & SECRETS ISOLATION                     */}
+          {/* SECTION 5: MULTI-ACCOUNT SECURITY & SECRETS ISOLATION                     */}
           {/* ========================================================================= */}
           <div className="bg-white rounded-[28px] border border-[#C7C4D7]/30 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 sm:p-8 space-y-6">
             <div className="border-b border-[#C7C4D7]/20 pb-4">
@@ -808,13 +709,13 @@ export default function ArchitecturePage() {
           </div>
 
           {/* ========================================================================= */}
-          {/* SECTION 5: REAL PRODUCTION TECH STACK CHIP MATRIX                         */}
+          {/* SECTION 6: REAL PRODUCTION TECH STACK CHIP MATRIX                         */}
           {/* ========================================================================= */}
           <div className="bg-white rounded-[28px] border border-[#C7C4D7]/30 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 sm:p-8 space-y-6">
             <div className="border-b border-[#C7C4D7]/20 pb-4">
               <h2 className="text-xl font-bold text-[#1B1B23] flex items-center gap-2.5">
                 <Boxes className="w-5 h-5 text-[#4648D4]" />
-                <span>Active Production Technology Stack (11 Real Services)</span>
+                <span>Active Production Technology Stack (12 Real Services)</span>
               </h2>
               <p className="text-xs sm:text-sm text-[#64748B] mt-0.5">
                 Zero placeholder services. Every component below is deployed and running in production today.

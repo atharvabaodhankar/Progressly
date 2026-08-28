@@ -1,0 +1,240 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 820" width="100%" height="100%" fill="none" style="background:#FFFFFF; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <defs>
+    <!-- Arrowhead markers -->
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#475569"/>
+    </marker>
+    <marker id="arrow-indigo" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#4648D4"/>
+    </marker>
+    <filter id="card-shadow" x="-5%" y="-5%" width="110%" height="115%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0F172A" flood-opacity="0.04"/>
+    </filter>
+  </defs>
+
+  <!-- TITLE HEADER -->
+  <g transform="translate(48, 48)">
+    <text x="0" y="0" font-size="22" font-weight="700" fill="#0F172A" letter-spacing="-0.5">Progressly : Enterprise Production System Architecture</text>
+    <text x="0" y="24" font-size="13" font-weight="500" fill="#64748B">Event-Driven Schedule Linking Pipeline &amp; Multi-Account Bedrock RAG Engine (ap-south-1)</text>
+  </g>
+
+  <!-- ZONE 1: CLIENT & VERCEL INGRESS -->
+  <g transform="translate(48, 105)">
+    <rect width="250" height="665" rx="16" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1.5"/>
+    <text x="20" y="32" font-size="12" font-weight="700" fill="#475569" letter-spacing="0.5">ZONE 1: CLIENT &amp; VERCEL INGRESS</text>
+    <rect x="20" y="44" width="210" height="1" fill="#E2E8F0"/>
+
+    <!-- Client Card 1: Web Dashboard -->
+    <g transform="translate(20, 65)">
+      <rect width="210" height="110" rx="12" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5" filter="url(#card-shadow)"/>
+      <rect x="16" y="16" width="32" height="32" rx="8" fill="#F1F5F9"/>
+      <path d="M22 26 h20 M22 32 h12 M22 38 h16" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
+      <text x="58" y="30" font-size="13" font-weight="700" fill="#0F172A">Web Dashboard</text>
+      <text x="58" y="46" font-size="11" font-weight="500" fill="#64748B">Next.js 14 App Router</text>
+      <rect x="16" y="70" width="178" height="26" rx="6" fill="#F8FAFC" stroke="#E2E8F0"/>
+      <text x="26" y="87" font-size="10" font-family="monospace" font-weight="600" fill="#4648D4">HTTPS / TLS 1.3</text>
+    </g>
+
+    <!-- Reverse Proxy Card -->
+    <g transform="translate(20, 205)">
+      <rect width="210" height="110" rx="12" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5" filter="url(#card-shadow)"/>
+      <rect x="16" y="16" width="32" height="32" rx="8" fill="#EEF2FF"/>
+      <path d="M24 32 h16 M34 26 l6 6 -6 6" stroke="#4648D4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="58" y="30" font-size="13" font-weight="700" fill="#0F172A">Vercel Edge Proxy</text>
+      <text x="58" y="46" font-size="11" font-weight="500" fill="#64748B">Zero-CORS Route Tunnel</text>
+      <rect x="16" y="70" width="178" height="26" rx="6" fill="#EEF2FF" stroke="#C7D2FE"/>
+      <text x="26" y="87" font-size="10" font-family="monospace" font-weight="700" fill="#4338CA">/api-proxy/* → ALB:80</text>
+    </g>
+
+    <!-- Client Card 2: Mobile / Site Tablet -->
+    <g transform="translate(20, 345)">
+      <rect width="210" height="100" rx="12" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5" filter="url(#card-shadow)"/>
+      <rect x="16" y="16" width="32" height="32" rx="8" fill="#F1F5F9"/>
+      <rect x="24" y="22" width="16" height="20" rx="3" stroke="#475569" stroke-width="2"/>
+      <text x="58" y="30" font-size="13" font-weight="700" fill="#0F172A">Site Mobile Diary</text>
+      <text x="58" y="46" font-size="11" font-weight="500" fill="#64748B">Field Supervisor Input</text>
+      <text x="16" y="78" font-size="10" font-weight="600" fill="#059669">Raw Notes / CSV / PDF</text>
+    </g>
+
+    <!-- Zone Info Pill -->
+    <g transform="translate(20, 580)">
+      <rect width="210" height="65" rx="10" fill="#FFFFFF" stroke="#E2E8F0"/>
+      <text x="14" y="24" font-size="11" font-weight="700" fill="#334155">Ingress Guarantees</text>
+      <text x="14" y="42" font-size="10" fill="#64748B">• Edge SSL Termination</text>
+      <text x="14" y="56" font-size="10" fill="#64748B">• Server-to-Server Gateway</text>
+    </g>
+  </g>
+
+  <!-- ZONE 2: AWS INFRASTRUCTURE ACCOUNT (Account B - 736969242498) -->
+  <g transform="translate(320, 105)">
+    <rect width="730" height="665" rx="16" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1.5"/>
+    <text x="24" y="32" font-size="12" font-weight="700" fill="#4648D4" letter-spacing="0.5">ZONE 2: AWS ACCOUNT B — INFRASTRUCTURE &amp; COMPUTE (736969242498)</text>
+    <rect x="24" y="44" width="682" height="1" fill="#E2E8F0"/>
+
+    <!-- Sub-boundary: VPC -->
+    <rect x="20" y="55" width="690" height="590" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5" stroke-dasharray="6 6"/>
+    <text x="36" y="78" font-size="11" font-weight="700" fill="#64748B">VPC (ap-south-1) • Public Subnets with Direct IGW (No NAT Cost)</text>
+
+    <!-- AWS Application Load Balancer -->
+    <g transform="translate(36, 100)">
+      <rect width="180" height="95" rx="10" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5" filter="url(#card-shadow)"/>
+      <text x="14" y="28" font-size="12" font-weight="700" fill="#0F172A">AWS ALB</text>
+      <text x="14" y="44" font-size="10" fill="#64748B">Public Ingress (Port 80)</text>
+      <rect x="14" y="60" width="152" height="22" rx="4" fill="#F1F5F9"/>
+      <text x="20" y="75" font-size="9" font-family="monospace" fill="#475569">progressly-alb-prod</text>
+    </g>
+
+    <!-- ECS Express API -->
+    <g transform="translate(256, 100)">
+      <rect width="190" height="95" rx="10" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5" filter="url(#card-shadow)"/>
+      <text x="14" y="28" font-size="12" font-weight="700" fill="#0F172A">ECS: Express API</text>
+      <text x="14" y="44" font-size="10" fill="#64748B">Node.js TypeScript API Service</text>
+      <rect x="14" y="60" width="162" height="22" rx="4" fill="#EEF2FF"/>
+      <text x="20" y="75" font-size="9" font-family="monospace" font-weight="600" fill="#4338CA">0.5 vCPU • 1GB RAM</text>
+    </g>
+
+    <!-- Amazon S3 Bucket -->
+    <g transform="translate(486, 100)">
+      <rect width="205" height="95" rx="10" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5" filter="url(#card-shadow)"/>
+      <text x="14" y="28" font-size="12" font-weight="700" fill="#0F172A">Amazon S3 Bucket</text>
+      <text x="14" y="44" font-size="10" fill="#64748B">Raw Evidence Storage</text>
+      <rect x="14" y="60" width="177" height="22" rx="4" fill="#F8FAFC" stroke="#E2E8F0"/>
+      <text x="20" y="75" font-size="9" font-family="monospace" fill="#059669">AES-256 Encrypted</text>
+    </g>
+
+    <!-- AWS Lambda Router -->
+    <g transform="translate(486, 235)">
+      <rect width="205" height="90" rx="10" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5" filter="url(#card-shadow)"/>
+      <text x="14" y="28" font-size="12" font-weight="700" fill="#0F172A">AWS Lambda</text>
+      <text x="14" y="44" font-size="10" fill="#64748B">s3-to-sqs Event Router</text>
+      <rect x="14" y="58" width="177" height="20" rx="4" fill="#FEF3C7"/>
+      <text x="20" y="72" font-size="9" font-family="monospace" font-weight="600" fill="#B45309">s3:ObjectCreated</text>
+    </g>
+
+    <!-- Amazon SQS Queue -->
+    <g transform="translate(486, 360)">
+      <rect width="205" height="90" rx="10" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5" filter="url(#card-shadow)"/>
+      <text x="14" y="28" font-size="12" font-weight="700" fill="#0F172A">Amazon SQS Queue</text>
+      <text x="14" y="44" font-size="10" fill="#64748B">Asynchronous Work Queue</text>
+      <rect x="14" y="58" width="177" height="20" rx="4" fill="#F1F5F9"/>
+      <text x="20" y="72" font-size="9" font-family="monospace" fill="#475569">Decoupled Ingestion</text>
+    </g>
+
+    <!-- ECS AI Worker -->
+    <g transform="translate(256, 360)">
+      <rect width="190" height="90" rx="10" fill="#FFFFFF" stroke="#4648D4" stroke-width="2" filter="url(#card-shadow)"/>
+      <text x="14" y="28" font-size="12" font-weight="700" fill="#0F172A">ECS: AI Worker</text>
+      <text x="14" y="44" font-size="10" fill="#64748B">Extraction &amp; Linking Loop</text>
+      <rect x="14" y="58" width="162" height="20" rx="4" fill="#EEF2FF"/>
+      <text x="20" y="72" font-size="9" font-family="monospace" font-weight="700" fill="#4338CA">1.0 vCPU • 2GB RAM</text>
+    </g>
+
+    <!-- Amazon RDS PostgreSQL 16.9 + pgvector -->
+    <g transform="translate(256, 490)">
+      <rect width="435" height="130" rx="12" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5" filter="url(#card-shadow)"/>
+      <text x="20" y="30" font-size="13" font-weight="700" fill="#0F172A">Amazon RDS PostgreSQL 16.9 (pgvector extension)</text>
+      <text x="20" y="48" font-size="11" fill="#64748B">Unified Single Store of Truth: WBS Master Nodes, Matches, Audit Trails, &amp; 40 Historical Records</text>
+
+      <g transform="translate(20, 62)">
+        <rect width="125" height="50" rx="6" fill="#F8FAFC" stroke="#E2E8F0"/>
+        <text x="10" y="20" font-size="10" font-weight="700" fill="#334155">wbs_nodes</text>
+        <text x="10" y="38" font-size="9" font-family="monospace" fill="#059669">1024d vectors</text>
+      </g>
+      <g transform="translate(155, 62)">
+        <rect width="130" height="50" rx="6" fill="#F8FAFC" stroke="#E2E8F0"/>
+        <text x="10" y="20" font-size="10" font-weight="700" fill="#334155">historical_records</text>
+        <text x="10" y="38" font-size="9" font-family="monospace" fill="#7C3AED">40 Grounded records</text>
+      </g>
+      <g transform="translate(295, 62)">
+        <rect width="120" height="50" rx="6" fill="#F8FAFC" stroke="#E2E8F0"/>
+        <text x="10" y="20" font-size="10" font-weight="700" fill="#334155">audit_log</text>
+        <text x="10" y="38" font-size="9" font-family="monospace" fill="#4648D4">Immutable trail</text>
+      </g>
+    </g>
+
+    <!-- AWS Secrets Manager -->
+    <g transform="translate(36, 490)">
+      <rect width="180" height="130" rx="10" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5" filter="url(#card-shadow)"/>
+      <text x="14" y="28" font-size="12" font-weight="700" fill="#0F172A">AWS Secrets Manager</text>
+      <text x="14" y="46" font-size="10" fill="#64748B">Credential Bridge</text>
+      <rect x="14" y="62" width="152" height="50" rx="6" fill="#F1F5F9"/>
+      <text x="20" y="80" font-size="9" font-family="monospace" fill="#334155">Holds Account A</text>
+      <text x="20" y="96" font-size="9" font-family="monospace" font-weight="600" fill="#4648D4">Bedrock Keys</text>
+    </g>
+  </g>
+
+  <!-- ZONE 3: AMAZON BEDROCK (Account A) -->
+  <g transform="translate(1070, 105)">
+    <rect width="322" height="665" rx="16" fill="#FAF5FF" stroke="#D8B4FE" stroke-width="1.5"/>
+    <text x="20" y="32" font-size="12" font-weight="700" fill="#7E22CE" letter-spacing="0.5">ZONE 3: AMAZON BEDROCK (ACCOUNT A)</text>
+    <rect x="20" y="44" width="282" height="1" fill="#E9D5FF"/>
+
+    <!-- Nova Micro -->
+    <g transform="translate(20, 65)">
+      <rect width="282" height="160" rx="12" fill="#FFFFFF" stroke="#C084FC" stroke-width="1.5" filter="url(#card-shadow)"/>
+      <rect x="16" y="16" width="32" height="32" rx="8" fill="#F3E8FF"/>
+      <text x="56" y="30" font-size="14" font-weight="700" fill="#0F172A">Amazon Nova Micro</text>
+      <text x="56" y="46" font-size="10" font-family="monospace" fill="#7E22CE">apac.amazon.nova-micro-v1:0</text>
+      <text x="16" y="78" font-size="11" font-weight="600" fill="#334155">Task: Entity Extraction</text>
+      <text x="16" y="96" font-size="10" fill="#64748B">Extracts discipline, line, location, &amp; quantity from free-text reports in sub-seconds.</text>
+      <rect x="16" y="116" width="250" height="28" rx="6" fill="#FAF5FF" stroke="#E9D5FF"/>
+      <text x="26" y="134" font-size="10" font-family="monospace" font-weight="700" fill="#059669">Cost: $0.035 / 1M input tokens</text>
+    </g>
+
+    <!-- Titan Embeddings V2 -->
+    <g transform="translate(20, 250)">
+      <rect width="282" height="160" rx="12" fill="#FFFFFF" stroke="#C084FC" stroke-width="1.5" filter="url(#card-shadow)"/>
+      <rect x="16" y="16" width="32" height="32" rx="8" fill="#EEF2FF"/>
+      <text x="56" y="30" font-size="14" font-weight="700" fill="#0F172A">Titan Embeddings V2</text>
+      <text x="56" y="46" font-size="10" font-family="monospace" fill="#4338CA">amazon.titan-embed-text-v2:0</text>
+      <text x="16" y="78" font-size="11" font-weight="600" fill="#334155">Task: Dense Vector Generation</text>
+      <text x="16" y="96" font-size="10" fill="#64748B">Generates 1024-dimensional normalized embeddings for cosine distance search.</text>
+      <rect x="16" y="116" width="250" height="28" rx="6" fill="#EEF2FF" stroke="#C7D2FE"/>
+      <text x="26" y="134" font-size="10" font-family="monospace" font-weight="700" fill="#4338CA">1024-dim • $0.020 / 1M tokens</text>
+    </g>
+
+    <!-- Nova Pro -->
+    <g transform="translate(20, 435)">
+      <rect width="282" height="175" rx="12" fill="#FFFFFF" stroke="#C084FC" stroke-width="1.5" filter="url(#card-shadow)"/>
+      <rect x="16" y="16" width="32" height="32" rx="8" fill="#FAF5FF"/>
+      <text x="56" y="30" font-size="14" font-weight="700" fill="#0F172A">Amazon Nova Pro</text>
+      <text x="56" y="46" font-size="10" font-family="monospace" fill="#7E22CE">apac.amazon.nova-pro-v1:0</text>
+      <text x="16" y="78" font-size="11" font-weight="600" fill="#334155">Task: Institutional Memory RAG</text>
+      <text x="16" y="96" font-size="10" fill="#64748B">Deep reasoning over retrieved historical delay records with verifiable citations.</text>
+      <rect x="16" y="120" width="250" height="40" rx="6" fill="#FAF5FF" stroke="#E9D5FF"/>
+      <text x="26" y="136" font-size="10" font-family="monospace" font-weight="700" fill="#7E22CE">300k Context Window</text>
+      <text x="26" y="150" font-size="9" fill="#64748B">Strict grounding • Zero hallucination</text>
+    </g>
+  </g>
+
+  <!-- CONNECTING ORTHOGONAL BUS LINES -->
+  <!-- 1. Vercel to ALB -->
+  <path d="M 278 365 L 356 365 L 356 250" stroke="#475569" stroke-width="1.75" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- 2. ALB to Express API -->
+  <path d="M 536 250 L 576 250" stroke="#475569" stroke-width="1.75" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- 3. Express API to S3 -->
+  <path d="M 766 250 L 806 250" stroke="#475569" stroke-width="1.75" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- 4. S3 to Lambda -->
+  <path d="M 908 300 L 908 340" stroke="#475569" stroke-width="1.75" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- 5. Lambda to SQS -->
+  <path d="M 908 430 L 908 465" stroke="#475569" stroke-width="1.75" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- 6. SQS to AI Worker -->
+  <path d="M 806 510 L 766 510" stroke="#475569" stroke-width="1.75" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- 7. AI Worker to Bedrock Nova Micro -->
+  <path d="M 766 490 L 1040 490 L 1040 245 L 1090 245" stroke="#7C3AED" stroke-width="1.75" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- 8. AI Worker to Bedrock Titan V2 -->
+  <path d="M 766 520 L 1050 520 L 1050 430 L 1090 430" stroke="#4338CA" stroke-width="1.75" fill="none" marker-end="url(#arrow-indigo)"/>
+
+  <!-- 9. AI Worker to RDS PostgreSQL -->
+  <path d="M 671 555 L 671 595" stroke="#059669" stroke-width="1.75" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- 10. Express API to Bedrock Nova Pro (RAG query branch) -->
+  <path d="M 766 230 L 1060 230 L 1060 615 L 1090 615" stroke="#7E22CE" stroke-width="1.75" stroke-dasharray="4 4" fill="none" marker-end="url(#arrow)"/>
+</svg>
