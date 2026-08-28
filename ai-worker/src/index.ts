@@ -49,16 +49,17 @@ async function processMessage(bodyText: string) {
 
   let reportId: string | null = payload.reportId || payload.report_id || null;
   let rawText: string = payload.text || payload.content || payload.text_content || '';
-  const s3Key: string = payload.s3Key || payload.s3_key || (payload.Records && payload.Records[0]?.s3?.object?.key) || '';
+  const s3Key: string = payload.key || payload.s3Key || payload.s3_key || (payload.Records && payload.Records[0]?.s3?.object?.key) || '';
+  const bucketName: string = payload.bucket || S3_BUCKET_NAME || '';
 
   // 1. If S3 key is present and raw text is empty, download from S3
-  if (s3Key && !rawText && S3_BUCKET_NAME) {
+  if (s3Key && !rawText && bucketName) {
     try {
-      console.log(`[BridgeIQ AI-Worker] Downloading report from S3: ${S3_BUCKET_NAME}/${s3Key}`);
+      console.log(`[BridgeIQ AI-Worker] Downloading report from S3: ${bucketName}/${s3Key}`);
       const s3Client = new S3Client({ region: AWS_REGION });
       const s3Res = await s3Client.send(
         new GetObjectCommand({
-          Bucket: S3_BUCKET_NAME,
+          Bucket: bucketName,
           Key: decodeURIComponent(s3Key.replace(/\+/g, ' ')),
         })
       );
@@ -78,17 +79,22 @@ async function processMessage(bodyText: string) {
   const db = await getDbClient();
 
   try {
-    // 2. Mark report status as 'processing'
+    // 2. Mark report status as 'processing' or register new report
     if (reportId) {
       await db.query(`UPDATE reports SET status = 'processing' WHERE id = $1`, [reportId]);
-    } else {
-      // Find report by s3_key if reportId wasn't passed directly
-      if (s3Key) {
-        const repRes = await db.query(`SELECT id FROM reports WHERE s3_key = $1 LIMIT 1`, [s3Key]);
-        if (repRes.rows.length > 0) {
-          reportId = repRes.rows[0].id;
-          await db.query(`UPDATE reports SET status = 'processing' WHERE id = $1`, [reportId]);
-        }
+    } else if (s3Key) {
+      const repRes = await db.query(`SELECT id FROM reports WHERE s3_key = $1 LIMIT 1`, [s3Key]);
+      if (repRes.rows.length > 0) {
+        reportId = repRes.rows[0].id;
+        await db.query(`UPDATE reports SET status = 'processing' WHERE id = $1`, [reportId]);
+      } else {
+        const newRep = await db.query(
+          `INSERT INTO reports (project_id, uploaded_by, file_path, file_type, s3_key, status)
+           VALUES ('00000000-0000-0000-0000-000000000001', 's3-pipeline', $1, 'free-text', $1, 'processing')
+           RETURNING id;`,
+          [s3Key]
+        );
+        reportId = newRep.rows[0]?.id;
       }
     }
 

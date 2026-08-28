@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { pool } from '../db';
 
 const router = Router();
@@ -68,6 +69,7 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
 
     let filePath: string | null = null;
     let detectedFileType: 'free-text' | 'csv' | 'pdf' | 'excel' | 'image' = 'free-text';
+    let s3Key: string | null = null;
 
     if (req.file) {
       filePath = req.file.path;
@@ -83,9 +85,33 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
       return;
     }
 
+    // Upload to S3 if configured
+    const s3Bucket = process.env.S3_BUCKET_NAME;
+    const awsRegion = process.env.AWS_REGION || 'ap-south-1';
+
+    if (s3Bucket && filePath && fs.existsSync(filePath)) {
+      try {
+        const fileContent = fs.readFileSync(filePath);
+        const fileName = path.basename(filePath);
+        s3Key = `reports/${Date.now()}-${fileName}`;
+        const s3Client = new S3Client({ region: awsRegion });
+        await s3Client.send(
+          new PutObjectCommand({
+            Bucket: s3Bucket,
+            Key: s3Key,
+            Body: fileContent,
+            ContentType: req.file?.mimetype || 'text/plain',
+          })
+        );
+        console.log(`[BridgeIQ Backend] Successfully uploaded report to s3://${s3Bucket}/${s3Key}`);
+      } catch (s3Err) {
+        console.error('[BridgeIQ Backend] S3 upload error:', s3Err);
+      }
+    }
+
     const insertQuery = `
-      INSERT INTO reports (project_id, uploaded_by, file_path, file_type, status)
-      VALUES ($1, $2, $3, $4, 'pending')
+      INSERT INTO reports (project_id, uploaded_by, file_path, file_type, s3_key, status)
+      VALUES ($1, $2, $3, $4, $5, 'pending')
       RETURNING *;
     `;
 
@@ -94,6 +120,7 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
       uploaded_by,
       filePath,
       detectedFileType,
+      s3Key,
     ]);
 
     res.status(201).json({
