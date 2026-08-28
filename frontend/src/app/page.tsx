@@ -1257,17 +1257,6 @@ NRL-INS-4001,Mount Differential Pressure Transmitter PDT-301,Instrumentation,12-
           <div className="pt-2 border-t border-[#C7C4D7]/20 my-2" />
 
           <Link
-            href="/test-options"
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-[#464554] hover:bg-[#E9E6F3] hover:text-[#1B1B23] transition-all group"
-          >
-            <Sparkles className="w-5 h-5 text-indigo-600 group-hover:scale-110 transition-transform" />
-            <span>Demo Test Lab</span>
-            <span className="ml-auto text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-md font-bold">
-              New
-            </span>
-          </Link>
-
-          <Link
             href="/architecture"
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-[#464554] hover:bg-[#E9E6F3] hover:text-[#1B1B23] transition-all"
           >
