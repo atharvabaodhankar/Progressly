@@ -44,5 +44,8 @@ logs/
 .terraform.lock.hcl
 *.tfvars
 !terraform.tfvars.example
+*.tfplan
+*tfplan*
+tfplan*
 *.zip
 .env.production
