@@ -238,4 +238,26 @@ router.post('/seed', upload.single('file'), async (req: Request, res: Response):
   }
 });
 
+// POST /activities/sync-demo-progress - Set realistic baseline progress variety for demo presentation
+router.post('/sync-demo-progress', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    await pool.query("UPDATE activities SET progress_pct = 100.00, actual_start = '2026-07-01', actual_end = '2026-07-24' WHERE activity_code = 'L6-CIV-0112'");
+    await pool.query("UPDATE activities SET progress_pct = 100.00, actual_start = '2026-07-28', actual_end = '2026-08-04' WHERE activity_code = 'L6-CIV-0120'");
+    await pool.query("UPDATE activities SET progress_pct = 80.00, actual_start = '2026-07-20', actual_end = NULL WHERE activity_code = 'L6-CIV-0113'");
+    await pool.query("UPDATE activities SET progress_pct = 65.00, actual_start = '2026-08-01', actual_end = NULL WHERE activity_code = 'L6-PIP-0241'");
+    await pool.query("UPDATE activities SET progress_pct = 40.00, actual_start = '2026-08-02', actual_end = NULL WHERE activity_code = 'L6-ELE-0301'");
+    await pool.query("UPDATE activities SET progress_pct = 90.00, actual_start = '2026-08-03', actual_end = NULL WHERE activity_code = 'L6-STE-0501'");
+    await pool.query("UPDATE activities SET progress_pct = 25.00, actual_start = '2026-08-12', actual_end = NULL WHERE activity_code = 'L6-INS-0410'");
+    await pool.query("UPDATE activities SET progress_pct = 0.00, actual_start = NULL, actual_end = NULL WHERE activity_code = 'L6-PIP-0243'");
+
+    res.status(200).json({
+      success: true,
+      message: 'Successfully populated realistic progress variety across Baghjan activities!',
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to sync demo progress';
+    res.status(500).json({ error: message });
+  }
+});
+
 export default router;

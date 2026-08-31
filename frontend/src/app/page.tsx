@@ -47,6 +47,7 @@ import {
   MapPin,
   Loader2,
   CheckCheck,
+  BarChart3,
 } from 'lucide-react';
 
 const API_BASE = '/api-proxy';
@@ -1255,6 +1256,14 @@ NRL-INS-4001,Mount Differential Pressure Transmitter PDT-301,Instrumentation,12-
           </button>
 
           <div className="pt-2 border-t border-[#C7C4D7]/20 my-2" />
+
+          <Link
+            href="/analytics"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-[#464554] hover:bg-[#E9E6F3] hover:text-[#1B1B23] transition-all"
+          >
+            <BarChart3 className="w-5 h-5" />
+            <span>Token & Cost Telemetry</span>
+          </Link>
 
           <Link
             href="/architecture"

@@ -39,6 +39,7 @@ import {
   Menu,
   Download,
   Maximize2,
+  BarChart3,
 } from 'lucide-react';
 
 export default function ArchitecturePage() {
@@ -198,6 +199,14 @@ export default function ArchitecturePage() {
 
           <div className="pt-2 border-t border-[#C7C4D7]/20 my-2" />
 
+          <Link
+            href="/analytics"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-[#464554] hover:bg-[#E9E6F3] hover:text-[#1B1B23] transition-all"
+          >
+            <BarChart3 className="w-5 h-5" />
+            <span>Token & Cost Telemetry</span>
+          </Link>
+
           <div className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm bg-[#4648D4] text-white shadow-lg shadow-[#4648D4]/25 transition-all">
             <Network className="w-5 h-5" />
             <span>System Architecture</span>
@@ -296,6 +305,13 @@ export default function ArchitecturePage() {
             >
               <Sparkles className="w-4 h-4" />
               <span>Project Memory (RAG)</span>
+            </Link>
+            <Link
+              href="/analytics"
+              className="w-full flex items-center gap-3 p-3 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-100"
+            >
+              <BarChart3 className="w-4 h-4" />
+              <span>Token & Cost Telemetry</span>
             </Link>
             <div className="w-full flex items-center gap-3 p-3 rounded-xl text-sm font-medium bg-[#4648D4] text-white">
               <Network className="w-4 h-4" />

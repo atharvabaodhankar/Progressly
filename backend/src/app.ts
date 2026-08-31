@@ -7,6 +7,7 @@ import matchesRouter from './routes/matches';
 import auditLogRouter from './routes/auditLog';
 import memoryRouter from './routes/memory';
 import projectsRouter from './routes/projects';
+import analyticsRouter from './routes/analytics';
 
 export const createApp = (): Express => {
   const app = express();
@@ -23,6 +24,7 @@ export const createApp = (): Express => {
   app.use('/matches', matchesRouter);
   app.use('/audit-log', auditLogRouter);
   app.use('/memory', memoryRouter);
+  app.use('/analytics', analyticsRouter);
 
   return app;
 };

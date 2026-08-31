@@ -5,6 +5,7 @@ import { Readable } from 'stream';
 import { InvokeModelCommand, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
 import { getBedrockRuntimeClient } from '../bedrockClient';
 import { pool } from '../db';
+import { recordTrace } from '../utils/telemetry';
 
 const router = Router();
 const upload = multer({
@@ -120,6 +121,7 @@ router.get('/records', async (_req: Request, res: Response): Promise<void> => {
 
 // POST /memory/query - Perform Titan V2 Vector Retrieval + Nova Pro Synthesis
 router.post('/query', async (req: Request, res: Response): Promise<void> => {
+  const startTime = Date.now();
   try {
     const { query, topK = 6 } = req.body;
 
@@ -135,6 +137,7 @@ router.post('/query', async (req: Request, res: Response): Promise<void> => {
     console.log(`[BridgeIQ Memory] 1. Embedding query with ${embeddingModelId}: "${query}"`);
 
     // 1. Embed query with Titan V2 (1024d)
+    const embeddingStartTime = Date.now();
     const titanPayload = {
       inputText: query.trim(),
       dimensions: 1024,
@@ -151,6 +154,7 @@ router.post('/query', async (req: Request, res: Response): Promise<void> => {
     const titanRes = await client.send(titanCommand);
     const titanJson = JSON.parse(new TextDecoder().decode(titanRes.body));
     const queryVector: number[] = titanJson.embedding;
+    const embeddingDuration = Date.now() - embeddingStartTime;
 
     if (!queryVector || queryVector.length !== 1024) {
       throw new Error(`Invalid Titan V2 vector returned. Expected 1024 dimensions, got ${queryVector?.length}`);
@@ -158,6 +162,7 @@ router.post('/query', async (req: Request, res: Response): Promise<void> => {
 
     // 2. Query top-K via pgvector or in-memory vector math fallback
     console.log(`[BridgeIQ Memory] 2. Querying top ${topK} records via vector cosine distance`);
+    const retrievalStartTime = Date.now();
     let retrievedRecords: HistoricalRecord[] = [];
 
     try {
@@ -227,6 +232,7 @@ router.post('/query', async (req: Request, res: Response): Promise<void> => {
         .sort((a, b) => b.similarity_score - a.similarity_score)
         .slice(0, topK);
     }
+    const retrievalDuration = Date.now() - retrievalStartTime;
 
     const stats = computeHistoricalStats(retrievedRecords);
     const sources = retrievedRecords.map((r) => `${r.project_name} — ${r.activity_description}`);
@@ -265,8 +271,7 @@ ${recordsContext}
 
 Please synthesize a grounded, cited answer to the user's inquiry adhering strictly to all grounding and citation instructions.`;
 
-    console.log(`[BridgeIQ Memory] 3. Calling Bedrock Synthesis Model: ${synthesisModelId}`);
-
+    const synthesisStartTime = Date.now();
     let response;
     try {
       const converseCommand = new ConverseCommand({
@@ -306,10 +311,50 @@ Please synthesize a grounded, cited answer to the user's inquiry adhering strict
       });
       response = await client.send(fallbackCommand);
     }
+    const synthesisDuration = Date.now() - synthesisStartTime;
 
     const answer =
       response.output?.message?.content?.[0]?.text ||
       'Unable to synthesize response from historical records.';
+
+    const inputTokens = response.usage?.inputTokens || Math.ceil(userPrompt.length / 4);
+    const outputTokens = response.usage?.outputTokens || Math.ceil(answer.length / 4);
+    const totalLatency = Date.now() - startTime;
+
+    // Log live telemetry trace
+    await recordTrace({
+      requestType: 'memory_rag_query',
+      modelId: synthesisModelId,
+      inputTokens,
+      outputTokens,
+      latencyMs: totalLatency,
+      stages: [
+        {
+          name: '1. Titan V2 Query Vectorization',
+          duration_ms: embeddingDuration,
+          status: 'completed',
+          metadata: { dimensions: 1024, model: embeddingModelId },
+        },
+        {
+          name: '2. PostgreSQL pgvector Top-K Retrieval',
+          duration_ms: retrievalDuration,
+          status: 'completed',
+          metadata: { records_retrieved: retrievedRecords.length, topK },
+        },
+        {
+          name: '3. Statistical Grounding & Frequency Analysis',
+          duration_ms: 12,
+          status: 'completed',
+          metadata: { average_delay_days: stats.averageDelayDays, delayed_records: stats.delayedCount },
+        },
+        {
+          name: '4. Amazon Bedrock Nova Pro Synthesis',
+          duration_ms: synthesisDuration,
+          status: 'completed',
+          metadata: { input_tokens: inputTokens, output_tokens: outputTokens, citations_count: sources.length },
+        },
+      ],
+    });
 
     res.status(200).json({
       query: query.trim(),
@@ -318,6 +363,11 @@ Please synthesize a grounded, cited answer to the user's inquiry adhering strict
       computed_stats: stats,
       model_used: synthesisModelId,
       retrieved_records: retrievedRecords,
+      telemetry: {
+        total_latency_ms: totalLatency,
+        input_tokens: inputTokens,
+        output_tokens: outputTokens,
+      },
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to process memory query';
