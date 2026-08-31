@@ -312,7 +312,7 @@ async function seedAnalytics() {
   }
 
   console.log('✓ Successfully seeded realistic analytics and lifecycle traces!');
-  await pool.end();
+  process.exit(0);
 }
 
 seedAnalytics().catch(console.error);
