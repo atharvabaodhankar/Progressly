@@ -158,6 +158,30 @@ const MIGRATIONS = [
       CREATE UNIQUE INDEX IF NOT EXISTS idx_activities_wbs_code ON activities(wbs_node_id, activity_code);
     `,
   },
+  {
+    name: '009_create_analytics_and_traces',
+    sql: `
+      CREATE TABLE IF NOT EXISTS analytics_traces (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        trace_id VARCHAR(64) UNIQUE NOT NULL,
+        request_type VARCHAR(32) NOT NULL,
+        project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
+        model_id VARCHAR(64) NOT NULL,
+        input_tokens INT DEFAULT 0,
+        output_tokens INT DEFAULT 0,
+        total_tokens INT GENERATED ALWAYS AS (input_tokens + output_tokens) STORED,
+        cost_usd NUMERIC(12, 6) NOT NULL DEFAULT 0.000000,
+        latency_ms INT NOT NULL DEFAULT 0,
+        stages JSONB NOT NULL DEFAULT '[]'::jsonb,
+        status VARCHAR(20) DEFAULT 'completed',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_analytics_traces_created_at ON analytics_traces(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_analytics_traces_request_type ON analytics_traces(request_type);
+      CREATE INDEX IF NOT EXISTS idx_analytics_traces_model_id ON analytics_traces(model_id);
+    `,
+  },
 ];
 
 export async function ensureDatabaseSchema(): Promise<void> {
