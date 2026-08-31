@@ -717,6 +717,77 @@ export default function AnalyticsPage() {
                 </div>
               </div>
             </div>
+
+            {/* ========================================================================= */}
+            {/* AUDIT TRAIL: MATHEMATICAL & INDUSTRY CALCULATION BASIS                    */}
+            {/* ========================================================================= */}
+            <div className="mt-8 pt-6 border-t border-slate-200/80 space-y-4">
+              <div className="flex items-center gap-2">
+                <Calculator className="w-4 h-4 text-indigo-600" />
+                <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                  Mathematical & Industry Billing Basis (Audit Trail)
+                </h4>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                {/* Audit 1: Manual Calculation */}
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-800">1. Manual Baseline Formula</span>
+                    <span className="font-mono text-[10px] text-rose-700 font-bold bg-rose-100/60 px-1.5 py-0.5 rounded">
+                      ${monthlyManualCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo
+                    </span>
+                  </div>
+                  <p className="text-slate-600 text-[11px] leading-relaxed">
+                    In traditional EPC projects (OIL / refinery), a planning engineer takes <strong>~10 mins (0.167 hrs)</strong> per daily shift report to read unstructured notes, locate WBS codes in Primavera P6, and type progress into SAP.
+                  </p>
+                  <div className="bg-white p-2.5 rounded-lg border border-slate-200/80 font-mono text-[11px] text-slate-800 space-y-1">
+                    <div>{monthlyReportsCount.toLocaleString()} reports × 0.167 hrs = <strong>{(monthlyReportsCount * (10 / 60)).toFixed(0)} engineering hrs/mo</strong></div>
+                    <div>{(monthlyReportsCount * (10 / 60)).toFixed(0)} hrs × $35/hr rate = <strong>${monthlyManualCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo</strong></div>
+                    <div className="text-[10px] text-slate-500 font-sans">Equivalent to ~{((monthlyReportsCount * (10 / 60)) / 160).toFixed(1)} full-time engineers dedicated solely to data entry.</div>
+                  </div>
+                </div>
+
+                {/* Audit 2: Bedrock Cloud API Math */}
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-800">2. Real AWS Bedrock Rates</span>
+                    <span className="font-mono text-[10px] text-emerald-700 font-bold bg-emerald-100/60 px-1.5 py-0.5 rounded">
+                      ${monthlyAiCost.toFixed(2)}/mo
+                    </span>
+                  </div>
+                  <p className="text-slate-600 text-[11px] leading-relaxed">
+                    AWS Bedrock Foundation Models bill per <strong>1,000,000 tokens</strong>. Since field logs are concise JSON payloads, unit costs are micro-fractions of a cent:
+                  </p>
+                  <div className="bg-white p-2.5 rounded-lg border border-slate-200/80 font-mono text-[11px] text-slate-800 space-y-1">
+                    <div>• Nova Micro: <strong>$0.035 / 1M in</strong> (~$0.000035/report)</div>
+                    <div>• Titan V2: <strong>$0.020 / 1M in</strong> (~$0.000003/embedding)</div>
+                    <div>• Nova Pro: <strong>$0.80 / 1M in</strong> (~$0.0018/RAG query)</div>
+                    <div className="text-[10px] text-emerald-700 font-bold font-sans pt-1 border-t border-slate-100">
+                      Total AI Compute = ${monthlyAiCost.toFixed(2)} / month
+                    </div>
+                  </div>
+                </div>
+
+                {/* Audit 3: Net Operational Impact */}
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-800">3. Net Enterprise Impact</span>
+                    <span className="font-mono text-[10px] text-indigo-700 font-bold bg-indigo-100/60 px-1.5 py-0.5 rounded">
+                      {savingsPct}% Savings
+                    </span>
+                  </div>
+                  <p className="text-slate-600 text-[11px] leading-relaxed">
+                    Automating the Planning-to-Execution bridge eliminates data latency from <strong>48 hours down to 400ms</strong> while redirecting engineering talent to critical-path execution.
+                  </p>
+                  <div className="bg-white p-2.5 rounded-lg border border-slate-200/80 font-mono text-[11px] text-slate-800 space-y-1">
+                    <div>• Net Monthly Savings: <strong>${(monthlyManualCost - monthlyAiCost).toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo</strong></div>
+                    <div>• Engineering Hours Reclaimed: <strong>{(monthlyReportsCount * (10 / 60)).toFixed(0)} hrs/mo</strong></div>
+                    <div>• Schedule Linking Delay: <strong>Instant (&lt;500ms)</strong></div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </main>
