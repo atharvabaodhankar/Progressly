@@ -227,7 +227,7 @@ ${repsRes.rows.length > 0 ? `- Recent Ingested Site Reports:\n${repsRes.rows.map
             1 - (embedding <=> $1::vector) AS similarity_score
           FROM historical_records
           WHERE embedding IS NOT NULL
-            AND (1 - (embedding <=> $1::vector)) >= 0.48
+            AND (1 - (embedding <=> $1::vector)) >= 0.55
           ORDER BY embedding <=> $1::vector ASC
           LIMIT $2;
         `;
@@ -245,7 +245,7 @@ ${repsRes.rows.length > 0 ? `- Recent Ingested Site Reports:\n${repsRes.rows.map
     if (retrievedRecords.length === 0) {
       // Keyword/Term ranking fallback with strict matching
       const queryLower = query.toLowerCase();
-      const terms = queryLower.split(/\s+/).filter((t: string) => t.length > 3 && !['what', 'with', 'from', 'about', 'progress', 'status', 'live'].includes(t));
+      const terms = queryLower.split(/\s+/).filter((t: string) => t.length > 3 && !['what', 'with', 'from', 'about', 'progress', 'status', 'live', 'project', 'station', 'phase'].includes(t));
       
       if (terms.length > 0) {
         const allRes = await pool.query(`
@@ -269,8 +269,11 @@ ${repsRes.rows.length > 0 ? `- Recent Ingested Site Reports:\n${repsRes.rows.map
             for (const term of terms) {
               if (text.includes(term)) matches++;
             }
-            if (matches === 0) return null;
-            const score = 0.50 + (matches * 0.15);
+            // Require at least 2 matching key terms or direct project name match
+            const matchesProjectName = terms.some((t: string) => r.project_name.toLowerCase().includes(t));
+            if (matches < 2 && !matchesProjectName) return null;
+            
+            const score = 0.55 + (matches * 0.10);
             return {
               id: r.id,
               project_name: r.project_name,
@@ -298,14 +301,22 @@ ${repsRes.rows.length > 0 ? `- Recent Ingested Site Reports:\n${repsRes.rows.map
       query.toLowerCase().includes('baghjan') ||
       query.toLowerCase().includes('active') ||
       query.toLowerCase().includes('current') ||
-      query.toLowerCase().includes('today') ||
-      query.toLowerCase().includes('progress')
+      query.toLowerCase().includes('today')
     );
 
     if (retrievedRecords.length === 0 && !isAskingAboutActiveProject) {
       res.status(200).json({
         query: query.trim(),
-        answer: `### ⚠️ Entity Not Found in Database\n\nNo matching records, WBS schedule activities, or historical lessons found for **"${query.trim()}"** in company memory.\n\n### Available Company Projects:\n- **Baghjan Gas Gathering Station Project** (Oil India Limited • Assam)\n- **Paradip-Hyderabad Pipeline Extension** (Indian Oil Corporation Ltd)\n- **Numaligarh Refinery Expansion Project** (NRL)\n- **Mumbai High Offshore Platform Archives**\n\n*Please verify the project name or select an active project from the top workspace switcher.*`,
+        not_found: true,
+        answer: `Entity Not Found: No matching records, WBS schedule activities, or historical lessons found for "${query.trim()}".`,
+        available_projects: [
+          'Baghjan Gas Gathering Station Project (Oil India Limited • Assam)',
+          'Paradip-Hyderabad Pipeline Extension (Indian Oil Corporation Ltd)',
+          'Numaligarh Refinery Expansion Project (NRL)',
+          'Mumbai High Offshore Platform Archives',
+          'Moran Gas Gathering Station Upgrade (OIL)',
+          'Duliajan Phase 2 Expansion (OIL)',
+        ],
         sources: [],
         computed_stats: {
           totalRetrieved: 0,

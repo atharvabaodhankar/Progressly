@@ -320,6 +320,55 @@ function SynthesizedAnswerViewer({
   rawAnswer: string;
   onCitationClick?: (citation: string) => void;
 }) {
+  // Dedicated Clean View for Entity Not Found
+  if (
+    rawAnswer.toLowerCase().includes('entity not found') ||
+    rawAnswer.toLowerCase().includes('no matching records') ||
+    rawAnswer.toLowerCase().includes('no records found for')
+  ) {
+    return (
+      <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-700 shrink-0">
+            <AlertTriangle className="w-5 h-5" />
+          </div>
+          <div>
+            <h4 className="font-bold text-sm text-slate-900">Entity Not Found in Company Database</h4>
+            <p className="text-xs text-slate-600 mt-0.5">
+              No matching schedules, WBS activities, or site diaries were found for this query.
+            </p>
+          </div>
+        </div>
+
+        <div className="pt-3 border-t border-amber-200/60 text-xs text-slate-700 space-y-2">
+          <span className="font-semibold text-slate-900 block">Available Tracked Capital Projects:</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {[
+              { name: 'Baghjan Gas Gathering Station Project', org: 'Oil India Limited • Assam' },
+              { name: 'Paradip-Hyderabad Pipeline Extension', org: 'Indian Oil Corporation Ltd' },
+              { name: 'Numaligarh Refinery Expansion Project', org: 'Numaligarh Refinery Limited' },
+              { name: 'Moran Gas Gathering Station Upgrade', org: 'Oil India Limited' },
+              { name: 'Duliajan Phase 2 Expansion', org: 'Oil India Limited' },
+              { name: 'Mumbai High Offshore Platform Archives', org: 'Western Offshore Logs' },
+            ].map((p, idx) => (
+              <div key={idx} className="p-2.5 rounded-lg bg-white border border-amber-200/70 flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-amber-600 shrink-0" />
+                <div className="truncate">
+                  <span className="font-bold text-slate-900 block truncate">{p.name}</span>
+                  <span className="text-[10px] text-slate-500 block truncate">{p.org}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <p className="text-[11px] text-slate-500 italic pt-1">
+          Tip: Select an active project from the top workspace switcher or use one of the Quick Prompts above.
+        </p>
+      </div>
+    );
+  }
+
   const lines = rawAnswer.split('\n');
   const sections: {
     title: string;
