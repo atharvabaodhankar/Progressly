@@ -23,5 +23,8 @@
     "test:retrieve": "npm run test:retrieve --workspace=ai-worker",
     "test:memory": "npm run test:memory --workspace=ai-worker",
     "audit:hardening": "npm run audit:hardening --workspace=ai-worker"
+  },
+  "optionalDependencies": {
+    "@esbuild/win32-x64": "^0.28.2"
   }
 }

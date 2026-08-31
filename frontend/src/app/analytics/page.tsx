@@ -90,19 +90,21 @@ export default function AnalyticsPage() {
 
       if (summaryRes.ok) {
         const data = await summaryRes.json();
-        if (data.success) {
+        if (data.summary) {
           setSummary(data.summary);
           setModelBreakdown(data.model_breakdown || []);
+        } else if (data.success && data.data?.summary) {
+          setSummary(data.data.summary);
+          setModelBreakdown(data.data.model_breakdown || []);
         }
       }
 
       if (tracesRes.ok) {
         const data = await tracesRes.json();
-        if (data.success) {
-          setTraces(data.traces || []);
-          if (data.traces && data.traces.length > 0 && !selectedTrace) {
-            setSelectedTrace(data.traces[0]);
-          }
+        const tracesList = data.traces || (data.data && data.data.traces) || [];
+        setTraces(tracesList);
+        if (tracesList.length > 0 && !selectedTrace) {
+          setSelectedTrace(tracesList[0]);
         }
       }
     } catch (err) {
@@ -302,7 +304,7 @@ export default function AnalyticsPage() {
                   Cumulative Bedrock Spend
                 </span>
                 <div className="mt-2 text-3xl sm:text-5xl font-black text-slate-900 tracking-tight font-mono">
-                  ${summary ? summary.total_cost_usd.toFixed(6) : '0.000000'}
+                  ${summary ? Number(summary.total_cost_usd || 0).toFixed(6) : '0.000000'}
                 </div>
                 <p className="text-xs text-slate-500 mt-2">
                   Real-time micro-dollar billing across Nova Micro, Titan V2, and Nova Pro models.
