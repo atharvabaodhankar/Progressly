@@ -267,45 +267,51 @@ export default function ArchitecturePage() {
         </header>
 
         {/* Mobile Navigation Drawer */}
+        {/* Mobile Navigation Drawer */}
         {mobileMenuOpen && (
-          <div className="lg:hidden bg-white border-b border-slate-200 p-4 space-y-2">
+          <div className="lg:hidden bg-white border-b border-slate-200 p-4 space-y-1.5 animate-in slide-in-from-top-2 duration-150">
             <Link
               href="/"
-              className="w-full flex items-center gap-3 p-3 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-100"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full flex items-center gap-3 p-2.5 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50"
             >
-              <LayoutDashboard className="w-4 h-4" />
+              <LayoutDashboard className="w-4 h-4 text-slate-500" />
               <span>Timeline Dashboard</span>
             </Link>
             <Link
               href="/?tab=review"
-              className="w-full flex items-center gap-3 p-3 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-100"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full flex items-center gap-3 p-2.5 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50"
             >
-              <ShieldCheck className="w-4 h-4" />
+              <ShieldCheck className="w-4 h-4 text-slate-500" />
               <span>Review Queue</span>
             </Link>
             <Link
               href="/?tab=upload"
-              className="w-full flex items-center gap-3 p-3 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-100"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full flex items-center gap-3 p-2.5 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50"
             >
-              <Upload className="w-4 h-4" />
+              <Upload className="w-4 h-4 text-slate-500" />
               <span>Upload Daily Report</span>
             </Link>
             <Link
               href="/?tab=memory"
-              className="w-full flex items-center gap-3 p-3 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-100"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full flex items-center gap-3 p-2.5 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50"
             >
-              <Sparkles className="w-4 h-4" />
+              <Sparkles className="w-4 h-4 text-slate-500" />
               <span>Project Memory (RAG)</span>
             </Link>
             <Link
               href="/analytics"
-              className="w-full flex items-center gap-3 p-3 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-100"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full flex items-center gap-3 p-2.5 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50"
             >
-              <BarChart3 className="w-4 h-4" />
+              <BarChart3 className="w-4 h-4 text-slate-500" />
               <span>Token & Cost Telemetry</span>
             </Link>
-            <div className="w-full flex items-center gap-3 p-3 rounded-xl text-sm font-medium bg-[#4648D4] text-white">
-              <Network className="w-4 h-4" />
+            <div className="w-full flex items-center gap-3 p-2.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-900">
+              <Network className="w-4 h-4 text-slate-900" />
               <span>System Architecture</span>
             </div>
           </div>

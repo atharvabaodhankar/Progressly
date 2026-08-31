@@ -10,6 +10,11 @@ import {
   Network,
   Calculator,
   ExternalLink,
+  Menu,
+  X,
+  ShieldCheck,
+  Upload,
+  Sparkles,
 } from 'lucide-react';
 
 interface AnalyticsSummary {
@@ -69,6 +74,7 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [traceFilter, setTraceFilter] = useState<'all' | 'report_ingestion' | 'memory_rag_query' | 'schedule_vectorization'>('all');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // ROI Calculator state
   const [monthlyReportsCount, setMonthlyReportsCount] = useState<number>(3000);
@@ -188,47 +194,110 @@ export default function AnalyticsPage() {
       {/* Main Content View */}
       <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         {/* Top Header */}
-        <header className="h-16 bg-white border-b border-slate-200 px-6 sm:px-10 flex items-center justify-between sticky top-0 z-30">
-          <div>
-            <h2 className="text-base font-semibold text-slate-900">
-              Token & Cost Telemetry
-            </h2>
-            <p className="text-xs text-slate-500">
-              Live consumption metrics and request lifecycle traces
-            </p>
+        <header className="h-16 bg-white border-b border-slate-200 px-4 sm:px-10 flex items-center justify-between sticky top-0 z-30">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 md:hidden transition"
+              aria-label="Toggle Navigation"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+            <div>
+              <h2 className="text-sm sm:text-base font-semibold text-slate-900">
+                Token & Cost Telemetry
+              </h2>
+              <p className="text-[11px] sm:text-xs text-slate-500 hidden sm:block">
+                Live consumption metrics and request lifecycle traces
+              </p>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={fetchAnalyticsData}
               disabled={refreshing}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium border border-slate-200 shadow-xs transition active:scale-98"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium border border-slate-200 shadow-xs transition active:scale-98"
             >
               <RefreshCw className={`w-3.5 h-3.5 text-slate-400 ${refreshing ? 'animate-spin' : ''}`} />
-              <span>{refreshing ? 'Syncing...' : 'Sync Data'}</span>
+              <span className="hidden sm:inline">{refreshing ? 'Syncing...' : 'Sync Data'}</span>
             </button>
             <Link
               href="/"
-              className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium transition active:scale-98"
+              className="px-3 sm:px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium transition active:scale-98"
             >
               Dashboard
             </Link>
           </div>
         </header>
 
+        {/* Mobile Navigation Drawer */}
+        {mobileMenuOpen && (
+          <div className="md:hidden bg-white border-b border-slate-200 p-4 space-y-1.5 animate-in slide-in-from-top-2 duration-150">
+            <Link
+              href="/"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full flex items-center gap-3 p-2.5 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-100"
+            >
+              <LayoutDashboard className="w-4 h-4 text-slate-400" />
+              <span>Project Dashboard</span>
+            </Link>
+            <Link
+              href="/?tab=review"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full flex items-center gap-3 p-2.5 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-100"
+            >
+              <ShieldCheck className="w-4 h-4 text-slate-400" />
+              <span>Review Queue</span>
+            </Link>
+            <Link
+              href="/?tab=upload"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full flex items-center gap-3 p-2.5 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-100"
+            >
+              <Upload className="w-4 h-4 text-slate-400" />
+              <span>Upload Daily Report</span>
+            </Link>
+            <Link
+              href="/?tab=memory"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full flex items-center gap-3 p-2.5 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-100"
+            >
+              <Sparkles className="w-4 h-4 text-slate-400" />
+              <span>Project Memory (RAG)</span>
+            </Link>
+            <Link
+              href="/analytics"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full flex items-center gap-3 p-2.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-900"
+            >
+              <BarChart3 className="w-4 h-4 text-slate-900" />
+              <span>Token & Cost Telemetry</span>
+            </Link>
+            <Link
+              href="/architecture"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full flex items-center gap-3 p-2.5 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-100"
+            >
+              <Network className="w-4 h-4 text-slate-400" />
+              <span>System Architecture</span>
+            </Link>
+          </div>
+        )}
+
         {/* Content Body */}
-        <div className="p-6 sm:p-10 max-w-6xl w-full mx-auto space-y-10">
+        <div className="p-4 sm:p-10 max-w-6xl w-full mx-auto space-y-8 sm:space-y-10">
           {/* ========================================================================= */}
           {/* SECTION 1: HERO SPEND METRIC & INLINE TELEMETRY STRIP                    */}
           {/* ========================================================================= */}
-          <div className="bg-white rounded-xl border border-slate-200 p-8 shadow-xs">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+          <div className="bg-white rounded-xl border border-slate-200 p-5 sm:p-8 shadow-xs">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
               {/* HERO METRIC: Cumulative Bedrock Cost */}
               <div className="lg:col-span-5 pr-0 lg:pr-8 border-b lg:border-b-0 lg:border-r border-slate-100 pb-6 lg:pb-0">
                 <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                   Cumulative Bedrock Spend
                 </span>
-                <div className="mt-2 text-4xl sm:text-5xl font-black text-slate-900 tracking-tight font-mono">
+                <div className="mt-2 text-3xl sm:text-5xl font-black text-slate-900 tracking-tight font-mono">
                   ${summary ? summary.total_cost_usd.toFixed(6) : '0.000000'}
                 </div>
                 <p className="text-xs text-slate-500 mt-2">
@@ -237,33 +306,33 @@ export default function AnalyticsPage() {
               </div>
 
               {/* INLINE SECONDARY STATS ROW */}
-              <div className="lg:col-span-7 grid grid-cols-3 gap-6">
+              <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
                 <div>
                   <span className="text-xs text-slate-500 block">Total Tokens</span>
-                  <span className="text-2xl font-bold text-slate-900 font-mono mt-1 block">
+                  <span className="text-xl sm:text-2xl font-bold text-slate-900 font-mono mt-1 block">
                     {summary ? summary.total_tokens.toLocaleString() : '0'}
                   </span>
-                  <span className="text-[11px] text-slate-400 mt-1 block">
+                  <span className="text-[11px] text-slate-400 mt-0.5 block">
                     {summary ? `${summary.total_input_tokens.toLocaleString()} in / ${summary.total_output_tokens.toLocaleString()} out` : '0 in / 0 out'}
                   </span>
                 </div>
 
                 <div>
                   <span className="text-xs text-slate-500 block">Logged Traces</span>
-                  <span className="text-2xl font-bold text-slate-900 font-mono mt-1 block">
+                  <span className="text-xl sm:text-2xl font-bold text-slate-900 font-mono mt-1 block">
                     {summary ? summary.total_requests : '0'}
                   </span>
-                  <span className="text-[11px] text-emerald-600 font-medium mt-1 block">
+                  <span className="text-[11px] text-emerald-600 font-medium mt-0.5 block">
                     0 dropped calls
                   </span>
                 </div>
 
                 <div>
                   <span className="text-xs text-slate-500 block">Avg Latency</span>
-                  <span className="text-2xl font-bold text-slate-900 font-mono mt-1 block">
+                  <span className="text-xl sm:text-2xl font-bold text-slate-900 font-mono mt-1 block">
                     {summary ? `${summary.avg_latency_ms}ms` : '0ms'}
                   </span>
-                  <span className="text-[11px] text-slate-400 mt-1 block">
+                  <span className="text-[11px] text-slate-400 mt-0.5 block">
                     ap-south-1 Mumbai
                   </span>
                 </div>

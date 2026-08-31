@@ -1479,55 +1479,64 @@ NRL-INS-4001,Mount Differential Pressure Transmitter PDT-301,Instrumentation,12-
 
         {/* Mobile Navigation Drawer */}
         {mobileMenuOpen && (
-          <div className="lg:hidden bg-white border-b border-slate-200 p-4 space-y-2">
+          <div className="lg:hidden bg-white border-b border-slate-200 p-4 space-y-1.5 animate-in slide-in-from-top-2 duration-150">
             <button
               onClick={() => { setActiveTab('dashboard'); setMobileMenuOpen(false); }}
-              className={`w-full flex items-center gap-3 p-3 rounded-xl text-sm font-medium ${
-                activeTab === 'dashboard' ? 'bg-[#4648D4] text-white' : 'text-slate-700'
+              className={`w-full flex items-center gap-3 p-2.5 rounded-lg text-xs font-medium transition ${
+                activeTab === 'dashboard' ? 'bg-slate-100 text-slate-900 font-semibold' : 'text-slate-700 hover:bg-slate-50'
               }`}
             >
-              <LayoutDashboard className="w-4 h-4" />
+              <LayoutDashboard className="w-4 h-4 text-slate-500" />
               <span>Timeline Dashboard</span>
             </button>
             <button
               onClick={() => { setActiveTab('review'); setMobileMenuOpen(false); }}
-              className={`w-full flex items-center justify-between p-3 rounded-xl text-sm font-medium ${
-                activeTab === 'review' ? 'bg-[#4648D4] text-white' : 'text-slate-700'
+              className={`w-full flex items-center justify-between p-2.5 rounded-lg text-xs font-medium transition ${
+                activeTab === 'review' ? 'bg-slate-100 text-slate-900 font-semibold' : 'text-slate-700 hover:bg-slate-50'
               }`}
             >
               <div className="flex items-center gap-3">
-                <ShieldCheck className="w-4 h-4" />
+                <ShieldCheck className="w-4 h-4 text-slate-500" />
                 <span>Review Queue</span>
               </div>
               {pendingMatchesCount > 0 && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold">
+                <span className="text-xs px-2 py-0.5 rounded font-mono font-bold bg-amber-100 text-amber-800">
                   {pendingMatchesCount}
                 </span>
               )}
             </button>
             <button
               onClick={() => { setActiveTab('upload'); setMobileMenuOpen(false); }}
-              className={`w-full flex items-center gap-3 p-3 rounded-xl text-sm font-medium ${
-                activeTab === 'upload' ? 'bg-[#4648D4] text-white' : 'text-slate-700'
+              className={`w-full flex items-center gap-3 p-2.5 rounded-lg text-xs font-medium transition ${
+                activeTab === 'upload' ? 'bg-slate-100 text-slate-900 font-semibold' : 'text-slate-700 hover:bg-slate-50'
               }`}
             >
-              <Upload className="w-4 h-4" />
+              <Upload className="w-4 h-4 text-slate-500" />
               <span>Upload Daily Report</span>
             </button>
             <button
               onClick={() => { setActiveTab('memory'); setMobileMenuOpen(false); if (historicalRecords.length === 0) fetchHistoricalRecords(); }}
-              className={`w-full flex items-center gap-3 p-3 rounded-xl text-sm font-medium ${
-                activeTab === 'memory' ? 'bg-[#4648D4] text-white' : 'text-slate-700'
+              className={`w-full flex items-center gap-3 p-2.5 rounded-lg text-xs font-medium transition ${
+                activeTab === 'memory' ? 'bg-slate-100 text-slate-900 font-semibold' : 'text-slate-700 hover:bg-slate-50'
               }`}
             >
-              <Sparkles className="w-4 h-4" />
+              <Sparkles className="w-4 h-4 text-slate-500" />
               <span>Project Memory (RAG)</span>
             </button>
             <Link
-              href="/architecture"
-              className="w-full flex items-center gap-3 p-3 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-100"
+              href="/analytics"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full flex items-center gap-3 p-2.5 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50"
             >
-              <Network className="w-4 h-4" />
+              <BarChart3 className="w-4 h-4 text-slate-500" />
+              <span>Token & Cost Telemetry</span>
+            </Link>
+            <Link
+              href="/architecture"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full flex items-center gap-3 p-2.5 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              <Network className="w-4 h-4 text-slate-500" />
               <span>System Architecture</span>
             </Link>
           </div>

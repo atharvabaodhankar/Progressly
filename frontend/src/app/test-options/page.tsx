@@ -407,39 +407,57 @@ export default function TestOptionsPage() {
           </div>
         </header>
 
-        {/* Mobile Slideout Menu */}
+        {/* Mobile Navigation Drawer */}
         {mobileMenuOpen && (
-          <div className="lg:hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex">
-            <div className="w-72 bg-white h-full p-6 flex flex-col shadow-2xl">
-              <div className="flex items-center justify-between pb-6 border-b border-slate-100">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-lg text-[#4648D4]">Progressly</span>
-                </div>
-                <button
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="p-2 rounded-lg text-slate-400 hover:text-slate-700"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <nav className="flex-1 py-4 space-y-1.5">
-                <Link
-                  href="/"
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-[#464554] hover:bg-[#E9E6F3]"
-                >
-                  <LayoutDashboard className="w-5 h-5" />
-                  <span>Timeline Dashboard</span>
-                </Link>
-                <Link
-                  href="/architecture"
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-[#464554] hover:bg-[#E9E6F3]"
-                >
-                  <Network className="w-5 h-5" />
-                  <span>System Architecture</span>
-                </Link>
-              </nav>
-            </div>
+          <div className="lg:hidden bg-white border-b border-slate-200 p-4 space-y-1.5 animate-in slide-in-from-top-2 duration-150">
+            <Link
+              href="/"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full flex items-center gap-3 p-2.5 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              <LayoutDashboard className="w-4 h-4 text-slate-500" />
+              <span>Timeline Dashboard</span>
+            </Link>
+            <Link
+              href="/?tab=review"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full flex items-center gap-3 p-2.5 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              <ShieldCheck className="w-4 h-4 text-slate-500" />
+              <span>Review Queue</span>
+            </Link>
+            <Link
+              href="/?tab=upload"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full flex items-center gap-3 p-2.5 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              <Upload className="w-4 h-4 text-slate-500" />
+              <span>Upload Daily Report</span>
+            </Link>
+            <Link
+              href="/?tab=memory"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full flex items-center gap-3 p-2.5 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              <Sparkles className="w-4 h-4 text-slate-500" />
+              <span>Project Memory (RAG)</span>
+            </Link>
+            <Link
+              href="/analytics"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full flex items-center gap-3 p-2.5 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              <BarChart3 className="w-4 h-4 text-slate-500" />
+              <span>Token & Cost Telemetry</span>
+            </Link>
+            <Link
+              href="/architecture"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full flex items-center gap-3 p-2.5 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              <Network className="w-4 h-4 text-slate-500" />
+              <span>System Architecture</span>
+            </Link>
           </div>
         )}
 
