@@ -227,6 +227,7 @@ ${repsRes.rows.length > 0 ? `- Recent Ingested Site Reports:\n${repsRes.rows.map
             1 - (embedding <=> $1::vector) AS similarity_score
           FROM historical_records
           WHERE embedding IS NOT NULL
+            AND (1 - (embedding <=> $1::vector)) >= 0.48
           ORDER BY embedding <=> $1::vector ASC
           LIMIT $2;
         `;
@@ -237,54 +238,92 @@ ${repsRes.rows.length > 0 ? `- Recent Ingested Site Reports:\n${repsRes.rows.map
           similarity_score: parseFloat(row.similarity_score),
         }));
       } catch {
-        // Fallback to text matching
         retrievedRecords = [];
       }
     }
 
     if (retrievedRecords.length === 0) {
-      // Keyword/Term ranking fallback
+      // Keyword/Term ranking fallback with strict matching
       const queryLower = query.toLowerCase();
-      const terms = queryLower.split(/\s+/).filter((t: string) => t.length > 3);
-      const allRes = await pool.query(`
-        SELECT 
-          id,
-          project_name,
-          discipline,
-          activity_description,
-          planned_duration_days,
-          actual_duration_days,
-          delay_days,
-          delay_cause,
-          notes
-        FROM historical_records;
-      `);
+      const terms = queryLower.split(/\s+/).filter((t: string) => t.length > 3 && !['what', 'with', 'from', 'about', 'progress', 'status', 'live'].includes(t));
+      
+      if (terms.length > 0) {
+        const allRes = await pool.query(`
+          SELECT 
+            id,
+            project_name,
+            discipline,
+            activity_description,
+            planned_duration_days,
+            actual_duration_days,
+            delay_days,
+            delay_cause,
+            notes
+          FROM historical_records;
+        `);
 
-      retrievedRecords = allRes.rows
-        .map((r: any) => {
-          let score = 0.50;
-          const text = `${r.discipline} ${r.activity_description} ${r.delay_cause || ''} ${r.notes || ''}`.toLowerCase();
-          for (const term of terms) {
-            if (text.includes(term)) score += 0.15;
-          }
-          if (queryLower.includes(r.discipline.toLowerCase())) score += 0.20;
-          return {
-            id: r.id,
-            project_name: r.project_name,
-            discipline: r.discipline,
-            activity_description: r.activity_description,
-            planned_duration_days: r.planned_duration_days,
-            actual_duration_days: r.actual_duration_days,
-            delay_days: r.delay_days,
-            delay_cause: r.delay_cause,
-            notes: r.notes,
-            similarity_score: Math.min(Number(score.toFixed(3)), 0.96),
-          };
-        })
-        .sort((a, b) => b.similarity_score - a.similarity_score)
-        .slice(0, topK);
+        retrievedRecords = allRes.rows
+          .map((r: any) => {
+            let matches = 0;
+            const text = `${r.project_name} ${r.discipline} ${r.activity_description} ${r.delay_cause || ''} ${r.notes || ''}`.toLowerCase();
+            for (const term of terms) {
+              if (text.includes(term)) matches++;
+            }
+            if (matches === 0) return null;
+            const score = 0.50 + (matches * 0.15);
+            return {
+              id: r.id,
+              project_name: r.project_name,
+              discipline: r.discipline,
+              activity_description: r.activity_description,
+              planned_duration_days: r.planned_duration_days,
+              actual_duration_days: r.actual_duration_days,
+              delay_days: r.delay_days,
+              delay_cause: r.delay_cause,
+              notes: r.notes,
+              similarity_score: Math.min(Number(score.toFixed(3)), 0.95),
+            };
+          })
+          .filter(Boolean) as HistoricalRecord[];
+
+        retrievedRecords = retrievedRecords
+          .sort((a, b) => (b.similarity_score || 0) - (a.similarity_score || 0))
+          .slice(0, topK);
+      }
     }
     const retrievalDuration = Date.now() - retrievalStartTime;
+
+    // Check if query is targeting an unknown project entity not in context
+    const isAskingAboutActiveProject = activeProjectContext && (
+      query.toLowerCase().includes('baghjan') ||
+      query.toLowerCase().includes('active') ||
+      query.toLowerCase().includes('current') ||
+      query.toLowerCase().includes('today') ||
+      query.toLowerCase().includes('progress')
+    );
+
+    if (retrievedRecords.length === 0 && !isAskingAboutActiveProject) {
+      res.status(200).json({
+        query: query.trim(),
+        answer: `### ⚠️ Entity Not Found in Database\n\nNo matching records, WBS schedule activities, or historical lessons found for **"${query.trim()}"** in company memory.\n\n### Available Company Projects:\n- **Baghjan Gas Gathering Station Project** (Oil India Limited • Assam)\n- **Paradip-Hyderabad Pipeline Extension** (Indian Oil Corporation Ltd)\n- **Numaligarh Refinery Expansion Project** (NRL)\n- **Mumbai High Offshore Platform Archives**\n\n*Please verify the project name or select an active project from the top workspace switcher.*`,
+        sources: [],
+        computed_stats: {
+          totalRetrieved: 0,
+          delayedCount: 0,
+          averageDelayDays: 0,
+          causeBreakdown: {},
+          maxDelayDays: 0,
+        },
+        model_used: synthesisModelId,
+        retrieved_records: [],
+        telemetry: {
+          total_latency_ms: Date.now() - startTime,
+          input_tokens: 0,
+          output_tokens: 0,
+        },
+      });
+      return;
+    }
 
     const stats = computeHistoricalStats(retrievedRecords);
     const sources = retrievedRecords.map((r) => `${r.project_name} — ${r.activity_description}`);
