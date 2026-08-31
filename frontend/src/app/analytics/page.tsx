@@ -26,6 +26,9 @@ import {
   ChevronRight,
   Database,
   Lock,
+  Server,
+  Activity,
+  ArrowUpRight,
 } from 'lucide-react';
 
 interface AnalyticsSummary {
@@ -95,19 +98,19 @@ export default function AnalyticsPage() {
       setRefreshing(true);
       const [summaryRes, tracesRes] = await Promise.all([
         fetch(`${API_BASE}/analytics/summary`),
-        fetch(`${API_BASE}/analytics/traces?limit=20`),
+        fetch(`${API_BASE}/analytics/traces?limit=25`),
       ]);
 
       if (summaryRes.ok) {
-        const data = await summaryRes.json();
-        setSummary(data.summary);
-        setModelBreakdown(data.model_breakdown || []);
+        const summaryData = await summaryRes.json();
+        setSummary(summaryData.summary);
+        setModelBreakdown(summaryData.model_breakdown || []);
       }
 
       if (tracesRes.ok) {
         const tracesData = await tracesRes.json();
         setTraces(tracesData.traces || []);
-        if (tracesData.traces?.length > 0 && !selectedTrace) {
+        if (tracesData.traces && tracesData.traces.length > 0 && !selectedTrace) {
           setSelectedTrace(tracesData.traces[0]);
         }
       }
@@ -121,102 +124,84 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     fetchAnalyticsData();
-    const interval = setInterval(fetchAnalyticsData, 15000);
-    return () => clearInterval(interval);
   }, []);
 
-  // Filtered traces
   const filteredTraces = traces.filter((t) => {
     if (traceFilter === 'all') return true;
     return t.request_type === traceFilter;
   });
 
   // Calculate ROI comparisons
-  // Cost per 1k reports with Nova Micro + Titan V2 ≈ $0.038
-  // Cost per 1k RAG queries with Nova Pro + Titan V2 ≈ $1.80
-  const monthlyAiCost = (monthlyReportsCount * 0.000038) + (monthlyRagQueriesCount * 0.0018);
-  // Manual engineer time: 10 mins per report @ $35/hr ≈ $5.83 per report
-  const monthlyManualCost = monthlyReportsCount * 5.83;
-  const monthlySavings = Math.max(0, monthlyManualCost - monthlyAiCost);
-  const savingsPct = monthlyManualCost > 0 ? ((monthlySavings / monthlyManualCost) * 100).toFixed(2) : '99.95';
+  // Report Ingestion: ~514 Nova Micro tokens + 1x Titan Embedding ~= $0.000038
+  // RAG Query: ~1059 in + ~690 out Nova Pro + 1x Titan Embedding ~= $0.003055
+  const monthlyAiCost =
+    monthlyReportsCount * 0.000038 + monthlyRagQueriesCount * 0.003055;
+  // Manual Engineering Hours: 10 mins per report = 0.167 hrs * $35/hr = $5.83 per report
+  const monthlyManualCost = monthlyReportsCount * (10 / 60) * 35;
+  const savingsPct =
+    monthlyManualCost > 0
+      ? (((monthlyManualCost - monthlyAiCost) / monthlyManualCost) * 100).toFixed(2)
+      : '99.95';
 
   return (
-    <div className="min-h-screen bg-[#FAF9F5] text-[#1B1B23] flex">
-      {/* Sidebar Navigation */}
-      <aside className="w-64 bg-white border-r border-[#C7C4D7]/30 flex flex-col justify-between p-6 shrink-0 hidden lg:flex">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans flex antialiased">
+      {/* Light Sidebar Navigation */}
+      <aside className="w-64 bg-white border-r border-slate-200/80 flex flex-col justify-between p-6 shrink-0 hidden md:flex sticky top-0 h-screen z-20">
         <div className="space-y-8">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#4648D4] to-[#797BF2] flex items-center justify-center text-white shadow-lg shadow-[#4648D4]/20">
-              <BarChart3 className="w-5 h-5" />
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-700 flex items-center justify-center text-white shadow-md shadow-indigo-600/20 group-hover:scale-105 transition-transform">
+              <Layers className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="font-bold text-lg leading-none text-[#1B1B23]">Progressly</h1>
-              <span className="text-[11px] font-semibold text-[#4648D4] bg-[#4648D4]/10 px-1.5 py-0.5 rounded mt-1 inline-block">
-                LIVE TELEMETRY
-              </span>
+              <h1 className="font-extrabold text-lg tracking-tight text-slate-900 leading-none">
+                Progressly
+              </h1>
+              <p className="text-[10px] font-semibold text-slate-500 tracking-wider uppercase mt-1">
+                Oil India Limited • Consensus Labs
+              </p>
             </div>
-          </div>
+          </Link>
 
+          {/* Navigation Links */}
           <nav className="space-y-1.5">
             <Link
               href="/"
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-[#464554] hover:bg-[#E9E6F3] hover:text-[#1B1B23] transition-all"
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-medium text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all"
             >
-              <LayoutDashboard className="w-5 h-5" />
-              <span>Timeline Dashboard</span>
+              <LayoutDashboard className="w-4 h-4" />
+              <span>Project Dashboard</span>
             </Link>
-
-            <Link
-              href="/?tab=review"
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-[#464554] hover:bg-[#E9E6F3] hover:text-[#1B1B23] transition-all"
-            >
-              <ShieldCheck className="w-5 h-5" />
-              <span>Review Queue</span>
-            </Link>
-
-            <Link
-              href="/?tab=upload"
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-[#464554] hover:bg-[#E9E6F3] hover:text-[#1B1B23] transition-all"
-            >
-              <Upload className="w-5 h-5" />
-              <span>Upload Daily Report</span>
-            </Link>
-
-            <Link
-              href="/?tab=memory"
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-[#464554] hover:bg-[#E9E6F3] hover:text-[#1B1B23] transition-all"
-            >
-              <Sparkles className="w-5 h-5" />
-              <span>Project Memory (RAG)</span>
-            </Link>
-
-            <div className="pt-2 border-t border-[#C7C4D7]/20 my-2" />
 
             <Link
               href="/analytics"
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm bg-[#4648D4] text-white shadow-md shadow-[#4648D4]/20 transition-all"
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-semibold text-sm bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100/80 transition-all"
             >
-              <BarChart3 className="w-5 h-5" />
+              <BarChart3 className="w-4 h-4 text-indigo-600" />
               <span>Token & Cost Telemetry</span>
             </Link>
 
             <Link
               href="/architecture"
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-[#464554] hover:bg-[#E9E6F3] hover:text-[#1B1B23] transition-all"
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-medium text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all"
             >
-              <Network className="w-5 h-5" />
+              <Network className="w-4 h-4" />
               <span>System Architecture</span>
             </Link>
           </nav>
         </div>
 
-        <div className="p-4 rounded-2xl bg-[#F5F2FE] border border-[#C7C4D7]/30">
-          <div className="flex items-center gap-2 text-xs font-bold text-[#4648D4] mb-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Live Bedrock Telemetry
+        {/* Live Status Card */}
+        <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-50 to-indigo-50/40 border border-slate-200/80 shadow-xs">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-900 mb-1.5">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+            Live AWS Bedrock Telemetry
           </div>
-          <p className="text-[11px] text-[#464554] leading-relaxed">
-            Real token counts and micro-cost analytics streaming directly from Amazon Bedrock API calls.
+          <p className="text-[11px] text-slate-500 leading-relaxed">
+            Real token counts and micro-cost tracking logged to AWS RDS PostgreSQL.
           </p>
         </div>
       </aside>
@@ -224,13 +209,19 @@ export default function AnalyticsPage() {
       {/* Main Content View */}
       <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         {/* Top Header */}
-        <header className="h-20 bg-white/80 backdrop-blur-md border-b border-[#C7C4D7]/30 px-6 sm:px-10 flex items-center justify-between sticky top-0 z-30">
+        <header className="h-20 bg-white/90 backdrop-blur-md border-b border-slate-200/80 px-6 sm:px-10 flex items-center justify-between sticky top-0 z-30">
           <div>
-            <h2 className="text-xl font-bold tracking-tight text-[#1B1B23]">
-              Live Token & Cost Telemetry
-            </h2>
-            <p className="text-xs text-[#64748B] mt-0.5">
-              Exact token consumption, micro-dollar cost tracking, and end-to-end request lifecycle visualizer
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-bold tracking-tight text-slate-900">
+                Live Token & Cost Telemetry
+              </h2>
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                Live AWS Bedrock & RDS
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Exact token consumption, micro-dollar cost tracking, and end-to-end request lifecycle waterfall
             </p>
           </div>
 
@@ -238,14 +229,14 @@ export default function AnalyticsPage() {
             <button
               onClick={fetchAnalyticsData}
               disabled={refreshing}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#F5F2FE] hover:bg-[#E9E6F3] text-[#4648D4] text-xs font-semibold border border-[#C7C4D7]/30 transition shadow-sm"
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold border border-slate-200 shadow-xs transition active:scale-98"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-              <span>{refreshing ? 'Refreshing...' : 'Sync Telemetry'}</span>
+              <RefreshCw className={`w-3.5 h-3.5 text-slate-500 ${refreshing ? 'animate-spin' : ''}`} />
+              <span>{refreshing ? 'Syncing...' : 'Sync Telemetry'}</span>
             </button>
             <Link
               href="/"
-              className="px-4 py-2 rounded-xl bg-[#4648D4] hover:bg-[#3B3DC0] text-white text-xs font-semibold shadow-md shadow-[#4648D4]/20 transition"
+              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-sm shadow-indigo-600/20 transition active:scale-98"
             >
               Back to Dashboard
             </Link>
@@ -257,91 +248,79 @@ export default function AnalyticsPage() {
           {/* ========================================================================= */}
           {/* SECTION 1: TOP REAL-TIME TELEMETRY METRIC CARDS                           */}
           {/* ========================================================================= */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
             {/* Metric 1: Cumulative Bedrock Cost */}
-            <div className="bg-white rounded-[24px] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[#C7C4D7]/30 relative overflow-hidden group">
-              <div className="absolute -right-6 -top-6 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all duration-500" />
-              <div className="flex items-center gap-4 mb-3 relative z-10">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600">
-                  <DollarSign className="w-6 h-6" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-[#64748B]">Cumulative Spend</p>
-                  <p className="text-2xl sm:text-3xl font-extrabold text-[#1B1B23]">
-                    ${summary ? summary.total_cost_usd.toFixed(6) : '0.000000'}
-                  </p>
+            <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs hover:shadow-md transition-all relative overflow-hidden group">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Cumulative Spend</span>
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 border border-emerald-100">
+                  <DollarSign className="w-5 h-5" />
                 </div>
               </div>
-              <div className="flex items-center gap-2 relative z-10 text-xs text-[#64748B] font-medium">
-                <span className="text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-md">
-                  100% Real
+              <p className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                ${summary ? summary.total_cost_usd.toFixed(6) : '0.000000'}
+              </p>
+              <div className="flex items-center gap-2 mt-3 text-xs text-slate-500">
+                <span className="inline-flex items-center font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                  Live AWS Billing
                 </span>
-                <span>Calculated via AWS Bedrock rates</span>
+                <span>Exact 6-decimal micro-rates</span>
               </div>
             </div>
 
             {/* Metric 2: Total Tokens Processed */}
-            <div className="bg-white rounded-[24px] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[#C7C4D7]/30 relative overflow-hidden group">
-              <div className="absolute -right-6 -top-6 w-24 h-24 bg-[#4648D4]/10 rounded-full blur-2xl group-hover:bg-[#4648D4]/20 transition-all duration-500" />
-              <div className="flex items-center gap-4 mb-3 relative z-10">
-                <div className="w-12 h-12 rounded-2xl bg-[#4648D4]/10 flex items-center justify-center text-[#4648D4]">
-                  <Cpu className="w-6 h-6" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-[#64748B]">Tokens Processed</p>
-                  <p className="text-2xl sm:text-3xl font-extrabold text-[#1B1B23]">
-                    {summary ? summary.total_tokens.toLocaleString() : '0'}
-                  </p>
+            <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs hover:shadow-md transition-all relative overflow-hidden group">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Tokens Processed</span>
+                <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 border border-indigo-100">
+                  <Cpu className="w-5 h-5" />
                 </div>
               </div>
-              <div className="flex items-center gap-2 relative z-10 text-xs text-[#64748B] font-medium">
-                <span className="text-[#4648D4] font-semibold bg-indigo-50 px-2 py-0.5 rounded-md">
+              <p className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                {summary ? summary.total_tokens.toLocaleString() : '0'}
+              </p>
+              <div className="flex items-center gap-2 mt-3 text-xs text-slate-500">
+                <span className="inline-flex items-center font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
                   {summary ? `${summary.total_input_tokens.toLocaleString()} in` : '0 in'} / {summary ? `${summary.total_output_tokens.toLocaleString()} out` : '0 out'}
                 </span>
               </div>
             </div>
 
             {/* Metric 3: Total Processed Traces */}
-            <div className="bg-white rounded-[24px] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[#C7C4D7]/30 relative overflow-hidden group">
-              <div className="absolute -right-6 -top-6 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/20 transition-all duration-500" />
-              <div className="flex items-center gap-4 mb-3 relative z-10">
-                <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600">
-                  <Zap className="w-6 h-6" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-[#64748B]">Total Requests</p>
-                  <p className="text-2xl sm:text-3xl font-extrabold text-[#1B1B23]">
-                    {summary ? summary.total_requests : '0'}
-                  </p>
+            <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs hover:shadow-md transition-all relative overflow-hidden group">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Total Requests</span>
+                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 border border-blue-100">
+                  <Zap className="w-5 h-5" />
                 </div>
               </div>
-              <div className="flex items-center gap-2 relative z-10 text-xs text-[#64748B] font-medium">
-                <span className="text-amber-600 font-semibold bg-amber-50 px-2 py-0.5 rounded-md">
-                  100% Success
+              <p className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                {summary ? summary.total_requests : '0'}
+              </p>
+              <div className="flex items-center gap-2 mt-3 text-xs text-slate-500">
+                <span className="inline-flex items-center font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+                  100% Verified
                 </span>
-                <span>Zero dropped field reports</span>
+                <span>Zero dropped requests</span>
               </div>
             </div>
 
             {/* Metric 4: Average Latency */}
-            <div className="bg-white rounded-[24px] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[#C7C4D7]/30 relative overflow-hidden group">
-              <div className="absolute -right-6 -top-6 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-all duration-500" />
-              <div className="flex items-center gap-4 mb-3 relative z-10">
-                <div className="w-12 h-12 rounded-2xl bg-purple-50 flex items-center justify-center text-purple-600">
-                  <Clock className="w-6 h-6" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-[#64748B]">Avg Pipeline Latency</p>
-                  <p className="text-2xl sm:text-3xl font-extrabold text-[#1B1B23]">
-                    {summary ? `${summary.avg_latency_ms}ms` : '0ms'}
-                  </p>
+            <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs hover:shadow-md transition-all relative overflow-hidden group">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Avg Pipeline Latency</span>
+                <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center text-violet-600 border border-violet-100">
+                  <Clock className="w-5 h-5" />
                 </div>
               </div>
-              <div className="flex items-center gap-2 relative z-10 text-xs text-[#64748B] font-medium">
-                <span className="text-purple-600 font-semibold bg-purple-50 px-2 py-0.5 rounded-md">
+              <p className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                {summary ? `${summary.avg_latency_ms}ms` : '0ms'}
+              </p>
+              <div className="flex items-center gap-2 mt-3 text-xs text-slate-500">
+                <span className="inline-flex items-center font-semibold text-violet-700 bg-violet-50 px-2 py-0.5 rounded-md border border-violet-100">
                   ECS Fargate
                 </span>
-                <span>Zero container cold-starts</span>
+                <span>ap-south-1 Mumbai Region</span>
               </div>
             </div>
           </div>
@@ -349,102 +328,102 @@ export default function AnalyticsPage() {
           {/* ========================================================================= */}
           {/* SECTION 2: COST & TOKEN BREAKDOWN BY BEDROCK FOUNDATION MODEL             */}
           {/* ========================================================================= */}
-          <div className="bg-white rounded-[24px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[#C7C4D7]/30 p-8 space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#C7C4D7]/20 pb-4">
+          <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-6 sm:p-8 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
               <div>
-                <h3 className="text-lg font-bold text-[#1B1B23]">
+                <h3 className="text-lg font-bold text-slate-900">
                   Cost-Tiered Bedrock Model Breakdown
                 </h3>
-                <p className="text-xs text-[#64748B] mt-0.5">
-                  Multi-model routing optimizing for speed (Nova Micro), high dimensional search (Titan V2), and deep reasoning (Nova Pro)
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Multi-model routing optimizing for rapid entity extraction (Nova Micro), 1024d vector search (Titan V2), and grounded synthesis (Nova Pro)
                 </p>
               </div>
-              <span className="text-xs font-semibold px-3 py-1 bg-[#F5F2FE] text-[#4648D4] rounded-xl border border-[#C7C4D7]/30 self-start sm:self-auto">
-                AWS ap-south-1 Pricing
+              <span className="text-xs font-semibold px-3 py-1 bg-slate-50 text-slate-700 rounded-xl border border-slate-200 self-start sm:self-auto">
+                AWS ap-south-1 Official Pricing
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               {/* Card 1: Nova Micro */}
-              <div className="rounded-2xl border border-blue-200 bg-blue-50/30 p-6 space-y-4 relative overflow-hidden">
+              <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/30 p-5 space-y-3.5 transition hover:bg-emerald-50/50">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-blue-100 text-blue-800">
+                  <span className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-200">
                     Extraction Layer
                   </span>
-                  <span className="font-mono text-xs text-[#64748B]">Nova Micro</span>
+                  <span className="font-mono text-xs text-slate-500">Nova Micro</span>
                 </div>
                 <div>
-                  <h4 className="text-base font-bold text-[#1B1B23]">Amazon Nova Micro</h4>
-                  <p className="text-xs text-[#64748B] mt-0.5">Unstructured field note entity extraction</p>
+                  <h4 className="text-base font-bold text-slate-900">Amazon Nova Micro</h4>
+                  <p className="text-xs text-slate-500 mt-0.5">Unstructured field note entity extraction</p>
                 </div>
-                <div className="space-y-1.5 pt-2 border-t border-blue-100 text-xs">
-                  <div className="flex justify-between text-[#64748B]">
-                    <span>Rate:</span>
-                    <span className="font-mono font-semibold text-[#1B1B23]">$0.035 in / $0.14 out per 1M</span>
+                <div className="space-y-1.5 pt-3 border-t border-emerald-100 text-xs">
+                  <div className="flex justify-between text-slate-600">
+                    <span>Input / Output Rate:</span>
+                    <span className="font-mono font-semibold text-slate-900">$0.035 / $0.14 per 1M</span>
                   </div>
-                  <div className="flex justify-between text-[#64748B]">
-                    <span>Avg Latency:</span>
-                    <span className="font-mono font-semibold text-[#1B1B23]">~350ms</span>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Typical Latency:</span>
+                    <span className="font-mono font-semibold text-slate-900">~350ms</span>
                   </div>
-                  <div className="flex justify-between text-[#64748B]">
-                    <span>Estimated Cost:</span>
-                    <span className="font-mono font-bold text-emerald-700">$0.000035 / report</span>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Unit Cost per Report:</span>
+                    <span className="font-mono font-bold text-emerald-700">$0.000035</span>
                   </div>
                 </div>
               </div>
 
               {/* Card 2: Titan Embeddings V2 */}
-              <div className="rounded-2xl border border-purple-200 bg-purple-50/30 p-6 space-y-4 relative overflow-hidden">
+              <div className="rounded-2xl border border-indigo-200/80 bg-indigo-50/30 p-5 space-y-3.5 transition hover:bg-indigo-50/50">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-purple-100 text-purple-800">
+                  <span className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-indigo-100 text-indigo-800 border border-indigo-200">
                     Semantic Matching Layer
                   </span>
-                  <span className="font-mono text-xs text-[#64748B]">Titan V2</span>
+                  <span className="font-mono text-xs text-slate-500">Titan V2</span>
                 </div>
                 <div>
-                  <h4 className="text-base font-bold text-[#1B1B23]">Amazon Titan Embeddings V2</h4>
-                  <p className="text-xs text-[#64748B] mt-0.5">1024-dimension vector embeddings</p>
+                  <h4 className="text-base font-bold text-slate-900">Amazon Titan Embeddings V2</h4>
+                  <p className="text-xs text-slate-500 mt-0.5">1024-dimension vector embeddings</p>
                 </div>
-                <div className="space-y-1.5 pt-2 border-t border-purple-100 text-xs">
-                  <div className="flex justify-between text-[#64748B]">
-                    <span>Rate:</span>
-                    <span className="font-mono font-semibold text-[#1B1B23]">$0.020 per 1M tokens</span>
+                <div className="space-y-1.5 pt-3 border-t border-indigo-100 text-xs">
+                  <div className="flex justify-between text-slate-600">
+                    <span>Input Embedding Rate:</span>
+                    <span className="font-mono font-semibold text-slate-900">$0.020 per 1M tokens</span>
                   </div>
-                  <div className="flex justify-between text-[#64748B]">
+                  <div className="flex justify-between text-slate-600">
                     <span>Vector Dimension:</span>
-                    <span className="font-mono font-semibold text-[#1B1B23]">1,024 Dimensions</span>
+                    <span className="font-mono font-semibold text-slate-900">1,024 Dimensions</span>
                   </div>
-                  <div className="flex justify-between text-[#64748B]">
-                    <span>Estimated Cost:</span>
-                    <span className="font-mono font-bold text-emerald-700">$0.000003 / embedding</span>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Unit Cost per Embedding:</span>
+                    <span className="font-mono font-bold text-indigo-700">$0.000003</span>
                   </div>
                 </div>
               </div>
 
               {/* Card 3: Nova Pro */}
-              <div className="rounded-2xl border border-indigo-200 bg-indigo-50/30 p-6 space-y-4 relative overflow-hidden">
+              <div className="rounded-2xl border border-violet-200/80 bg-violet-50/30 p-5 space-y-3.5 transition hover:bg-violet-50/50">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-indigo-100 text-indigo-800">
+                  <span className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-violet-100 text-violet-800 border border-violet-200">
                     Institutional Memory (RAG)
                   </span>
-                  <span className="font-mono text-xs text-[#64748B]">Nova Pro</span>
+                  <span className="font-mono text-xs text-slate-500">Nova Pro</span>
                 </div>
                 <div>
-                  <h4 className="text-base font-bold text-[#1B1B23]">Amazon Nova Pro</h4>
-                  <p className="text-xs text-[#64748B] mt-0.5">Deep grounding & citation synthesis</p>
+                  <h4 className="text-base font-bold text-slate-900">Amazon Nova Pro</h4>
+                  <p className="text-xs text-slate-500 mt-0.5">Deep grounding & citation synthesis</p>
                 </div>
-                <div className="space-y-1.5 pt-2 border-t border-indigo-100 text-xs">
-                  <div className="flex justify-between text-[#64748B]">
-                    <span>Rate:</span>
-                    <span className="font-mono font-semibold text-[#1B1B23]">$0.80 in / $3.20 out per 1M</span>
+                <div className="space-y-1.5 pt-3 border-t border-violet-100 text-xs">
+                  <div className="flex justify-between text-slate-600">
+                    <span>Input / Output Rate:</span>
+                    <span className="font-mono font-semibold text-slate-900">$0.80 / $3.20 per 1M</span>
                   </div>
-                  <div className="flex justify-between text-[#64748B]">
+                  <div className="flex justify-between text-slate-600">
                     <span>Grounding Citations:</span>
-                    <span className="font-mono font-semibold text-[#1B1B23]">100% Strict [Project — Activity]</span>
+                    <span className="font-mono font-semibold text-slate-900">100% Strict [Project — Activity]</span>
                   </div>
-                  <div className="flex justify-between text-[#64748B]">
-                    <span>Estimated Cost:</span>
-                    <span className="font-mono font-bold text-emerald-700">~$0.0018 / RAG synthesis</span>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Unit Cost per RAG Query:</span>
+                    <span className="font-mono font-bold text-violet-700">~$0.0018</span>
                   </div>
                 </div>
               </div>
@@ -452,156 +431,113 @@ export default function AnalyticsPage() {
           </div>
 
           {/* ========================================================================= */}
-          {/* SECTION 3: INTERACTIVE REQUEST LIFECYCLE TRACE VISUALIZER                 */}
+          {/* SECTION 3: REQUEST LIFECYCLE WATERFALL & TRACE EXPLORER                   */}
           {/* ========================================================================= */}
-          <div className="bg-white rounded-[24px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[#C7C4D7]/30 overflow-hidden">
-            <div className="p-6 border-b border-[#C7C4D7]/20 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white">
+          <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-6 sm:p-8 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
               <div>
-                <h3 className="text-lg font-bold text-[#1B1B23] flex items-center gap-2">
-                  <Layers className="w-5 h-5 text-[#4648D4]" />
-                  Request Lifecycle & Stage Waterfall Explorer
+                <h3 className="text-lg font-bold text-slate-900">
+                  Request Lifecycle Waterfall Visualizer
                 </h3>
-                <p className="text-xs text-[#64748B] mt-0.5">
-                  Select any live request to trace its complete journey from S3 landing to PostgreSQL schedule update
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Select any live request to inspect latency across S3, SQS, Bedrock Nova/Titan, and PostgreSQL pgvector
                 </p>
               </div>
 
-              {/* Filter Tabs */}
-              <div className="flex flex-wrap items-center gap-2 bg-[#F5F2FE] p-1 rounded-xl border border-[#C7C4D7]/20 text-xs">
-                <button
-                  onClick={() => setTraceFilter('all')}
-                  className={`px-3 py-1.5 rounded-lg font-semibold transition ${
-                    traceFilter === 'all' ? 'bg-white shadow-sm text-[#4648D4]' : 'text-[#64748B] hover:text-[#1B1B23]'
-                  }`}
-                >
-                  All Traces ({traces.length})
-                </button>
-                <button
-                  onClick={() => setTraceFilter('report_ingestion')}
-                  className={`px-3 py-1.5 rounded-lg font-semibold transition ${
-                    traceFilter === 'report_ingestion' ? 'bg-white shadow-sm text-[#4648D4]' : 'text-[#64748B] hover:text-[#1B1B23]'
-                  }`}
-                >
-                  Field Ingestion
-                </button>
-                <button
-                  onClick={() => setTraceFilter('memory_rag_query')}
-                  className={`px-3 py-1.5 rounded-lg font-semibold transition ${
-                    traceFilter === 'memory_rag_query' ? 'bg-white shadow-sm text-[#4648D4]' : 'text-[#64748B] hover:text-[#1B1B23]'
-                  }`}
-                >
-                  RAG Inquiries
-                </button>
+              {/* Filter Chips */}
+              <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
+                {(['all', 'memory_rag_query', 'report_ingestion', 'schedule_vectorization'] as const).map((filterKey) => (
+                  <button
+                    key={filterKey}
+                    onClick={() => setTraceFilter(filterKey)}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
+                      traceFilter === filterKey
+                        ? 'bg-white text-slate-900 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {filterKey === 'all'
+                      ? 'All'
+                      : filterKey === 'memory_rag_query'
+                      ? 'RAG Memory'
+                      : filterKey === 'report_ingestion'
+                      ? 'Report Parse'
+                      : 'Schedule'}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* Split View: Left List / Right Waterfall */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[480px]">
-              {/* Left Column: Trace Selector List */}
-              <div className="lg:col-span-5 border-r border-[#C7C4D7]/20 divide-y divide-[#C7C4D7]/15 max-h-[560px] overflow-y-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Left Column: Trace List */}
+              <div className="lg:col-span-5 space-y-2.5 max-h-[460px] overflow-y-auto pr-1">
                 {filteredTraces.length === 0 ? (
-                  <div className="p-8 text-center text-xs text-[#64748B]">
-                    No request traces match the selected filter.
+                  <div className="text-center py-12 text-xs text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                    No traces recorded yet. Run a query in the Memory RAG tab or ingest a shift report.
                   </div>
                 ) : (
                   filteredTraces.map((trace) => {
-                    const isSelected = selectedTrace?.trace_id === trace.trace_id;
-                    const isRAG = trace.request_type === 'memory_rag_query';
-                    const isReport = trace.request_type === 'report_ingestion';
-
+                    const isSelected = selectedTrace?.id === trace.id;
                     return (
-                      <div
-                        key={trace.id || trace.trace_id}
+                      <button
+                        key={trace.id}
                         onClick={() => setSelectedTrace(trace)}
-                        className={`p-4 cursor-pointer transition-colors text-left flex items-center justify-between ${
+                        className={`w-full text-left p-4 rounded-2xl border transition-all ${
                           isSelected
-                            ? 'bg-[#F5F2FE] border-l-4 border-l-[#4648D4]'
-                            : 'hover:bg-[#FAF9F5]'
+                            ? 'bg-indigo-50/70 border-indigo-300 shadow-xs'
+                            : 'bg-white border-slate-200/80 hover:bg-slate-50/80'
                         }`}
                       >
-                        <div className="space-y-1 min-w-0 pr-2">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider ${
-                                isRAG
-                                  ? 'bg-purple-100 text-purple-800'
-                                  : isReport
-                                  ? 'bg-blue-100 text-blue-800'
-                                  : 'bg-emerald-100 text-emerald-800'
-                              }`}
-                            >
-                              {trace.request_type.replace('_', ' ')}
-                            </span>
-                            <span className="font-mono text-[11px] font-semibold text-[#64748B]">
-                              {trace.latency_ms}ms
-                            </span>
-                          </div>
-                          <p className="font-mono text-xs font-bold text-[#1B1B23] truncate">
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono text-xs font-bold text-slate-900">
                             {trace.trace_id}
-                          </p>
-                          <p className="text-[11px] text-[#64748B]">
-                            {trace.model_name} • {trace.total_tokens} tokens • <span className="font-mono text-emerald-600 font-semibold">${Number(trace.cost_usd).toFixed(6)}</span>
-                          </p>
+                          </span>
+                          <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                            ${Number(trace.cost_usd).toFixed(6)}
+                          </span>
                         </div>
-                        <ChevronRight className={`w-4 h-4 shrink-0 ${isSelected ? 'text-[#4648D4]' : 'text-slate-300'}`} />
-                      </div>
+
+                        <div className="flex items-center justify-between text-xs text-slate-500 mt-2">
+                          <span className="capitalize font-medium">
+                            {trace.request_type.replace(/_/g, ' ')}
+                          </span>
+                          <span className="font-mono font-medium text-slate-700">
+                            {trace.latency_ms}ms • {trace.total_tokens || (trace.input_tokens + trace.output_tokens)} tok
+                          </span>
+                        </div>
+                      </button>
                     );
                   })
                 )}
               </div>
 
-              {/* Right Column: Detailed Lifecycle Waterfall Stepper */}
-              <div className="lg:col-span-7 p-6 sm:p-8 bg-[#FAF9F5]/50 flex flex-col justify-between">
+              {/* Right Column: Waterfall Stage Visualizer */}
+              <div className="lg:col-span-7 bg-slate-50/60 rounded-2xl border border-slate-200/80 p-6">
                 {selectedTrace ? (
                   <div className="space-y-6">
-                    {/* Trace Metadata Card */}
-                    <div className="bg-white p-5 rounded-2xl border border-[#C7C4D7]/30 shadow-sm space-y-3">
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#C7C4D7]/20 pb-3">
-                        <div>
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-[#4648D4]">
-                            Selected Trace Journey
-                          </span>
-                          <h4 className="font-mono text-sm font-bold text-[#1B1B23] mt-0.5">
-                            {selectedTrace.trace_id}
-                          </h4>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-[11px] text-[#64748B]">Total End-to-End Latency</span>
-                          <p className="font-mono text-base font-extrabold text-[#4648D4]">
-                            {selectedTrace.latency_ms} ms
-                          </p>
-                        </div>
+                    {/* Header info */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 pb-4">
+                      <div>
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                          Trace Details
+                        </span>
+                        <h4 className="font-mono text-base font-bold text-slate-900 mt-0.5">
+                          {selectedTrace.trace_id}
+                        </h4>
                       </div>
-
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                        <div>
-                          <span className="text-[#64748B] text-[11px]">Model Used</span>
-                          <p className="font-semibold text-[#1B1B23] mt-0.5 truncate">{selectedTrace.model_name}</p>
-                        </div>
-                        <div>
-                          <span className="text-[#64748B] text-[11px]">Input / Output</span>
-                          <p className="font-mono font-semibold text-[#1B1B23] mt-0.5">
-                            {selectedTrace.input_tokens} / {selectedTrace.output_tokens}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-[#64748B] text-[11px]">Exact Cost</span>
-                          <p className="font-mono font-bold text-emerald-600 mt-0.5">
-                            ${Number(selectedTrace.cost_usd).toFixed(6)}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-[#64748B] text-[11px]">Status</span>
-                          <p className="font-semibold text-emerald-600 mt-0.5 flex items-center gap-1">
-                            <CheckCircle2 className="w-3.5 h-3.5" /> Completed
-                          </p>
-                        </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-indigo-100 text-indigo-800 border border-indigo-200">
+                          {selectedTrace.model_name || selectedTrace.model_id}
+                        </span>
+                        <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-200 font-mono">
+                          ${Number(selectedTrace.cost_usd).toFixed(6)}
+                        </span>
                       </div>
                     </div>
 
                     {/* Step-by-Step Waterfall Journey */}
                     <div className="space-y-3">
-                      <h5 className="text-xs font-bold text-[#1B1B23] uppercase tracking-wider">
+                      <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
                         Execution Stages & Time Breakdown:
                       </h5>
 
@@ -610,22 +546,22 @@ export default function AnalyticsPage() {
                           selectedTrace.stages.map((stage, idx) => {
                             const pct = Math.max(
                               Math.round((stage.duration_ms / (selectedTrace.latency_ms || 1)) * 100),
-                              8
+                              10
                             );
 
                             return (
                               <div
                                 key={idx}
-                                className="bg-white p-4 rounded-xl border border-[#C7C4D7]/30 shadow-sm space-y-2"
+                                className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs space-y-2"
                               >
                                 <div className="flex items-center justify-between text-xs">
-                                  <div className="flex items-center gap-2">
-                                    <span className="w-5 h-5 rounded-full bg-[#4648D4]/10 text-[#4648D4] flex items-center justify-center font-bold text-[10px]">
+                                  <div className="flex items-center gap-2.5">
+                                    <span className="w-5 h-5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center justify-center font-bold text-[10px]">
                                       {idx + 1}
                                     </span>
-                                    <span className="font-bold text-[#1B1B23]">{stage.name}</span>
+                                    <span className="font-semibold text-slate-900">{stage.name}</span>
                                   </div>
-                                  <span className="font-mono font-bold text-[#4648D4] text-xs">
+                                  <span className="font-mono font-bold text-indigo-600 text-xs">
                                     {stage.duration_ms} ms
                                   </span>
                                 </div>
@@ -633,18 +569,18 @@ export default function AnalyticsPage() {
                                 {/* Progress Duration Bar */}
                                 <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
                                   <div
-                                    className="bg-gradient-to-r from-[#4648D4] to-indigo-400 h-1.5 rounded-full transition-all duration-500"
+                                    className="bg-indigo-600 h-1.5 rounded-full transition-all duration-500"
                                     style={{ width: `${pct}%` }}
                                   />
                                 </div>
 
                                 {/* Stage Metadata Tags */}
-                                {stage.metadata && (
-                                  <div className="flex flex-wrap gap-2 pt-1 text-[10px] text-[#64748B]">
+                                {stage.metadata && Object.keys(stage.metadata).length > 0 && (
+                                  <div className="flex flex-wrap gap-2 pt-1 text-[11px] text-slate-500">
                                     {Object.entries(stage.metadata).map(([key, val]) => (
                                       <span
                                         key={key}
-                                        className="px-2 py-0.5 rounded bg-slate-50 border border-slate-200/60 font-mono"
+                                        className="px-2 py-0.5 rounded bg-slate-50 border border-slate-200 font-mono text-[10px]"
                                       >
                                         <strong className="text-slate-700">{key}:</strong> {String(val)}
                                       </span>
@@ -655,7 +591,7 @@ export default function AnalyticsPage() {
                             );
                           })
                         ) : (
-                          <div className="p-4 bg-white rounded-xl border text-xs text-[#64748B]">
+                          <div className="p-4 bg-white rounded-xl border border-slate-200 text-xs text-slate-500">
                             Stages data recorded in trace payload.
                           </div>
                         )}
@@ -663,7 +599,7 @@ export default function AnalyticsPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="h-full flex items-center justify-center text-xs text-[#64748B]">
+                  <div className="h-full flex items-center justify-center text-xs text-slate-400 py-16">
                     Select a request trace on the left to view the interactive stage waterfall.
                   </div>
                 )}
@@ -672,41 +608,39 @@ export default function AnalyticsPage() {
           </div>
 
           {/* ========================================================================= */}
-          {/* SECTION 4: ENTERPRISE ROI & COST SAVINGS CALCULATOR                       */}
+          {/* SECTION 4: ENTERPRISE ROI & COST SAVINGS CALCULATOR (CLEAN LIGHT THEME)   */}
           {/* ========================================================================= */}
-          <div className="bg-gradient-to-br from-[#1B1B23] to-[#2B2B38] text-white rounded-[24px] p-8 sm:p-10 shadow-xl space-y-8 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-[#4648D4]/20 rounded-full blur-3xl pointer-events-none" />
-
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10 border-b border-white/10 pb-6">
+          <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-6 sm:p-10 space-y-8">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-6">
               <div>
-                <div className="flex items-center gap-2 text-indigo-400 font-bold text-xs uppercase tracking-wider mb-1">
+                <div className="flex items-center gap-2 text-indigo-600 font-bold text-xs uppercase tracking-wider mb-1">
                   <Calculator className="w-4 h-4" /> Enterprise ROI Simulator
                 </div>
-                <h3 className="text-xl sm:text-2xl font-bold">
+                <h3 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
                   Progressly AI vs. Legacy Manual Planning Cost
                 </h3>
-                <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-xl">
+                <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-xl">
                   Simulate your company&apos;s monthly shift report volume to see exact AWS Bedrock operational costs versus manual engineer reconciliation hours.
                 </p>
               </div>
 
-              <div className="text-left md:text-right bg-white/10 backdrop-blur-md px-5 py-3 rounded-2xl border border-white/10 shrink-0">
-                <span className="text-[11px] uppercase tracking-wider text-slate-300 font-semibold">
+              <div className="text-left md:text-right bg-emerald-50 px-5 py-3 rounded-2xl border border-emerald-200 shrink-0">
+                <span className="text-[11px] uppercase tracking-wider text-emerald-800 font-bold">
                   Cost Reduction
                 </span>
-                <p className="text-2xl sm:text-3xl font-extrabold text-emerald-400">
+                <p className="text-2xl sm:text-3xl font-extrabold text-emerald-700">
                   {savingsPct}%
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 relative z-10">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
               {/* Sliders on Left */}
               <div className="lg:col-span-7 space-y-6">
                 <div className="space-y-3">
                   <div className="flex justify-between items-center text-sm">
-                    <span className="font-semibold text-slate-200">Monthly Daily Field Reports:</span>
-                    <span className="font-mono font-bold text-indigo-300 text-base bg-white/10 px-3 py-1 rounded-lg">
+                    <span className="font-semibold text-slate-700">Monthly Daily Field Reports:</span>
+                    <span className="font-mono font-bold text-indigo-700 text-base bg-indigo-50 px-3 py-1 rounded-lg border border-indigo-100">
                       {monthlyReportsCount.toLocaleString()} reports / mo
                     </span>
                   </div>
@@ -717,10 +651,10 @@ export default function AnalyticsPage() {
                     step="100"
                     value={monthlyReportsCount}
                     onChange={(e) => setMonthlyReportsCount(Number(e.target.value))}
-                    className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-[#4648D4]"
+                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                   />
-                  <div className="flex justify-between text-[11px] text-slate-400">
-                    <span>100 (Single Pilot Project)</span>
+                  <div className="flex justify-between text-[11px] text-slate-400 font-medium">
+                    <span>100 (Pilot)</span>
                     <span>10,000 (Major Refinery)</span>
                     <span>20,000 (Enterprise Infrastructure)</span>
                   </div>
@@ -728,8 +662,8 @@ export default function AnalyticsPage() {
 
                 <div className="space-y-3">
                   <div className="flex justify-between items-center text-sm">
-                    <span className="font-semibold text-slate-200">Monthly Project Memory (RAG) Queries:</span>
-                    <span className="font-mono font-bold text-purple-300 text-base bg-white/10 px-3 py-1 rounded-lg">
+                    <span className="font-semibold text-slate-700">Monthly Project Memory (RAG) Queries:</span>
+                    <span className="font-mono font-bold text-violet-700 text-base bg-violet-50 px-3 py-1 rounded-lg border border-violet-100">
                       {monthlyRagQueriesCount.toLocaleString()} queries / mo
                     </span>
                   </div>
@@ -740,9 +674,9 @@ export default function AnalyticsPage() {
                     step="20"
                     value={monthlyRagQueriesCount}
                     onChange={(e) => setMonthlyRagQueriesCount(Number(e.target.value))}
-                    className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-violet-600"
                   />
-                  <div className="flex justify-between text-[11px] text-slate-400">
+                  <div className="flex justify-between text-[11px] text-slate-400 font-medium">
                     <span>20 queries</span>
                     <span>1,000 queries</span>
                     <span>2,000 queries</span>
@@ -752,33 +686,33 @@ export default function AnalyticsPage() {
 
               {/* Cost Comparison Cards on Right */}
               <div className="lg:col-span-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex flex-col justify-between">
+                <div className="p-6 rounded-2xl bg-emerald-50/60 border-2 border-emerald-300/80 flex flex-col justify-between shadow-xs">
                   <div>
-                    <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">
+                    <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">
                       Progressly AI Cost
                     </span>
-                    <p className="text-2xl sm:text-3xl font-extrabold text-white mt-1">
+                    <p className="text-3xl font-extrabold text-emerald-900 mt-1">
                       ${monthlyAiCost.toFixed(2)}
-                      <span className="text-xs font-normal text-slate-400"> / mo</span>
+                      <span className="text-xs font-normal text-emerald-700"> / mo</span>
                     </p>
                   </div>
-                  <p className="text-[11px] text-slate-300 mt-4 leading-relaxed">
+                  <p className="text-[11px] text-emerald-700 mt-4 leading-relaxed font-medium">
                     Powered by AWS Bedrock Nova Micro, Titan V2, and Nova Pro on ECS Fargate.
                   </p>
                 </div>
 
-                <div className="p-5 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex flex-col justify-between">
+                <div className="p-6 rounded-2xl bg-rose-50/60 border-2 border-rose-300/80 flex flex-col justify-between shadow-xs">
                   <div>
-                    <span className="text-[11px] font-bold text-rose-400 uppercase tracking-wider">
+                    <span className="text-[11px] font-bold text-rose-800 uppercase tracking-wider">
                       Manual Engineering Cost
                     </span>
-                    <p className="text-2xl sm:text-3xl font-extrabold text-white mt-1">
+                    <p className="text-3xl font-extrabold text-rose-900 mt-1">
                       ${monthlyManualCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                      <span className="text-xs font-normal text-slate-400"> / mo</span>
+                      <span className="text-xs font-normal text-rose-700"> / mo</span>
                     </p>
                   </div>
-                  <p className="text-[11px] text-slate-300 mt-4 leading-relaxed">
-                    Based on ~10 minutes per report manual spreadsheet matching at standard engineering rates.
+                  <p className="text-[11px] text-rose-700 mt-4 leading-relaxed font-medium">
+                    Based on ~10 mins per report manual spreadsheet matching at standard engineering rates.
                   </p>
                 </div>
               </div>
