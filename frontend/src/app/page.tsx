@@ -813,7 +813,11 @@ NRL-INS-4001,Mount Differential Pressure Transmitter PDT-301,Instrumentation,12-
       const res = await fetch(`${API_BASE}/memory/query`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: q.trim(), topK: 6 }),
+        body: JSON.stringify({
+          query: q.trim(),
+          topK: 6,
+          project_id: currentProject?.id,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -2274,7 +2278,7 @@ NRL-INS-4001,Mount Differential Pressure Transmitter PDT-301,Instrumentation,12-
                         value={memoryQuery}
                         onChange={(e) => setMemoryQuery(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleMemoryQuery()}
-                        placeholder="Ask about past piping delays, civil foundation risks, weather impacts..."
+                        placeholder={`Ask about active ${currentProject?.name || 'current project'} progress, past piping delays, civil foundation risks...`}
                         className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-slate-400 transition"
                       />
                     </div>
@@ -2294,14 +2298,14 @@ NRL-INS-4001,Mount Differential Pressure Transmitter PDT-301,Instrumentation,12-
                     </button>
                   </div>
 
-                  {/* Preset Suggestions */}
+                  {/* Preset Suggestions (Current + Historical) */}
                   <div className="flex flex-wrap items-center gap-2 pt-1">
-                    <span className="text-xs text-slate-500">Suggestions:</span>
+                    <span className="text-xs text-slate-500 font-medium">Quick Prompts:</span>
                     {[
-                      'What caused piping delays in past projects?',
-                      'What are the common risks in civil foundation works?',
-                      'How long did substation cable tray installation take?',
-                      'Show safety and HSE incident patterns.',
+                      `What is the live progress of piping & foundation on ${currentProject?.name?.split(' ')[0] || 'active project'}?`,
+                      'What caused piping delays in past capital projects?',
+                      'What are the common risks in civil foundation & piling?',
+                      'Compare our active schedule with historical benchmarks.',
                     ].map((preset, idx) => (
                       <button
                         key={idx}
@@ -2309,7 +2313,7 @@ NRL-INS-4001,Mount Differential Pressure Transmitter PDT-301,Instrumentation,12-
                           setMemoryQuery(preset);
                           handleMemoryQuery(preset);
                         }}
-                        className="px-2.5 py-1 text-xs rounded-md bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 transition"
+                        className="px-2.5 py-1 text-xs rounded-md bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 transition text-left"
                       >
                         {preset}
                       </button>

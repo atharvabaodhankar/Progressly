@@ -123,7 +123,8 @@ router.get('/records', async (_req: Request, res: Response): Promise<void> => {
 router.post('/query', async (req: Request, res: Response): Promise<void> => {
   const startTime = Date.now();
   try {
-    const { query, topK = 6 } = req.body;
+    const { query, topK = 6, project_id, projectId } = req.body;
+    const targetProjectId = project_id || projectId;
 
     if (!query || typeof query !== 'string' || query.trim().length === 0) {
       res.status(400).json({ error: 'A non-empty query string is required.' });
@@ -135,6 +136,43 @@ router.post('/query', async (req: Request, res: Response): Promise<void> => {
     let synthesisModelId = process.env.BEDROCK_SYNTHESIS_MODEL_ID || 'apac.amazon.nova-pro-v1:0';
 
     console.log(`[BridgeIQ Memory] 1. Embedding query with ${embeddingModelId}: "${query}"`);
+
+    // Fetch active project's live activities and daily reports if project_id is available or query mentions active
+    let activeProjectContext = '';
+    if (targetProjectId) {
+      try {
+        const projRes = await pool.query('SELECT name, organization, location FROM projects WHERE id = $1', [targetProjectId]);
+        const currentProject = projRes.rows[0];
+        
+        const actsRes = await pool.query(`
+          SELECT a.activity_code, a.description, a.discipline, a.progress_pct, a.planned_start, a.planned_end, a.actual_start, a.actual_end
+          FROM activities a
+          JOIN wbs_nodes w ON a.wbs_node_id = w.id
+          WHERE w.project_id = $1
+          ORDER BY a.activity_code ASC
+        `, [targetProjectId]);
+
+        const repsRes = await pool.query(`
+          SELECT raw_text, created_at, status
+          FROM daily_reports
+          WHERE project_id = $1
+          ORDER BY created_at DESC
+          LIMIT 5
+        `, [targetProjectId]);
+
+        if (currentProject) {
+          activeProjectContext = `ACTIVE CURRENT PROJECT CONTEXT:
+- Project Name: ${currentProject.name} (${currentProject.organization || 'Oil India Ltd'}, ${currentProject.location || 'Assam'})
+- Total Active Baseline Activities: ${actsRes.rows.length}
+- Live WBS Schedule Status:
+${actsRes.rows.slice(0, 15).map((a: any) => `  * [${a.activity_code}] ${a.description} (${a.discipline}) - Progress: ${a.progress_pct ?? 0}% | Planned: ${a.planned_start ? String(a.planned_start).slice(0, 10) : 'N/A'} to ${a.planned_end ? String(a.planned_end).slice(0, 10) : 'N/A'} | Actual Start: ${a.actual_start ? String(a.actual_start).slice(0, 10) : 'Pending'}`).join('\n')}
+${repsRes.rows.length > 0 ? `- Recent Ingested Site Reports:\n${repsRes.rows.map((r: any, i: number) => `  * [Report #${i+1} (${String(r.created_at).slice(0,10)})]: "${r.raw_text.slice(0, 180)}..."`).join('\n')}` : ''}
+`;
+        }
+      } catch (err) {
+        console.warn('[BridgeIQ Memory] Error querying active project context:', err);
+      }
+    }
 
     // 1. Embed query with Titan V2 (1024d)
     const embeddingStartTime = Date.now();
@@ -273,12 +311,13 @@ ${Object.entries(stats.causeBreakdown)
     const userPrompt = `USER INQUIRY:
 "${query}"
 
+${activeProjectContext ? `${activeProjectContext}\n` : ''}
 ${statsContext}
 
 RETRIEVED HISTORICAL RECORDS:
 ${recordsContext}
 
-Please synthesize a grounded, cited answer to the user's inquiry adhering strictly to all grounding and citation instructions.`;
+Please synthesize a grounded, cited answer to the user's inquiry. If the user is asking about the current project or active schedule status, address it directly using the active project context; if they are asking about historical lessons or delays, use the historical records; if they are comparing both, synthesize them together. Cite all sources.`;
 
     const synthesisStartTime = Date.now();
     let answer = '';
