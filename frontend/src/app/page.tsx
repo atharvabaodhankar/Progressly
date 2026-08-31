@@ -1171,118 +1171,107 @@ NRL-INS-4001,Mount Differential Pressure Transmitter PDT-301,Instrumentation,12-
       </div>
 
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex fixed left-0 top-0 h-full w-72 bg-[#F5F2FE]/80 backdrop-blur-xl z-50 flex-col border-r border-[#C7C4D7]/30">
-        <div className="p-6 flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-white p-1.5 shadow-sm border border-[#C7C4D7]/40 flex items-center justify-center">
-            <img
-              src="/progressly-logo.png"
-              alt="Progressly Logo"
-              className="w-full h-full object-contain"
-            />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-xl text-[#4648D4] tracking-tight">Progressly</span>
-              <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-bold">
-                PROD
-              </span>
+      <aside className="hidden lg:flex fixed left-0 top-0 h-full w-72 bg-white z-50 flex-col border-r border-slate-200 justify-between">
+        <div>
+          <div className="p-6 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-slate-900 flex items-center justify-center text-white font-bold">
+              <Layers className="w-5 h-5" />
             </div>
-            <p className="text-xs text-[#64748B] font-medium truncate max-w-[170px]" title={`${currentProject?.organization || 'Oil India Ltd'} • ${currentProject?.name || 'Baghjan'}`}>
-              {currentProject?.organization || 'Oil India Ltd'} • {currentProject?.name?.split(' ')[0] || 'Baghjan'}
-            </p>
+            <div className="min-w-0">
+              <span className="font-bold text-base text-slate-900 tracking-tight block">Progressly</span>
+              <p className="text-[10px] text-slate-400 uppercase tracking-wider truncate max-w-[170px]">
+                {currentProject?.organization || 'Oil India Ltd'} • {currentProject?.name?.split(' ')[0] || 'Baghjan'}
+              </p>
+            </div>
           </div>
+
+          {/* Sidebar Nav Links */}
+          <nav className="px-4 space-y-1 mt-2">
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg font-medium text-sm transition-colors ${
+                activeTab === 'dashboard'
+                  ? 'bg-slate-100 text-slate-900 font-semibold'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+              }`}
+            >
+              <LayoutDashboard className={`w-4 h-4 ${activeTab === 'dashboard' ? 'text-slate-900' : 'text-slate-400'}`} />
+              <span>Timeline Dashboard</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('review')}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg font-medium text-sm transition-colors ${
+                activeTab === 'review'
+                  ? 'bg-slate-100 text-slate-900 font-semibold'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <ShieldCheck className={`w-4 h-4 ${activeTab === 'review' ? 'text-slate-900' : 'text-slate-400'}`} />
+                <span>Review Queue</span>
+              </div>
+              {pendingMatchesCount > 0 && (
+                <span className="text-xs px-2 py-0.5 rounded font-mono font-bold bg-amber-100 text-amber-800">
+                  {pendingMatchesCount}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab('upload')}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg font-medium text-sm transition-colors ${
+                activeTab === 'upload'
+                  ? 'bg-slate-100 text-slate-900 font-semibold'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+              }`}
+            >
+              <Upload className={`w-4 h-4 ${activeTab === 'upload' ? 'text-slate-900' : 'text-slate-400'}`} />
+              <span>Upload Daily Report</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setActiveTab('memory');
+                if (historicalRecords.length === 0) fetchHistoricalRecords();
+              }}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg font-medium text-sm transition-colors ${
+                activeTab === 'memory'
+                  ? 'bg-slate-100 text-slate-900 font-semibold'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+              }`}
+            >
+              <Sparkles className={`w-4 h-4 ${activeTab === 'memory' ? 'text-slate-900' : 'text-slate-400'}`} />
+              <span>Project Memory (RAG)</span>
+            </button>
+
+            <div className="pt-2 border-t border-slate-100 my-2" />
+
+            <Link
+              href="/analytics"
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg font-medium text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+            >
+              <BarChart3 className="w-4 h-4 text-slate-400" />
+              <span>Token & Cost Telemetry</span>
+            </Link>
+
+            <Link
+              href="/architecture"
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg font-medium text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+            >
+              <Network className="w-4 h-4 text-slate-400" />
+              <span>System Architecture</span>
+            </Link>
+          </nav>
         </div>
 
-        {/* Sidebar Nav Links */}
-        <nav className="flex-1 px-4 space-y-1.5 mt-2">
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all ${
-              activeTab === 'dashboard'
-                ? 'bg-[#4648D4] text-white shadow-lg shadow-[#4648D4]/25'
-                : 'text-[#464554] hover:bg-[#E9E6F3] hover:text-[#1B1B23]'
-            }`}
-          >
-            <LayoutDashboard className="w-5 h-5" />
-            <span>Timeline Dashboard</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('review')}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-semibold text-sm transition-all ${
-              activeTab === 'review'
-                ? 'bg-[#4648D4] text-white shadow-lg shadow-[#4648D4]/25'
-                : 'text-[#464554] hover:bg-[#E9E6F3] hover:text-[#1B1B23]'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <ShieldCheck className="w-5 h-5" />
-              <span>Review Queue</span>
-            </div>
-            {pendingMatchesCount > 0 && (
-              <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
-                activeTab === 'review' ? 'bg-white text-[#4648D4]' : 'bg-amber-100 text-amber-800'
-              }`}>
-                {pendingMatchesCount}
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => setActiveTab('upload')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all ${
-              activeTab === 'upload'
-                ? 'bg-[#4648D4] text-white shadow-lg shadow-[#4648D4]/25'
-                : 'text-[#464554] hover:bg-[#E9E6F3] hover:text-[#1B1B23]'
-            }`}
-          >
-            <Upload className="w-5 h-5" />
-            <span>Upload Daily Report</span>
-          </button>
-
-          <button
-            onClick={() => {
-              setActiveTab('memory');
-              if (historicalRecords.length === 0) fetchHistoricalRecords();
-            }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all ${
-              activeTab === 'memory'
-                ? 'bg-[#4648D4] text-white shadow-lg shadow-[#4648D4]/25'
-                : 'text-[#464554] hover:bg-[#E9E6F3] hover:text-[#1B1B23]'
-            }`}
-          >
-            <Sparkles className="w-5 h-5" />
-            <span>Project Memory (RAG)</span>
-          </button>
-
-          <div className="pt-2 border-t border-[#C7C4D7]/20 my-2" />
-
-          <Link
-            href="/analytics"
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-[#464554] hover:bg-[#E9E6F3] hover:text-[#1B1B23] transition-all"
-          >
-            <BarChart3 className="w-5 h-5" />
-            <span>Token & Cost Telemetry</span>
-          </Link>
-
-          <Link
-            href="/architecture"
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-[#464554] hover:bg-[#E9E6F3] hover:text-[#1B1B23] transition-all"
-          >
-            <Network className="w-5 h-5" />
-            <span>System Architecture</span>
-          </Link>
-        </nav>
-
-        {/* User Card */}
-        <div className="p-4 m-4 rounded-2xl bg-[#E9E6F3]/60 border border-[#C7C4D7]/20 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-[#4648D4] text-white flex items-center justify-center font-bold text-sm">
-            PS
+        {/* Quiet Infrastructure Status */}
+        <div className="p-4 m-4 rounded-xl border border-slate-100 bg-slate-50">
+          <div className="flex items-center gap-2 text-xs text-slate-700 font-medium">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span>AWS Bedrock & RDS Live</span>
           </div>
-          <div className="flex flex-col min-w-0">
-            <span className="font-semibold text-sm text-[#1B1B23] truncate">Priya Sharma</span>
-            <span className="text-xs text-[#64748B] truncate">Lead Planning Engineer</span>
-          </div>
+          <p className="text-[11px] text-slate-400 mt-1">ap-south-1 Mumbai Region</p>
         </div>
       </aside>
 
@@ -1616,89 +1605,72 @@ NRL-INS-4001,Mount Differential Pressure Transmitter PDT-301,Instrumentation,12-
                 </div>
               </div>
 
-              {/* Key Metrics Row (4 Cards) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-                {/* Metric 1: Total Activities */}
-                <div className="bg-white rounded-[24px] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[#C7C4D7]/30 relative overflow-hidden group">
-                  <div className="absolute -right-6 -top-6 w-24 h-24 bg-[#4648D4]/10 rounded-full blur-2xl group-hover:bg-[#4648D4]/20 transition-all duration-500" />
-                  <div className="flex items-center gap-4 mb-3 relative z-10">
-                    <div className="w-12 h-12 rounded-2xl bg-[#4648D4]/10 flex items-center justify-center text-[#4648D4]">
-                      <FileCheck className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-[#64748B]">Total Activities</p>
-                      <p className="text-3xl font-bold text-[#1B1B23]">{totalActivitiesCount}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 relative z-10 text-xs text-[#64748B] font-medium">
-                    <span className="text-[#10B981] flex items-center gap-1 bg-[#10B981]/10 px-2 py-0.5 rounded-md font-semibold">
-                      100%
+              {/* Executive Timeline Telemetry Panel */}
+              <div className="bg-white rounded-xl border border-slate-200 p-6 sm:p-8 shadow-xs">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                  {/* Hero Metric: On Track Rate */}
+                  <div className="lg:col-span-5 pr-0 lg:pr-8 border-b lg:border-b-0 lg:border-r border-slate-100 pb-6 lg:pb-0">
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                      Schedule On-Track Rate
                     </span>
-                    <span>Titan V2 embedded</span>
+                    <div className="mt-2 text-4xl sm:text-5xl font-black text-slate-900 tracking-tight font-mono">
+                      {onTrackPct}%
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2 mt-3 overflow-hidden">
+                      <div
+                        className="bg-emerald-600 h-2 rounded-full transition-all duration-500"
+                        style={{ width: `${onTrackPct}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-slate-500 mt-2">
+                      Computed across active WBS activities & daily shift execution logs.
+                    </p>
                   </div>
-                </div>
 
-                {/* Metric 2: On Track % */}
-                <div className="bg-white rounded-[24px] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[#C7C4D7]/30 relative overflow-hidden group">
-                  <div className="absolute -right-6 -top-6 w-24 h-24 bg-[#10B981]/10 rounded-full blur-2xl group-hover:bg-[#10B981]/20 transition-all duration-500" />
-                  <div className="flex items-center gap-4 mb-3 relative z-10">
-                    <div className="w-12 h-12 rounded-2xl bg-[#10B981]/10 flex items-center justify-center text-[#10B981]">
-                      <TrendingUp className="w-6 h-6" />
-                    </div>
+                  {/* Inline Secondary Stats Strip */}
+                  <div className="lg:col-span-7 grid grid-cols-3 gap-6">
                     <div>
-                      <p className="text-sm font-semibold text-[#64748B]">On Track Rate</p>
-                      <p className="text-3xl font-bold text-[#1B1B23]">{onTrackPct}%</p>
+                      <span className="text-xs text-slate-500 block">Total WBS Tasks</span>
+                      <span className="text-2xl font-bold text-slate-900 font-mono mt-1 block">
+                        {totalActivitiesCount}
+                      </span>
+                      <span className="text-[11px] text-slate-400 mt-1 block">
+                        100% Titan V2 embedded
+                      </span>
                     </div>
-                  </div>
-                  <div className="w-full bg-[#E9E6F3] rounded-full h-2 mt-4 relative z-10 overflow-hidden">
-                    <div className="bg-[#10B981] h-2 rounded-full transition-all duration-500" style={{ width: `${onTrackPct}%` }} />
-                  </div>
-                </div>
 
-                {/* Metric 3: Pending Review Queue */}
-                <div
-                  onClick={() => setActiveTab('review')}
-                  className="bg-white rounded-[24px] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[#C7C4D7]/30 relative overflow-hidden group cursor-pointer hover:border-amber-300 transition"
-                >
-                  <div className="absolute -right-6 -top-6 w-24 h-24 bg-[#F59E0B]/10 rounded-full blur-2xl group-hover:bg-[#F59E0B]/20 transition-all duration-500" />
-                  <div className="flex items-center gap-4 mb-3 relative z-10">
-                    <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-[#F59E0B]">
-                      <ShieldCheck className="w-6 h-6" />
+                    <div
+                      onClick={() => setActiveTab('review')}
+                      className="cursor-pointer group"
+                    >
+                      <span className="text-xs text-slate-500 group-hover:text-slate-900 block transition-colors">
+                        Review Queue →
+                      </span>
+                      <span className="text-2xl font-bold text-amber-600 font-mono mt-1 block">
+                        {pendingMatchesCount}
+                      </span>
+                      <span className="text-[11px] text-slate-400 mt-1 block">
+                        Pending verification
+                      </span>
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold text-[#64748B]">Review Queue</p>
-                      <p className="text-3xl font-bold text-[#1B1B23]">{pendingMatchesCount}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 relative z-10 text-xs">
-                    <span className="text-[#F59E0B] flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-md font-semibold">
-                      Requires Planner Sign-off
-                    </span>
-                  </div>
-                </div>
 
-                {/* Metric 4: Institutional Memory */}
-                <div
-                  onClick={() => {
-                    setActiveTab('memory');
-                    if (historicalRecords.length === 0) fetchHistoricalRecords();
-                  }}
-                  className="bg-white rounded-[24px] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[#C7C4D7]/30 relative overflow-hidden group cursor-pointer hover:border-indigo-300 transition"
-                >
-                  <div className="absolute -right-6 -top-6 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-all duration-500" />
-                  <div className="flex items-center gap-4 mb-3 relative z-10">
-                    <div className="w-12 h-12 rounded-2xl bg-purple-50 flex items-center justify-center text-purple-600">
-                      <Sparkles className="w-6 h-6" />
+                    <div
+                      onClick={() => {
+                        setActiveTab('memory');
+                        if (historicalRecords.length === 0) fetchHistoricalRecords();
+                      }}
+                      className="cursor-pointer group"
+                    >
+                      <span className="text-xs text-slate-500 group-hover:text-slate-900 block transition-colors">
+                        Project Memory →
+                      </span>
+                      <span className="text-2xl font-bold text-slate-900 font-mono mt-1 block">
+                        40
+                      </span>
+                      <span className="text-[11px] text-slate-400 mt-1 block">
+                        Nova Pro RAG index
+                      </span>
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold text-[#64748B]">Project Memory</p>
-                      <p className="text-3xl font-bold text-[#1B1B23]">40</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 relative z-10 text-xs text-[#64748B] font-medium">
-                    <span className="text-purple-600 font-semibold bg-purple-50 px-2 py-0.5 rounded-md">
-                      Nova Pro RAG Active
-                    </span>
                   </div>
                 </div>
               </div>
@@ -2044,37 +2016,37 @@ NRL-INS-4001,Mount Differential Pressure Transmitter PDT-301,Instrumentation,12-
                     return (
                       <div
                         key={match.id}
-                        className="bg-white rounded-[24px] border border-[#C7C4D7]/30 p-6 shadow-sm hover:shadow-md transition space-y-4"
+                        className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4"
                       >
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#C7C4D7]/20 pb-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
                           <div className="flex flex-wrap items-center gap-3">
-                            <span className="font-mono font-bold text-[#4648D4] text-base">
+                            <span className="font-mono font-bold text-slate-900 text-sm">
                               {match.activity_code}
                             </span>
-                            <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#E9E6F3] text-slate-700 font-semibold uppercase">
+                            <span className="text-[11px] px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold uppercase">
                               {match.activity_discipline}
                             </span>
-                            <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${badge.bg}`}>
+                            <span className={`text-[11px] px-2 py-0.5 rounded font-semibold border ${badge.bg}`}>
                               {badge.label} • {badge.tier}
                             </span>
-                            <span className="text-xs px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium capitalize">
+                            <span className="text-[11px] text-slate-500 capitalize font-medium">
                               Status: {match.status.replace('_', ' ')}
                             </span>
                           </div>
 
-                          <span className="text-xs text-[#64748B]">
+                          <span className="text-[11px] text-slate-400 font-mono">
                             {new Date(match.created_at).toLocaleString()}
                           </span>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                           {/* Extracted Event */}
-                          <div className="bg-[#F5F2FE]/50 p-4 rounded-xl space-y-2 border border-[#C7C4D7]/20">
-                            <p className="text-xs font-semibold uppercase tracking-wider text-[#64748B]">
+                          <div className="bg-slate-50 p-3.5 rounded-lg space-y-1.5 border border-slate-200">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                               Extracted Field Event (Nova Micro)
                             </p>
-                            <p className="font-semibold text-[#1B1B23]">{match.event_description}</p>
-                            <div className="flex flex-wrap gap-2 text-xs text-[#64748B] pt-1">
+                            <p className="font-semibold text-slate-900 text-sm">{match.event_description}</p>
+                            <div className="flex flex-wrap gap-2 text-slate-500 pt-1 text-[11px]">
                               {match.event_line && <span>Line: {match.event_line}</span>}
                               {match.event_location && <span>Location: {match.event_location}</span>}
                               {match.quantity && <span>Qty: {match.quantity}</span>}
@@ -2082,13 +2054,13 @@ NRL-INS-4001,Mount Differential Pressure Transmitter PDT-301,Instrumentation,12-
                           </div>
 
                           {/* Matched Schedule Activity */}
-                          <div className="bg-[#F5F2FE]/50 p-4 rounded-xl space-y-2 border border-[#C7C4D7]/20">
-                            <p className="text-xs font-semibold uppercase tracking-wider text-[#64748B]">
+                          <div className="bg-slate-50 p-3.5 rounded-lg space-y-1.5 border border-slate-200">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                               Target Schedule Node (Titan V2)
                             </p>
-                            <p className="font-semibold text-[#1B1B23]">{match.activity_description}</p>
-                            <p className="text-xs text-[#64748B]">
-                              Location: {match.activity_location || 'Baghjan Site'}
+                            <p className="font-semibold text-slate-900 text-sm">{match.activity_description}</p>
+                            <p className="text-slate-500 text-[11px]">
+                              Location: {match.activity_location || 'Site Grid'}
                             </p>
                           </div>
                         </div>
@@ -2135,28 +2107,28 @@ NRL-INS-4001,Mount Differential Pressure Transmitter PDT-301,Instrumentation,12-
 
               <form onSubmit={handleUploadSubmit} className="bg-white p-8 rounded-[24px] shadow-sm border border-[#C7C4D7]/30 space-y-6">
                 {/* Active Project Scope Indicator */}
-                <div className="p-3.5 rounded-xl bg-[#F5F2FE] border border-[#C7C4D7]/30 flex items-center justify-between">
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <Building2 className="w-4 h-4 text-[#4648D4] shrink-0" />
+                    <Building2 className="w-4 h-4 text-slate-500 shrink-0" />
                     <div className="min-w-0 text-xs">
-                      <span className="text-[#64748B]">Target Project: </span>
-                      <span className="font-bold text-[#1B1B23] truncate">
+                      <span className="text-slate-500">Target Project: </span>
+                      <span className="font-bold text-slate-900 truncate">
                         {currentProject?.name || 'Baghjan Gas Gathering Station'}
                       </span>
                     </div>
                   </div>
-                  <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-700 shrink-0">
+                  <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-700 shrink-0">
                     Isolated Scope
                   </span>
                 </div>
 
                 {/* Upload Mode Switcher */}
-                <div className="flex p-1 bg-[#F5F2FE] rounded-xl border border-[#C7C4D7]/20">
+                <div className="flex p-1 bg-slate-100 rounded-lg">
                   <button
                     type="button"
                     onClick={() => setUploadMode('text')}
-                    className={`flex-1 py-2 rounded-lg text-xs font-semibold transition ${
-                      uploadMode === 'text' ? 'bg-white shadow-sm text-[#4648D4]' : 'text-[#64748B]'
+                    className={`flex-1 py-1.5 rounded-md text-xs font-medium transition ${
+                      uploadMode === 'text' ? 'bg-white shadow-xs text-slate-900' : 'text-slate-600'
                     }`}
                   >
                     Free-Text Narrative
@@ -2164,8 +2136,8 @@ NRL-INS-4001,Mount Differential Pressure Transmitter PDT-301,Instrumentation,12-
                   <button
                     type="button"
                     onClick={() => setUploadMode('file')}
-                    className={`flex-1 py-2 rounded-lg text-xs font-semibold transition ${
-                      uploadMode === 'file' ? 'bg-white shadow-sm text-[#4648D4]' : 'text-[#64748B]'
+                    className={`flex-1 py-1.5 rounded-md text-xs font-medium transition ${
+                      uploadMode === 'file' ? 'bg-white shadow-xs text-slate-900' : 'text-slate-600'
                     }`}
                   >
                     File / Document Upload
@@ -2174,12 +2146,12 @@ NRL-INS-4001,Mount Differential Pressure Transmitter PDT-301,Instrumentation,12-
 
                 {/* Submitter Field */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-[#64748B] uppercase">Supervisor / Submitter</label>
+                  <label className="text-xs font-medium text-slate-700">Supervisor / Submitter</label>
                   <input
                     type="text"
                     value={uploadedBy}
                     onChange={(e) => setUploadedBy(e.target.value)}
-                    className="w-full h-11 px-4 rounded-xl bg-[#F5F2FE] border-none text-sm text-[#1B1B23] focus:ring-2 focus:ring-[#4648D4]/20"
+                    className="w-full h-10 px-3.5 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 focus:outline-none focus:border-slate-400"
                     required
                   />
                 </div>
@@ -2187,20 +2159,20 @@ NRL-INS-4001,Mount Differential Pressure Transmitter PDT-301,Instrumentation,12-
                 {/* Text or File Input */}
                 {uploadMode === 'text' ? (
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-[#64748B] uppercase">Daily Progress Notes</label>
+                    <label className="text-xs font-medium text-slate-700">Daily Progress Notes</label>
                     <textarea
                       rows={6}
                       value={reportText}
                       onChange={(e) => setReportText(e.target.value)}
                       placeholder="e.g., Welded 14 spool joints on 24-inch crude header line 24-XX at Tank Farm 3 area today..."
-                      className="w-full p-4 rounded-xl bg-[#F5F2FE] border-none text-sm text-[#1B1B23] focus:ring-2 focus:ring-[#4648D4]/20 resize-y"
+                      className="w-full p-3.5 rounded-lg bg-white border border-slate-200 text-sm text-slate-900 focus:outline-none focus:border-slate-400 resize-y"
                       required
                     />
                   </div>
                 ) : (
                   <div
                     onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed border-[#C7C4D7] hover:border-[#4648D4] rounded-2xl p-8 text-center cursor-pointer transition bg-[#F5F2FE]/50"
+                    className="border-2 border-dashed border-slate-300 hover:border-slate-400 rounded-xl p-8 text-center cursor-pointer transition bg-slate-50"
                   >
                     <input
                       type="file"
@@ -2208,11 +2180,11 @@ NRL-INS-4001,Mount Differential Pressure Transmitter PDT-301,Instrumentation,12-
                       className="hidden"
                       onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                     />
-                    <FileSpreadsheet className="w-8 h-8 text-[#4648D4] mx-auto mb-2" />
+                    <FileSpreadsheet className="w-8 h-8 text-slate-400 mx-auto mb-2" />
                     {selectedFile ? (
-                      <p className="text-sm font-semibold text-[#4648D4]">{selectedFile.name}</p>
+                      <p className="text-sm font-semibold text-slate-900">{selectedFile.name}</p>
                     ) : (
-                      <p className="text-sm font-medium text-[#64748B]">Click to select CSV, TXT, or PDF</p>
+                      <p className="text-sm font-medium text-slate-600">Click to select CSV, TXT, or PDF</p>
                     )}
                   </div>
                 )}
@@ -2221,7 +2193,7 @@ NRL-INS-4001,Mount Differential Pressure Transmitter PDT-301,Instrumentation,12-
                 <button
                   type="submit"
                   disabled={isUploading}
-                  className="w-full py-3.5 rounded-xl bg-[#4648D4] hover:bg-[#3B3DC0] disabled:bg-slate-300 text-white font-semibold text-sm shadow-md transition flex items-center justify-center gap-2"
+                  className="w-full py-3 rounded-lg bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-medium text-sm transition flex items-center justify-center gap-2 active:scale-98"
                 >
                   {isUploading ? (
                     <>
@@ -2229,10 +2201,7 @@ NRL-INS-4001,Mount Differential Pressure Transmitter PDT-301,Instrumentation,12-
                       <span>Transmitting to S3 & Bedrock...</span>
                     </>
                   ) : (
-                    <>
-                      <Upload className="w-4 h-4" />
-                      <span>Upload & Link to Schedule</span>
-                    </>
+                    <span>Upload & Link to Schedule</span>
                   )}
                 </button>
               </form>
@@ -2292,14 +2261,14 @@ NRL-INS-4001,Mount Differential Pressure Transmitter PDT-301,Instrumentation,12-
                         value={memoryQuery}
                         onChange={(e) => setMemoryQuery(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleMemoryQuery()}
-                        placeholder="Ask about past piping delays, civil risks, material shortages..."
-                        className="w-full pl-11 pr-4 py-3 bg-[#F5F2FE] border-none rounded-xl text-sm text-[#1B1B23] focus:ring-2 focus:ring-purple-500/20 transition"
+                        placeholder="Ask about past piping delays, civil foundation risks, weather impacts..."
+                        className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-slate-400 transition"
                       />
                     </div>
                     <button
                       onClick={() => handleMemoryQuery()}
                       disabled={isQueryingMemory || !memoryQuery.trim()}
-                      className="px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-700 disabled:bg-slate-300 text-white font-semibold text-sm shadow-md transition flex items-center justify-center gap-2 shrink-0"
+                      className="px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-medium text-sm transition flex items-center justify-center gap-2 shrink-0 active:scale-98"
                     >
                       {isQueryingMemory ? (
                         <>
@@ -2307,17 +2276,14 @@ NRL-INS-4001,Mount Differential Pressure Transmitter PDT-301,Instrumentation,12-
                           <span>Synthesizing...</span>
                         </>
                       ) : (
-                        <>
-                          <Sparkles className="w-4 h-4" />
-                          <span>Query Memory</span>
-                        </>
+                        <span>Query Memory</span>
                       )}
                     </button>
                   </div>
 
                   {/* Preset Suggestions */}
-                  <div className="flex flex-wrap items-center gap-2 pt-2">
-                    <span className="text-xs text-[#64748B] font-medium">Try asking:</span>
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <span className="text-xs text-slate-500">Suggestions:</span>
                     {[
                       'What caused piping delays in past projects?',
                       'What are the common risks in civil foundation works?',
@@ -2330,7 +2296,7 @@ NRL-INS-4001,Mount Differential Pressure Transmitter PDT-301,Instrumentation,12-
                           setMemoryQuery(preset);
                           handleMemoryQuery(preset);
                         }}
-                        className="px-3 py-1 text-xs rounded-lg bg-[#F5F2FE] hover:bg-[#E9E6F3] text-purple-900 border border-[#C7C4D7]/30 transition"
+                        className="px-2.5 py-1 text-xs rounded-md bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 transition"
                       >
                         {preset}
                       </button>
@@ -2345,44 +2311,46 @@ NRL-INS-4001,Mount Differential Pressure Transmitter PDT-301,Instrumentation,12-
                   {/* Stats Bar */}
                   {memoryResult.computed_stats && (
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                      <div className="bg-white border border-[#C7C4D7]/30 p-4 rounded-2xl shadow-sm">
-                        <p className="text-xs text-[#64748B] uppercase font-semibold">Records Analyzed</p>
-                        <p className="text-2xl font-bold text-[#1B1B23] mt-1">
+                      <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-xs">
+                        <span className="text-xs text-slate-500 block">Records Analyzed</span>
+                        <span className="text-2xl font-bold text-slate-900 font-mono mt-1 block">
                           {memoryResult.computed_stats.totalRetrieved}
-                        </p>
+                        </span>
                       </div>
-                      <div className="bg-white border border-[#C7C4D7]/30 p-4 rounded-2xl shadow-sm">
-                        <p className="text-xs text-[#64748B] uppercase font-semibold">Delayed Activities</p>
-                        <p className="text-2xl font-bold text-amber-600 mt-1">
+                      <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-xs">
+                        <span className="text-xs text-slate-500 block">Delayed Activities</span>
+                        <span className="text-2xl font-bold text-amber-600 font-mono mt-1 block">
                           {memoryResult.computed_stats.delayedCount}
-                        </p>
+                        </span>
                       </div>
-                      <div className="bg-white border border-[#C7C4D7]/30 p-4 rounded-2xl shadow-sm">
-                        <p className="text-xs text-[#64748B] uppercase font-semibold">Avg Delay Days</p>
-                        <p className="text-2xl font-bold text-rose-600 mt-1">
+                      <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-xs">
+                        <span className="text-xs text-slate-500 block">Avg Delay Days</span>
+                        <span className="text-2xl font-bold text-rose-600 font-mono mt-1 block">
                           +{memoryResult.computed_stats.averageDelayDays}d
-                        </p>
+                        </span>
                       </div>
-                      <div className="bg-white border border-[#C7C4D7]/30 p-4 rounded-2xl shadow-sm">
-                        <p className="text-xs text-[#64748B] uppercase font-semibold">Synthesis Model</p>
-                        <p className="text-xs font-mono font-semibold text-purple-700 mt-2 truncate">
+                      <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-xs">
+                        <span className="text-xs text-slate-500 block">Synthesis Model</span>
+                        <span className="text-xs font-mono font-semibold text-slate-900 mt-2 block truncate">
                           {memoryResult.model_used.replace('apac.amazon.', '').replace(':0', '')}
-                        </p>
+                        </span>
                       </div>
                     </div>
                   )}
 
                   {/* Synthesized Narrative Card with Rich Section & Citation Parser */}
-                  <div className="bg-white border border-[#C7C4D7]/30 rounded-[24px] p-8 shadow-sm space-y-6">
+                  <div className="bg-white border border-slate-200 rounded-xl p-8 shadow-xs space-y-6">
                     <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 text-purple-600" />
-                        <h3 className="font-bold text-lg text-[#1B1B23]">
+                      <div>
+                        <h3 className="font-bold text-base text-slate-900">
                           Synthesized Institutional Memory
                         </h3>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Multi-project synthesis grounded in pgvector embeddings with strict citations
+                        </p>
                       </div>
-                      <span className="text-xs px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-700 font-mono font-semibold border border-purple-200">
-                        Grounded via pgvector
+                      <span className="text-xs px-2.5 py-1 rounded bg-slate-100 text-slate-700 font-mono font-medium">
+                        Nova Pro • Grounded
                       </span>
                     </div>
 

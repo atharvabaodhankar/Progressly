@@ -33,6 +33,7 @@ import {
   X,
   FileCode,
   CheckCircle,
+  BarChart3,
 } from 'lucide-react';
 
 interface Scenario {
@@ -278,88 +279,79 @@ export default function TestOptionsPage() {
   return (
     <div className="min-h-screen bg-[#F8FAFF] text-[#1B1B23] flex flex-col antialiased selection:bg-[#4648D4]/10 selection:text-[#4648D4]">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex fixed left-0 top-0 h-full w-72 bg-[#F5F2FE]/80 backdrop-blur-xl z-50 flex-col border-r border-[#C7C4D7]/30">
-        <div className="p-6 flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-white p-1.5 shadow-sm border border-[#C7C4D7]/40 flex items-center justify-center">
-            <img
-              src="/progressly-logo.png"
-              alt="Progressly Logo"
-              className="w-full h-full object-contain"
-            />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-xl text-[#4648D4] tracking-tight">Progressly</span>
-              <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-bold">
-                PROD
-              </span>
+      <aside className="hidden lg:flex fixed left-0 top-0 h-full w-72 bg-white z-50 flex-col border-r border-slate-200 justify-between">
+        <div>
+          <div className="p-6 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-slate-900 flex items-center justify-center text-white font-bold">
+              <Layers className="w-5 h-5" />
             </div>
-            <p className="text-xs text-[#64748B] font-medium">Oil India Ltd • Baghjan</p>
+            <div>
+              <span className="font-bold text-base text-slate-900 tracking-tight">Progressly</span>
+              <p className="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">Oil India Ltd • Baghjan</p>
+            </div>
           </div>
+
+          {/* Sidebar Nav Links */}
+          <nav className="px-4 space-y-1 mt-2">
+            <Link
+              href="/"
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg font-medium text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+            >
+              <LayoutDashboard className="w-4 h-4 text-slate-400" />
+              <span>Timeline Dashboard</span>
+            </Link>
+
+            <Link
+              href="/?tab=review"
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg font-medium text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+            >
+              <ShieldCheck className="w-4 h-4 text-slate-400" />
+              <span>Review Queue</span>
+            </Link>
+
+            <Link
+              href="/?tab=upload"
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg font-medium text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+            >
+              <Upload className="w-4 h-4 text-slate-400" />
+              <span>Upload Daily Report</span>
+            </Link>
+
+            <Link
+              href="/?tab=memory"
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg font-medium text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+            >
+              <Sparkles className="w-4 h-4 text-slate-400" />
+              <span>Project Memory (RAG)</span>
+            </Link>
+
+            <div className="pt-2 border-t border-slate-100 my-2" />
+
+            <Link
+              href="/analytics"
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg font-medium text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+            >
+              <BarChart3 className="w-4 h-4 text-slate-400" />
+              <span>Token & Cost Telemetry</span>
+            </Link>
+
+            <Link
+              href="/architecture"
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg font-medium text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+            >
+              <Network className="w-4 h-4 text-slate-400" />
+              <span>System Architecture</span>
+            </Link>
+          </nav>
         </div>
 
-        {/* Sidebar Nav Links */}
-        <nav className="flex-1 px-4 space-y-1.5 mt-2">
-          <Link
-            href="/"
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-[#464554] hover:bg-[#E9E6F3] hover:text-[#1B1B23] transition-all"
-          >
-            <LayoutDashboard className="w-5 h-5" />
-            <span>Timeline Dashboard</span>
-          </Link>
-
-          <Link
-            href="/?tab=review"
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-[#464554] hover:bg-[#E9E6F3] hover:text-[#1B1B23] transition-all"
-          >
-            <ShieldCheck className="w-5 h-5" />
-            <span>Review Queue</span>
-          </Link>
-
-          <Link
-            href="/?tab=upload"
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-[#464554] hover:bg-[#E9E6F3] hover:text-[#1B1B23] transition-all"
-          >
-            <Upload className="w-5 h-5" />
-            <span>Upload Daily Report</span>
-          </Link>
-
-          <Link
-            href="/?tab=memory"
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-[#464554] hover:bg-[#E9E6F3] hover:text-[#1B1B23] transition-all"
-          >
-            <Sparkles className="w-5 h-5" />
-            <span>Project Memory (RAG)</span>
-          </Link>
-
-          <div className="pt-2 border-t border-[#C7C4D7]/20 my-2" />
-
-          <div className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm bg-[#4648D4] text-white shadow-lg shadow-[#4648D4]/25 transition-all">
-            <Sparkles className="w-5 h-5 text-white" />
-            <span>Demo Test Lab</span>
-            <span className="ml-auto text-[10px] bg-white/20 text-white px-1.5 py-0.5 rounded-md font-bold">
-              Active
-            </span>
+        {/* Quiet Infrastructure Status */}
+        <div className="p-4 m-4 rounded-xl border border-slate-100 bg-slate-50">
+          <div className="flex items-center gap-2 text-xs text-slate-700 font-medium">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span>AWS Bedrock & RDS Live</span>
           </div>
-
-          <Link
-            href="/architecture"
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-[#464554] hover:bg-[#E9E6F3] hover:text-[#1B1B23] transition-all"
-          >
-            <Network className="w-5 h-5" />
-            <span>System Architecture</span>
-          </Link>
-        </nav>
-
-        {/* User Card */}
-        <div className="p-4 m-4 rounded-2xl bg-[#E9E6F3]/60 border border-[#C7C4D7]/20 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-[#4648D4] text-white flex items-center justify-center font-bold text-sm">
-            PS
-          </div>
-          <div className="flex flex-col min-w-0">
-            <span className="font-semibold text-sm text-[#1B1B23] truncate">Priya Sharma</span>
-            <span className="text-xs text-[#64748B] truncate">Lead Planning Engineer</span>
-          </div>
+          <p className="text-[11px] text-slate-400 mt-1">ap-south-1 Mumbai Region</p>
         </div>
       </aside>
 
