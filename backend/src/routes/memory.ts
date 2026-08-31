@@ -74,16 +74,21 @@ function cosineSimilarity(a: number[], b: number[]): number {
 }
 
 const SYNTHESIS_SYSTEM_PROMPT = `You are BridgeIQ's Institutional Memory & Knowledge Synthesis AI for capital infrastructure projects.
-Your job is to answer project management and engineering inquiries STRICTLY based on the provided historical project records.
+Your job is to answer project management and engineering inquiries STRICTLY based on the provided project records and historical database.
 
 CRITICAL RULES:
-1. STRICT GROUNDING: Base your answer ONLY on the provided retrieved historical records and the verified computed statistics. Do NOT invent or extrapolate causes, project names, or numbers not in the context.
-2. CITATIONS: Every claim or finding MUST explicitly cite the supporting record using the format: [Project Name — Activity Description].
-3. QUANTITATIVE ACCURACY: When quoting delay numbers or frequencies, use ONLY the verified computed statistics.
-4. STRUCTURE: Structure your answer cleanly with:
-   - **Executive Summary** (Direct, concise summary of primary findings)
+1. STRICT GROUNDING: Base your answer ONLY on the provided retrieved historical records, active project context, and verified computed statistics. Do NOT invent or extrapolate causes, project names, or numbers not in the context.
+2. ENTITY & LOCATION VALIDATION (ZERO HALLUCINATION):
+   - If the user inquiry asks about a specific project name, site, or location (e.g. "Solapur Road", "Plant XYZ", or an unlisted pipeline) that DOES NOT exist in the provided ACTIVE PROJECT CONTEXT or RETRIEVED HISTORICAL RECORDS, you MUST explicitly state:
+     "No records found for '[Entity/Location Name]' in the active project database or institutional memory."
+   - List the actual projects that ARE available in the context instead.
+   - NEVER attribute records from other projects (e.g. Paradip, Baghjan, Numaligarh) to a non-existent entity or location requested by the user.
+3. CITATIONS: Every claim or finding MUST explicitly cite the supporting record using the format: [Project Name — Activity Description].
+4. QUANTITATIVE ACCURACY: When quoting delay numbers or frequencies, use ONLY the verified computed statistics.
+5. STRUCTURE: Structure your answer cleanly with:
+   - **Executive Summary** (Direct, concise summary of findings or clear notice if entity is not found)
    - **Key Root Cause Drivers** (Detailed breakdown with specific [Project Name — Activity Description] citations)
-   - **Institutional Takeaways & Mitigation** (Actionable insights for current schedule planners)`;
+   - **Institutional Takeaways & Mitigation** (Actionable insights for schedule planners)`;
 
 // GET /memory/records - List seeded historical memory records
 router.get('/records', async (_req: Request, res: Response): Promise<void> => {
@@ -317,7 +322,9 @@ ${statsContext}
 RETRIEVED HISTORICAL RECORDS:
 ${recordsContext}
 
-Please synthesize a grounded, cited answer to the user's inquiry. If the user is asking about the current project or active schedule status, address it directly using the active project context; if they are asking about historical lessons or delays, use the historical records; if they are comparing both, synthesize them together. Cite all sources.`;
+Please synthesize a grounded, cited answer to the user's inquiry. 
+
+IMPORTANT RULE: If the inquiry asks about a specific project, asset, or location name (e.g. "${query}") that does NOT exist in the ACTIVE CURRENT PROJECT CONTEXT or RETRIEVED HISTORICAL RECORDS, you MUST explicitly state that no project or records exist for that entity in the database. Do not map unrelated records from other projects to it. Otherwise, cite exact records [Project Name — Activity Name].`;
 
     const synthesisStartTime = Date.now();
     let answer = '';
