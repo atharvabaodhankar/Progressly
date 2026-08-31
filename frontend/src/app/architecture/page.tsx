@@ -146,8 +146,12 @@ export default function ArchitecturePage() {
       <aside className="hidden lg:flex fixed left-0 top-0 h-full w-72 bg-white z-50 flex-col border-r border-slate-200 justify-between">
         <div>
           <div className="p-6 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-slate-900 flex items-center justify-center text-white font-bold">
-              <Layers className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center shrink-0">
+              <img
+                src="/progressly-icon.svg"
+                alt="Progressly"
+                className="w-full h-full object-cover"
+              />
             </div>
             <div>
               <span className="font-bold text-base text-slate-900 tracking-tight">Progressly</span>
@@ -228,15 +232,15 @@ export default function ArchitecturePage() {
             >
               <Menu className="w-5 h-5" />
             </button>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-white p-1 shadow-sm border border-[#C7C4D7]/40 flex items-center justify-center">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center shrink-0">
                 <img
-                  src="/progressly-logo.png"
+                  src="/progressly-icon.svg"
                   alt="Progressly Logo"
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-cover"
                 />
               </div>
-              <span className="font-bold text-lg text-[#4648D4]">Progressly</span>
+              <span className="font-bold text-base text-slate-900 tracking-tight">Progressly</span>
             </div>
           </div>
 

@@ -138,8 +138,12 @@ export default function AnalyticsPage() {
         <div className="space-y-8">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-9 h-9 rounded-lg bg-slate-900 flex items-center justify-center text-white font-bold">
-              <Layers className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center shrink-0">
+              <img
+                src="/progressly-icon.svg"
+                alt="Progressly"
+                className="w-full h-full object-cover"
+              />
             </div>
             <div>
               <h1 className="font-bold text-base tracking-tight text-slate-900 leading-none">
