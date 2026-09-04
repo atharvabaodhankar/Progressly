@@ -11,30 +11,22 @@ export function getBedrockRuntimeClient(): BedrockRuntimeClient {
   const region = process.env.BEDROCK_AWS_REGION || process.env.AWS_REGION || 'ap-south-1';
   const accessKeyId = process.env.BEDROCK_AWS_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
   const secretAccessKey = process.env.BEDROCK_AWS_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY;
-  const sessionToken = process.env.BEDROCK_AWS_SESSION_TOKEN || process.env.AWS_SESSION_TOKEN;
-
-  const clientConfig: {
-    region: string;
-    credentials?: {
-      accessKeyId: string;
-      secretAccessKey: string;
-      sessionToken?: string;
-    };
-  } = {
-    region,
-  };
+  const sessionToken = process.env.BEDROCK_AWS_SESSION_TOKEN;
 
   if (accessKeyId && secretAccessKey) {
-    clientConfig.credentials = {
-      accessKeyId,
-      secretAccessKey,
-      ...(sessionToken && {
-        sessionToken,
-      }),
-    };
+    console.log(`[BridgeIQ AI-Worker] Initializing Bedrock Runtime Client in region ${region} with explicit cross-account credentials`);
+    return new BedrockRuntimeClient({
+      region,
+      credentials: {
+        accessKeyId,
+        secretAccessKey,
+        ...(sessionToken && { sessionToken }),
+      },
+    });
   }
 
-  return new BedrockRuntimeClient(clientConfig);
+  console.log(`[BridgeIQ AI-Worker] Initializing Bedrock Runtime Client in region ${region} with default provider`);
+  return new BedrockRuntimeClient({ region });
 }
 
 export const bedrockRuntimeClient = getBedrockRuntimeClient();

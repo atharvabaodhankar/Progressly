@@ -151,13 +151,38 @@ router.post('/', upload.single('file'), async (req: Request, res: Response): Pro
       }
     }
 
+    // Direct in-process extraction and matching execution
+    try {
+      const { processReportById } = await import('../utils/reportProcessor');
+      // Execute in background
+      processReportById(createdReport.id).catch(err => {
+        console.error(`[BridgeIQ Backend] Background processing error for report ${createdReport.id}:`, err);
+      });
+    } catch (procErr) {
+      console.error('[BridgeIQ Backend] Failed to start report processor:', procErr);
+    }
+
     res.status(201).json({
-      message: 'Report uploaded successfully',
+      message: 'Report uploaded successfully and queued for extraction',
       report: createdReport,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to upload report';
     console.error('[BridgeIQ Backend] Error creating report:', error);
+    res.status(500).json({ error: message });
+  }
+});
+
+// POST /reports/:id/process - Reprocess a specific report
+router.post('/:id/process', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { processReportById } = await import('../utils/reportProcessor');
+    const result = await processReportById(id);
+    res.status(200).json({ message: 'Report processed successfully', result });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to process report';
+    console.error('[BridgeIQ Backend] Error reprocessing report:', error);
     res.status(500).json({ error: message });
   }
 });

@@ -239,7 +239,7 @@ export class BedrockExtractionProvider implements IExtractionProvider {
     }
 
     const client = getBedrockRuntimeClient();
-    const modelId = process.env.BEDROCK_EXTRACTION_MODEL_ID || 'amazon.nova-micro-v1:0';
+    const modelId = process.env.BEDROCK_EXTRACTION_MODEL_ID || 'apac.amazon.nova-micro-v1:0';
     const prompt = `Field Report Input:\n"""\n${inputText}\n"""\n\nExtract the activity events JSON array:`;
 
     const command = new ConverseCommand({
