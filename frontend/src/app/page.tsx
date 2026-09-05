@@ -1120,6 +1120,63 @@ NRL-INS-4001,Mount Differential Pressure Transmitter PDT-301,Instrumentation,12-
     };
   };
 
+  // Date formatting helper for clean readable dates
+  const formatDisplayDate = (dateStr?: string | null) => {
+    if (!dateStr) return null;
+    try {
+      const cleaned = dateStr.includes('T') ? dateStr : `${dateStr}T00:00:00Z`;
+      const d = new Date(cleaned);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const formatDateRange = (start?: string | null, end?: string | null, fallback = '—') => {
+    const s = formatDisplayDate(start);
+    const e = end ? formatDisplayDate(end) : (start ? 'Ongoing' : null);
+    if (s && e) return `${s} → ${e}`;
+    if (s) return s;
+    return fallback;
+  };
+
+  // Activity Status & Lineage Badge helper
+  const getActivityStatusBadge = (act: ActivityItem) => {
+    const progress = act.progress_pct ?? 0;
+    const isComplete = progress >= 100;
+    const isDelayed =
+      (act.planned_end && act.actual_end && new Date(act.actual_end) > new Date(act.planned_end)) ||
+      (act.planned_end && new Date() > new Date(act.planned_end) && progress < 100);
+
+    if (isComplete) {
+      return (
+        <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-emerald-200">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Completed
+        </span>
+      );
+    }
+    if (isDelayed) {
+      return (
+        <span className="inline-flex items-center gap-1.5 bg-rose-50 text-rose-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-rose-200">
+          <span className="w-1.5 h-1.5 rounded-full bg-rose-500" /> Delayed
+        </span>
+      );
+    }
+    if (progress > 0) {
+      return (
+        <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-amber-200">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> In Progress ({progress}%)
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full text-xs font-semibold border border-slate-200">
+        <span className="w-1.5 h-1.5 rounded-full bg-slate-400" /> Scheduled (0%)
+      </span>
+    );
+  };
+
   // Compute Real Metrics
   const totalActivitiesCount = activities.length;
   const pendingMatchesCount = matches.filter((m) => m.status === 'pending').length;
@@ -1884,11 +1941,11 @@ NRL-INS-4001,Mount Differential Pressure Transmitter PDT-301,Instrumentation,12-
                                 {act.discipline}
                               </span>
                             </td>
-                            <td className="p-4 text-xs text-[#64748B]">
-                              {act.planned_start ? `${act.planned_start} → ${act.planned_end}` : 'Oct 1 - Oct 15'}
+                            <td className="p-4 text-xs font-medium text-slate-700">
+                              {formatDateRange(act.planned_start, act.planned_end, 'Oct 1 - Oct 15')}
                             </td>
-                            <td className="p-4 text-xs text-[#64748B]">
-                              {act.actual_start ? `${act.actual_start} → ${act.actual_end || 'Ongoing'}` : '—'}
+                            <td className="p-4 text-xs font-medium text-slate-700">
+                              {formatDateRange(act.actual_start, act.actual_end, '—')}
                             </td>
                             <td className="p-4">
                               <div className="flex items-center gap-2">
@@ -1902,19 +1959,7 @@ NRL-INS-4001,Mount Differential Pressure Transmitter PDT-301,Instrumentation,12-
                               </div>
                             </td>
                             <td className="p-4">
-                              {isComplete ? (
-                                <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-[#10B981] px-2.5 py-1 rounded-full text-xs font-semibold border border-emerald-200">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" /> Completed (Tier 1)
-                                </span>
-                              ) : isInProgress ? (
-                                <span className="inline-flex items-center gap-1.5 bg-amber-50 text-[#F59E0B] px-2.5 py-1 rounded-full text-xs font-semibold border border-amber-200">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-[#F59E0B]" /> In Progress (Tier 2)
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full text-xs font-semibold border border-slate-200">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400" /> Pending (Tier 3)
-                                </span>
-                              )}
+                              {getActivityStatusBadge(act)}
                             </td>
                           </tr>
                         );
