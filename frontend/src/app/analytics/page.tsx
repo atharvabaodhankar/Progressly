@@ -79,6 +79,8 @@ export default function AnalyticsPage() {
   // ROI Calculator state
   const [monthlyReportsCount, setMonthlyReportsCount] = useState<number>(3000);
   const [monthlyRagQueriesCount, setMonthlyRagQueriesCount] = useState<number>(300);
+  const [hourlyEngineerRate, setHourlyEngineerRate] = useState<number>(75);
+  const [manualMinutesPerReport, setManualMinutesPerReport] = useState<number>(15);
 
   const fetchAnalyticsData = async () => {
     try {
@@ -127,7 +129,9 @@ export default function AnalyticsPage() {
   // ROI calculations
   const monthlyAiCost =
     monthlyReportsCount * 0.000038 + monthlyRagQueriesCount * 0.003055;
-  const monthlyManualCost = monthlyReportsCount * (10 / 60) * 35;
+  const manualHoursPerReport = manualMinutesPerReport / 60;
+  const monthlyManualCost = monthlyReportsCount * manualHoursPerReport * hourlyEngineerRate;
+  const monthlyReclaimedHours = (monthlyReportsCount * manualHoursPerReport).toFixed(0);
   const savingsPct =
     monthlyManualCost > 0
       ? (((monthlyManualCost - monthlyAiCost) / monthlyManualCost) * 100).toFixed(2)
@@ -632,51 +636,101 @@ export default function AnalyticsPage() {
               {/* Sliders and Comparison Numbers */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
                 <div className="lg:col-span-7 space-y-6">
-                  {/* Slider 1 */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-xs">
-                      <span className="font-medium text-slate-700">Monthly Field Reports:</span>
-                      <span className="font-mono font-bold text-slate-900">
-                        {monthlyReportsCount.toLocaleString()} reports / mo
-                      </span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {/* Slider 1 */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs">
+                        <span className="font-medium text-slate-700">Monthly Field Reports:</span>
+                        <span className="font-mono font-bold text-slate-900">
+                          {monthlyReportsCount.toLocaleString()} / mo
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="100"
+                        max="20000"
+                        step="100"
+                        value={monthlyReportsCount}
+                        onChange={(e) => setMonthlyReportsCount(Number(e.target.value))}
+                        className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900"
+                      />
+                      <div className="flex justify-between text-[10px] text-slate-400">
+                        <span>100 (Pilot)</span>
+                        <span>10k (Refinery)</span>
+                        <span>20k (Mega)</span>
+                      </div>
                     </div>
-                    <input
-                      type="range"
-                      min="100"
-                      max="20000"
-                      step="100"
-                      value={monthlyReportsCount}
-                      onChange={(e) => setMonthlyReportsCount(Number(e.target.value))}
-                      className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900"
-                    />
-                    <div className="flex justify-between text-[10px] text-slate-400">
-                      <span>100 (Pilot)</span>
-                      <span>10,000 (Refinery)</span>
-                      <span>20,000 (Mega Project)</span>
-                    </div>
-                  </div>
 
-                  {/* Slider 2 */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-xs">
-                      <span className="font-medium text-slate-700">Monthly Institutional Memory Queries:</span>
-                      <span className="font-mono font-bold text-slate-900">
-                        {monthlyRagQueriesCount.toLocaleString()} queries / mo
-                      </span>
+                    {/* Slider 2 */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs">
+                        <span className="font-medium text-slate-700">RAG Memory Queries:</span>
+                        <span className="font-mono font-bold text-slate-900">
+                          {monthlyRagQueriesCount.toLocaleString()} / mo
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="20"
+                        max="2000"
+                        step="20"
+                        value={monthlyRagQueriesCount}
+                        onChange={(e) => setMonthlyRagQueriesCount(Number(e.target.value))}
+                        className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900"
+                      />
+                      <div className="flex justify-between text-[10px] text-slate-400">
+                        <span>20</span>
+                        <span>1,000</span>
+                        <span>2,000</span>
+                      </div>
                     </div>
-                    <input
-                      type="range"
-                      min="20"
-                      max="2000"
-                      step="20"
-                      value={monthlyRagQueriesCount}
-                      onChange={(e) => setMonthlyRagQueriesCount(Number(e.target.value))}
-                      className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900"
-                    />
-                    <div className="flex justify-between text-[10px] text-slate-400">
-                      <span>20 queries</span>
-                      <span>1,000 queries</span>
-                      <span>2,000 queries</span>
+
+                    {/* Slider 3: Engineer Hourly Rate */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs">
+                        <span className="font-medium text-slate-700">Planner / Engineer Hourly Rate:</span>
+                        <span className="font-mono font-bold text-slate-900">
+                          ${hourlyEngineerRate}/hr
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="25"
+                        max="150"
+                        step="5"
+                        value={hourlyEngineerRate}
+                        onChange={(e) => setHourlyEngineerRate(Number(e.target.value))}
+                        className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900"
+                      />
+                      <div className="flex justify-between text-[10px] text-slate-400">
+                        <span>$25/hr (Junior)</span>
+                        <span>$75/hr (Senior Lead)</span>
+                        <span>$150/hr (Consultant)</span>
+                      </div>
+                    </div>
+
+                    {/* Slider 4: Manual Reconciliation Time */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs">
+                        <span className="font-medium text-slate-700">Manual Time per Report:</span>
+                        <span className="font-mono font-bold text-slate-900">
+                          {manualMinutesPerReport} mins ({manualHoursPerReport.toFixed(3)}h)
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="5"
+                        max="30"
+                        step="1"
+                        value={manualMinutesPerReport}
+                        onChange={(e) => setManualMinutesPerReport(Number(e.target.value))}
+                        className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900"
+                      />
+                      <div className="flex justify-between text-[10px] text-slate-400">
+                        <span>5 mins</span>
+                        <span>15 mins (Standard)</span>
+                        <span>30 mins</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -714,10 +768,10 @@ export default function AnalyticsPage() {
                   <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-1.5">
                     <span className="font-semibold text-slate-900 block">1. Manual Baseline</span>
                     <p className="text-[11px] text-slate-500 leading-relaxed">
-                      10 mins (0.167 hrs) per report @ $35/hr engineer rate.
+                      {manualMinutesPerReport} mins ({manualHoursPerReport.toFixed(3)} hrs) per report @ ${hourlyEngineerRate}/hr fully burdened engineer rate.
                     </p>
                     <div className="font-mono text-[11px] text-slate-800 pt-1">
-                      {monthlyReportsCount.toLocaleString()} × 0.167h × $35 = <strong>${monthlyManualCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo</strong>
+                      {monthlyReportsCount.toLocaleString()} × {manualHoursPerReport.toFixed(3)}h × ${hourlyEngineerRate} = <strong>${monthlyManualCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo</strong>
                     </div>
                   </div>
 
@@ -737,7 +791,7 @@ export default function AnalyticsPage() {
                       Replaces manual cross-referencing with automated reconciliation in under 400ms.
                     </p>
                     <div className="font-mono text-[11px] text-slate-800 pt-1">
-                      Reclaims <strong>{(monthlyReportsCount * (10 / 60)).toFixed(0)} engineering hrs/mo</strong>
+                      Reclaims <strong>{monthlyReclaimedHours} engineering hrs/mo</strong>
                     </div>
                   </div>
                 </div>
