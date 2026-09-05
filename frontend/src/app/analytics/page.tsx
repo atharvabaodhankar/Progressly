@@ -77,10 +77,10 @@ export default function AnalyticsPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // ROI Calculator state
-  const [monthlyReportsCount, setMonthlyReportsCount] = useState<number>(3000);
-  const [monthlyRagQueriesCount, setMonthlyRagQueriesCount] = useState<number>(300);
-  const [hourlyEngineerRate, setHourlyEngineerRate] = useState<number>(75);
-  const [manualMinutesPerReport, setManualMinutesPerReport] = useState<number>(15);
+  const [monthlyReportsCount, setMonthlyReportsCount] = useState<number>(2000);
+  const [monthlyRagQueriesCount, setMonthlyRagQueriesCount] = useState<number>(200);
+  const [hourlyEngineerRate, setHourlyEngineerRate] = useState<number>(4);
+  const [manualMinutesPerReport, setManualMinutesPerReport] = useState<number>(4);
 
   const fetchAnalyticsData = async () => {
     try {
@@ -688,24 +688,24 @@ export default function AnalyticsPage() {
                     {/* Slider 3: Engineer Hourly Rate */}
                     <div className="space-y-2">
                       <div className="flex justify-between text-xs">
-                        <span className="font-medium text-slate-700">Planner / Engineer Hourly Rate:</span>
+                        <span className="font-medium text-slate-700">Site Supervisor / Clerk Rate:</span>
                         <span className="font-mono font-bold text-slate-900">
                           ${hourlyEngineerRate}/hr
                         </span>
                       </div>
                       <input
                         type="range"
-                        min="25"
-                        max="150"
-                        step="5"
+                        min="1"
+                        max="15"
+                        step="1"
                         value={hourlyEngineerRate}
                         onChange={(e) => setHourlyEngineerRate(Number(e.target.value))}
                         className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900"
                       />
                       <div className="flex justify-between text-[10px] text-slate-400">
-                        <span>$25/hr (Junior)</span>
-                        <span>$75/hr (Senior Lead)</span>
-                        <span>$150/hr (Consultant)</span>
+                        <span>$1/hr (Data Clerk)</span>
+                        <span>$4/hr (Field Sup)</span>
+                        <span>$15/hr (Lead)</span>
                       </div>
                     </div>
 
@@ -714,22 +714,22 @@ export default function AnalyticsPage() {
                       <div className="flex justify-between text-xs">
                         <span className="font-medium text-slate-700">Manual Time per Report:</span>
                         <span className="font-mono font-bold text-slate-900">
-                          {manualMinutesPerReport} mins ({manualHoursPerReport.toFixed(3)}h)
+                          {manualMinutesPerReport} mins ({manualHoursPerReport.toFixed(2)}h)
                         </span>
                       </div>
                       <input
                         type="range"
-                        min="5"
-                        max="30"
+                        min="1"
+                        max="10"
                         step="1"
                         value={manualMinutesPerReport}
                         onChange={(e) => setManualMinutesPerReport(Number(e.target.value))}
                         className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900"
                       />
                       <div className="flex justify-between text-[10px] text-slate-400">
-                        <span>5 mins</span>
-                        <span>15 mins (Standard)</span>
-                        <span>30 mins</span>
+                        <span>1 min (Quick Entry)</span>
+                        <span>4 mins (Avg)</span>
+                        <span>10 mins (Audit)</span>
                       </div>
                     </div>
                   </div>
@@ -768,7 +768,7 @@ export default function AnalyticsPage() {
                   <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-1.5">
                     <span className="font-semibold text-slate-900 block">1. Manual Baseline</span>
                     <p className="text-[11px] text-slate-500 leading-relaxed">
-                      {manualMinutesPerReport} mins ({manualHoursPerReport.toFixed(3)} hrs) per report @ ${hourlyEngineerRate}/hr fully burdened engineer rate.
+                      {manualMinutesPerReport} mins ({manualHoursPerReport.toFixed(3)} hrs) per report @ ${hourlyEngineerRate}/hr field supervisor / clerk rate.
                     </p>
                     <div className="font-mono text-[11px] text-slate-800 pt-1">
                       {monthlyReportsCount.toLocaleString()} × {manualHoursPerReport.toFixed(3)}h × ${hourlyEngineerRate} = <strong>${monthlyManualCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo</strong>
