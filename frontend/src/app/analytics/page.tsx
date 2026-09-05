@@ -747,9 +747,9 @@ export default function AnalyticsPage() {
 
                   <div>
                     <span className="text-xs text-slate-500 block">Manual Engineering Baseline</span>
-                    <div className="text-2xl font-bold text-slate-400 font-mono line-through mt-0.5">
+                    <div className="text-2xl font-bold text-red-600 font-mono mt-0.5">
                       ${monthlyManualCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                      <span className="text-xs font-normal text-slate-400"> / mo</span>
+                      <span className="text-xs font-normal text-red-400"> / mo</span>
                     </div>
                   </div>
 
